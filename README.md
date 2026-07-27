@@ -15,14 +15,72 @@ cmd/
 internal/
 ├── api/
 │   ├── server.go        # App struct, Serve() method, HTTP server config
-│   ├── routes.go        # All route registration and middleware wiring
+│   ├── routes.go        # All route registration, middleware wiring & Swagger UI
 │   ├── health.go        # GET /health endpoint
 │   ├── response.go      # JSON response helpers (writeJSON, writeErr)
 │   └── middleware.go    # Request logging, panic recovery, CORS
 ├── config/config.go     # App configuration loaded from env vars
 ├── database/database.go # Placeholder DB type (swap with pgx / sqlx when ready)
 └── env/env.go           # Safe environment variable helpers (GetString, GetInt, GetBool)
+docs/                    # Auto-generated Swagger/OpenAPI spec (do not edit)
 ```
+
+---
+
+## API documentation (Swagger)
+
+The project uses [swaggo/swag](https://github.com/swaggo/swag) to generate an OpenAPI 2.0 spec from Go annotations, served via a Swagger UI.
+
+### Viewing the docs
+
+```sh
+# Start the server (Swagger UI is enabled by default)
+ENABLE_SWAGGER=true go run ./cmd/api
+
+# Open in your browser:
+#   http://localhost:8080/swagger/
+```
+
+### Annotating a new endpoint
+
+Add Go comments above your handler function:
+
+```go
+// ListUsersResponse represents the response body for the list users endpoint.
+type ListUsersResponse struct {
+	Users []User `json:"users"`
+	Total int    `json:"total" example:"42"`
+}
+
+// listUsersHandler returns a paginated list of users.
+//
+//	@Summary		List users
+//	@Description	Returns all users with pagination.
+//	@Tags			Users
+//	@Produce		json
+//	@Param			page	query	int	false	"Page number"	default(1)
+//	@Param			limit	query	int	false	"Items per page"	default(20)
+//	@Success		200	{object}	ListUsersResponse
+//	@Failure		500	{object}	envelope
+//	@Router			/users [get]
+func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
+	// ...
+}
+```
+
+### Regenerating the spec
+
+```sh
+swag init --dir ./cmd/api,./internal/api --output ./docs --parseDependency --parseInternal
+```
+
+> The `docs/` directory is gitignored and regenerated on demand. CI should run `swag init` before building to ensure the spec is always fresh.
+
+### Config
+
+| Env var | Default | Description |
+|---|---|---|
+| `ENABLE_SWAGGER` | `true` | Set to `false` in production to disable the Swagger UI route. |
 
 ---
 

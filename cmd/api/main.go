@@ -9,7 +9,26 @@ import (
 	"github.com/patiHash1/Strata-prototype/internal/api"
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/database"
+
+	// Auto-registers the swagger spec so http-swagger can serve it.
+	_ "github.com/patiHash1/Strata-prototype/docs"
 )
+
+//	@title			Strata API
+//	@version		0.1.0
+//	@description	ERP-CRM Hybrid API — direct competitor to Odoo.
+//
+//	@contact.name	Strata Support
+//	@contact.email	support@strata.dev
+//
+//	@license.name	MIT
+//	@license.url	https://opensource.org/licenses/MIT
+//
+//	@host			localhost:8080
+//	@BasePath		/
+//
+//	@tag.name		System
+//	@tag.description	System health and meta endpoints.
 
 func main() {
 	// Load configuration from environment.
