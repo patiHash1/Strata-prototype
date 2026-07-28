@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: strata-db-test
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: strata-user
+      POSTGRES_PASSWORD: strata-pass
+      POSTGRES_DB: strata-db-beta
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U strata-user -d strata-db-beta"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

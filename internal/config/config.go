@@ -12,7 +12,6 @@ type DBConfig struct {
 // Config holds all application configuration values.
 type Config struct {
 	Port          int
-	BaseURL       string
 	EnableSwagger bool
 	DB            DBConfig
 	JWTSecret     string
@@ -20,10 +19,12 @@ type Config struct {
 }
 
 // Load reads configuration from environment variables.
+// It loads the .env file before reading so local development works.
 func Load() Config {
+	env.LoadDotenv()
+
 	return Config{
 		Port:          env.GetInt("PORT", 8080),
-		BaseURL:       env.GetString("BASE_URL", "http://localhost:8080"),
 		EnableSwagger: env.GetBool("ENABLE_SWAGGER", true),
 		DB: DBConfig{
 			DSN: env.GetString("DATABASE_URL", ""),

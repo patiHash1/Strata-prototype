@@ -3,7 +3,17 @@ package env
 import (
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
+
+// LoadDotenv reads the .env file in the project root and loads its
+// variables into the process environment. It is safe to call multiple
+// times — subsequent calls are no-ops.
+func LoadDotenv() {
+	// Ignore error — .env file is optional in production.
+	_ = godotenv.Load()
+}
 
 // GetString returns the value of the environment variable named by key,
 // or fallback if it is empty or unset.

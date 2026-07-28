@@ -30,6 +30,9 @@ go.work.sum
 # Swagger generated docs
 docs/
 
+# Local data (compose volume mount target)
+pgdata/
+
 # Editor/IDE
 # .idea/
 # .vscode/

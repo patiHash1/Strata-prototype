@@ -40,37 +40,34 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// ── Database ──
+	// ── Database (required) ──
 	ctx := context.Background()
 
-	var db *database.DB
-	if cfg.DB.DSN != "" {
-		var err error
-		db, err = database.New(ctx, cfg.DB.DSN)
-		if err != nil {
-			log.Fatalf("database connection failed: %v", err)
-		}
-		defer db.Close()
-		log.Println("database connected")
-	} else {
-		log.Println("no DATABASE_URL set — running without database")
+	if cfg.DB.DSN == "" {
+		log.Fatal("DATABASE_URL is required")
 	}
+
+	db, err := database.New(ctx, cfg.DB.DSN)
+	if err != nil {
+		log.Fatalf("database connection failed: %v", err)
+	}
+	defer db.Close()
+	log.Println("database connected")
+
+	// ── Run migrations ──
+	log.Println("running migrations…")
+	if err := db.Migrate(ctx); err != nil {
+		log.Fatalf("migration failed: %v", err)
+	}
+	log.Println("migrations complete")
 
 	// ── Services ──
-	var authSvc *services.AuthService
-	var userSvc *services.UserService
-	var orgSvc *services.OrgService
-	var rbacSvc *services.RBACService
-	var billingSvc *services.BillingService
+	authSvc := services.NewAuthService(cfg.JWTSecret, cfg.JWTIssuer)
+	userSvc := services.NewUserService(db.Pool)
+	orgSvc := services.NewOrgService(db.Pool)
+	rbacSvc := services.NewRBACService(db.Pool)
+	billingSvc := services.NewBillingService(db.Pool)
 	mailerSvc := services.NewMailer()
-
-	if db != nil {
-		authSvc = services.NewAuthService(cfg.JWTSecret, cfg.JWTIssuer)
-		userSvc = services.NewUserService(db.Pool)
-		orgSvc = services.NewOrgService(db.Pool)
-		rbacSvc = services.NewRBACService(db.Pool)
-		billingSvc = services.NewBillingService(db.Pool)
-	}
 
 	// ── Application ──
 	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc)
