@@ -8,21 +8,51 @@ Building Strata — the frontier ERP-CRM Hybrid, direct competitor to Odoo.
 
 ```
 cmd/
-├── api/main.go          # Entry point. Wires config, database, and starts the server.
+├── api/main.go          # Entry point. Wires config, database, services, and starts the server.
 ├── cli/                 # CLI commands (future — admin tasks, data imports, etc.)
 └── migrate/             # Database migrations (future)
 
 internal/
-├── api/
-│   ├── server.go        # App struct, Serve() method, HTTP server config
-│   ├── routes.go        # All route registration, middleware wiring & Swagger UI
-│   ├── health.go        # GET /health endpoint
-│   ├── response.go      # JSON response helpers (writeJSON, writeErr)
-│   └── middleware.go    # Request logging, panic recovery, CORS
+├── services/            # BUSINESS LAYER — service + repository per domain
+│   ├── services_auth.go     # AuthService: JWT, bcrypt
+│   ├── services_users.go    # UserService: users, organization memberships
+│   ├── services_orgs.go     # OrgService: organizations, invitations, API keys
+│   ├── services_rbac.go     # RBACService: roles, permissions
+│   ├── services_billing.go  # BillingService: subscriptions
+│   └── services_mailer.go   # Mailer: transactional email (stub)
+│
+├── handlers/            # HTTP LAYER — handlers, routes, App wiring
+│   ├── handlers_server.go   # App struct, New(), Serve() — all dependency injection
+│   ├── handlers_routes.go   # Route registration + middleware stack + Swagger UI
+│   ├── handlers_health.go   # GET /health
+│   ├── handlers_auth.go     # POST auth/register, POST auth/login
+│   ├── handlers_org.go      # POST org/invitations, org/roles, org/api-keys
+│   └── handlers_billing.go  # POST billing/subscriptions
+│
+├── utils/               # SHARED HELPERS — no business logic
+│   ├── response.go      # WriteJSON, WriteErr, Envelope type
+│   ├── middleware.go     # RequireAuth, RequirePermission, Logging, CORS, Recovery
+│   └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
+│
 ├── config/config.go     # App configuration loaded from env vars
-├── database/database.go # Placeholder DB type (swap with pgx / sqlx when ready)
+├── database/database.go # pgx connection pool (real, not a placeholder)
 └── env/env.go           # Safe environment variable helpers (GetString, GetInt, GetBool)
+
 docs/                    # Auto-generated Swagger/OpenAPI spec (do not edit)
+```
+
+### Package dependency flow
+
+```
+cmd/api/main.go
+    │
+    ├── internal/config       (env → struct)
+    ├── internal/database     (pgx pool)
+    ├── internal/services     (business logic + DB queries)
+    │   └── depends on: database
+    ├── internal/handlers     (HTTP handlers + App struct)
+    │   └── depends on: services, utils, config, database
+    └── internal/utils        (pure helpers — no dependencies)
 ```
 
 ---
@@ -43,13 +73,13 @@ ENABLE_SWAGGER=true go run ./cmd/api
 
 ### Annotating a new endpoint
 
-Add Go comments above your handler function:
+Add Go comments above your handler function in `internal/handlers/`:
 
 ```go
 // ListUsersResponse represents the response body for the list users endpoint.
 type ListUsersResponse struct {
-	Users []User `json:"users"`
-	Total int    `json:"total" example:"42"`
+	Users []services.User `json:"users"`
+	Total int             `json:"total" example:"42"`
 }
 
 // listUsersHandler returns a paginated list of users.
@@ -61,7 +91,7 @@ type ListUsersResponse struct {
 //	@Param			page	query	int	false	"Page number"	default(1)
 //	@Param			limit	query	int	false	"Items per page"	default(20)
 //	@Success		200	{object}	ListUsersResponse
-//	@Failure		500	{object}	envelope
+//	@Failure		500	{object}	utils.Envelope
 //	@Router			/users [get]
 func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// ...
@@ -71,7 +101,7 @@ func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 ### Regenerating the spec
 
 ```sh
-swag init --dir ./cmd/api,./internal/api --output ./docs --parseDependency --parseInternal
+swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency --parseInternal
 ```
 
 > The `docs/` directory is gitignored and regenerated on demand. CI should run `swag init` before building to ensure the spec is always fresh.
@@ -81,29 +111,37 @@ swag init --dir ./cmd/api,./internal/api --output ./docs --parseDependency --par
 | Env var | Default | Description |
 |---|---|---|
 | `ENABLE_SWAGGER` | `true` | Set to `false` in production to disable the Swagger UI route. |
+| `JWT_SECRET` | `dev-secret-change-in-production` | HMAC signing key for JWTs |
+| `DATABASE_URL` | `""` | Postgres connection string (if empty, runs DB-less) |
 
 ---
 
 ## Adding a new endpoint
 
-### 1. Create a handler file in `internal/api/`
+### 1. Create a handler file in `internal/handlers/`
 
 ```go
-// internal/api/users.go
-package api
+// internal/handlers/handlers_users.go
+package handlers
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/patiHash1/Strata-prototype/internal/utils"
+)
 
 func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 	// Business logic goes here.
-	data := envelope{
+	data := utils.Envelope{
 		"users": []string{},
 	}
-	writeJSON(w, http.StatusOK, data)
+	utils.WriteJSON(w, http.StatusOK, data)
 }
 ```
 
-### 2. Register the route in `internal/api/routes.go`
+> **File naming:** `handlers_<category>.go` — one file per endpoint category (auth, org, billing, etc.)
+
+### 2. Register the route in `internal/handlers/handlers_routes.go`
 
 ```go
 func (a *App) routes() http.Handler {
@@ -112,84 +150,155 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /health", a.healthHandler)
 	mux.HandleFunc("GET /users", a.listUsersHandler)   // <-- add here
 
-	// ...
+	// ... protected routes with middleware ...
 }
 ```
 
-> **Naming convention:** `HandleFunc("METHOD /path", a.resourceActionHandler)`
+### 3. Add permission-gated routes
 
-### 3. Group routes by resource when the list grows
-
-When a resource has many endpoints (e.g. CRUD for users), extract a helper method:
+Protected routes use the middleware stack directly in the route registration:
 
 ```go
-// internal/api/routes.go
-func (a *App) routes() http.Handler {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /health", a.healthHandler)
-	a.registerUserRoutes(mux)   // groups GET/POST/PUT/DELETE /users & /users/{id}
-
-	return a.withMiddleware(mux)
-}
-
-func (a *App) registerUserRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /users", a.listUsersHandler)
-	mux.HandleFunc("POST /users", a.createUserHandler)
-	mux.HandleFunc("GET /users/{id}", a.getUserHandler)
-	mux.HandleFunc("PUT /users/{id}", a.updateUserHandler)
-	mux.HandleFunc("DELETE /users/{id}", a.deleteUserHandler)
-}
+mux.Handle("POST /api/v1/users",
+    utils.RequireAuth(a.Auth)(
+        utils.RequirePermission(services.PermUsersInvite)(
+            http.HandlerFunc(a.inviteHandler),
+        ),
+    ),
+)
 ```
 
 ---
 
 ## Adding a new feature (service layer)
 
-For non-trivial business logic, add a service package under `internal/`:
+For non-trivial business logic with database access, add a service file under `internal/services/`:
 
 ```
-internal/
-├── api/
-├── auth/        # Authentication & authorization
-├── billing/     # Invoicing, subscriptions
-├── crm/         # Leads, deals, pipeline logic
-├── erp/         # Inventory, orders, MRP
-└── users/       # User management & profiles
+internal/services/
+├── services_auth.go
+├── services_users.go
+├── services_orgs.go
+├── services_rbac.go
+├── services_billing.go
+├── services_mailer.go
+└── services_crm.go       # <-- new feature
 ```
 
-Services are plain Go structs called from handlers:
+A service file contains its own types, repository (SQL queries), and exported service struct:
 
 ```go
-// internal/users/service.go
-package users
+// internal/services/services_crm.go
+package services
 
-type Service struct {
-	repo *Repository
+import (
+	"context"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// ---- Types ----
+
+type Lead struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
 }
 
-func (s *Service) List(ctx context.Context) ([]User, error) { ... }
-func (s *Service) GetByID(ctx context.Context, id string) (*User, error) { ... }
+// ---- Repository ----
 
-// internal/api/users.go
-func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
-	users, err := a.Users.List(r.Context())
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "could not list users")
+type crmRepository struct {
+	pool *pgxpool.Pool
+}
+
+func newCRMRepository(pool *pgxpool.Pool) *crmRepository {
+	return &crmRepository{pool: pool}
+}
+
+func (r *crmRepository) Create(ctx context.Context, l *Lead) error {
+	// ... SQL ...
+}
+
+// ---- Service ----
+
+type CRMService struct {
+	repo *crmRepository
+}
+
+func NewCRMService(pool *pgxpool.Pool) *CRMService {
+	return &CRMService{repo: newCRMRepository(pool)}
+}
+
+func (s *CRMService) Create(ctx context.Context, name, email string) (*Lead, error) {
+	// ... business logic ...
+}
+```
+
+### Wire the new service
+
+**Step 1 — Add field to `App` in `internal/handlers/handlers_server.go`:**
+
+```go
+type App struct {
+	Config  config.Config
+	DB      *database.DB
+	Auth    *services.AuthService
+	Users   *services.UserService
+	Orgs    *services.OrgService
+	RBAC    *services.RBACService
+	Billing *services.BillingService
+	Mailer  *services.Mailer
+	CRM     *services.CRMService       // <-- new field
+	server  *http.Server
+}
+```
+
+**Step 2 — Add constructor parameter in `New()`:**
+
+```go
+func New(
+	cfg config.Config,
+	db *database.DB,
+	authSvc *services.AuthService,
+	userSvc *services.UserService,
+	orgSvc *services.OrgService,
+	rbacSvc *services.RBACService,
+	billingSvc *services.BillingService,
+	mailerSvc *services.Mailer,
+	crmSvc *services.CRMService,   // <-- new parameter
+) *App {
+	return &App{
+		// ...
+		CRM: crmSvc,
+	}
+}
+```
+
+**Step 3 — Create service in `cmd/api/main.go`:**
+
+```go
+crmSvc := services.NewCRMService(db.Pool)
+
+app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc)
+```
+
+### Use the service from a handler
+
+```go
+// internal/handlers/handlers_crm.go
+func (a *App) createLeadHandler(w http.ResponseWriter, r *http.Request) {
+	var req createLeadRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	writeJSON(w, http.StatusOK, envelope{"users": users})
-}
-```
 
-Wire the service into `App`:
+	lead, err := a.CRM.Create(r.Context(), req.Name, req.Email)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create lead")
+		return
+	}
 
-```go
-// internal/api/server.go
-type App struct {
-	Config config.Config
-	DB     *database.DB
-	Users  *users.Service   // <-- add field
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"lead": lead})
 }
 ```
 
@@ -199,49 +308,27 @@ This keeps handlers thin — they parse input, call a service, write output. Bus
 
 ## Adding a utility or helper
 
-### Internal helpers (used across the app)
-
-Put shared utilities inside a package under `internal/utils`:
+Shared utilities live in `internal/utils/` and have no dependencies on other project packages:
 
 ```
 internal/utils/
-├── validate.go     # Input validation helpers
-├── paginate.go      # Pagination helpers (page, limit, offset)
-├── filter.go        # Query filtering / sorting helpers
-├── respond.gp       # Extended response helpers (pagination meta, errors)
-└── types.go        # Shared domain types
+├── response.go      # WriteJSON, WriteErr, Envelope
+├── middleware.go    # RequireAuth, RequirePermission, Logging, CORS, Recovery, GetClaims
+└── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 ```
 
-Example — pagination helper:
+Handlers call utils directly:
 
 ```go
-// internal/utils/paginate.go
-package paginate
-
-type Params struct {
-	Page   int
-	Limit  int
-	Offset int
-}
-
-func FromRequest(r *http.Request) Params { ... }
-func (p Params) SQL() string             { return fmt.Sprintf("LIMIT %d OFFSET %d", p.Limit, p.Offset) }
+utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+    "users": users,
+})
 ```
 
-### Handlers should stay thin — delegate to helpers
-
 ```go
-func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
-	p := paginate.FromRequest(r)
-	users, total, err := a.Users.List(r.Context(), p)
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, "could not list users")
-		return
-	}
-	writeJSON(w, http.StatusOK, envelope{
-		"users":      users,
-		"pagination": envelope{"page": p.Page, "limit": p.Limit, "total": total},
-	})
+if !utils.NotBlank(req.Name) {
+    utils.WriteErr(w, http.StatusBadRequest, "name is required")
+    return
 }
 ```
 
@@ -249,7 +336,7 @@ func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 ## Adding middleware
 
-### 1. Write the middleware function in `internal/api/middleware.go`
+### 1. Write the middleware function in `internal/utils/middleware.go`
 
 ```go
 func rateLimitMiddleware(next http.Handler) http.Handler {
@@ -260,74 +347,77 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 }
 ```
 
-### 2. Wire it in `routes.go`
+### 2. Wire it in `internal/handlers/handlers_routes.go`
 
 ```go
 func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /health", a.healthHandler)
-	// ...
+	// ... routes ...
 
-	handler := http.Handler(mux)
-	handler = corsMiddleware(handler)
-	handler = rateLimitMiddleware(handler)   // <-- add here (order matters)
-	handler = loggingMiddleware(handler)
-	handler = recoveryMiddleware(handler)
+	// Stack middleware (outermost first):
+	var handler http.Handler = mux
+	handler = utils.CORSMiddleware(handler)
+	handler = utils.LoggingMiddleware(handler)
+	handler = utils.RecoveryMiddleware(handler)
 	return handler
 }
 ```
 
 **Middleware runs outside-in.** The first wrapped middleware runs outermost (last to run).
 
+### Per-route middleware
+
+Auth and permission checks are applied per-route:
+
+```go
+mux.Handle("POST /api/v1/org/invitations",
+    utils.RequireAuth(a.Auth)(
+        utils.RequirePermission(services.PermUsersInvite)(
+            http.HandlerFunc(a.inviteHandler),
+        ),
+    ),
+)
+```
+
 ---
 
 ## Adding a new database table
 
-### 1. Add an `internal/<resource>/repository.go`
+### 1. Add service + repository in `internal/services/services_<domain>.go`
+
+The service file contains everything: types, repository struct with SQL, and exported service.
 
 ```go
-// internal/users/repository.go
-package users
+// internal/services/services_crm.go
+package services
 
-import "github.com/patiHash1/Strata-prototype/internal/database"
-
-type Repository struct {
-	db *database.DB
+type Lead struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
-func NewRepository(db *database.DB) *Repository {
-	return &Repository{db: db}
+type crmRepository struct {
+	pool *pgxpool.Pool
 }
 
-func (r *Repository) FindAll(ctx context.Context) ([]User, error) { ... }
-func (r *Repository) FindByID(ctx context.Context, id string) (*User, error) { ... }
-```
-
-### 2. Wire repository → service → handler
-
-```go
-// internal/users/service.go
-type Service struct {
-	repo *Repository
+func (r *crmRepository) Create(ctx context.Context, l *Lead) error {
+	_, err := r.pool.Exec(ctx, `INSERT INTO leads ...`, ...)
+	return err
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+type CRMService struct {
+	repo *crmRepository
+}
+
+func NewCRMService(pool *pgxpool.Pool) *CRMService {
+	return &CRMService{repo: &crmRepository{pool: pool}}
 }
 ```
 
-```go
-// cmd/api/main.go
-db   := database.New(cfg.DatabaseURL)
-userRepo := users.NewRepository(db)
-userSvc  := users.NewService(userRepo)
+### 2. Wire in `handlers_server.go` and `cmd/api/main.go`
 
-app := api.App{
-	Config: cfg,
-	DB:     db,
-	Users:  userSvc,
-}
-```
+Add the field to `App`, add the constructor parameter, create the service in main.
 
 ---
 
@@ -338,12 +428,13 @@ All configuration lives in `internal/config/config.go` loaded via `internal/env/
 ```go
 // Adding a new config field:
 type Config struct {
-	Port int
-	DB   DBConfig
+	Port    int
+	BaseURL string
+	DB      DBConfig
+	JWTSecret string
 
 	// New:
-	JWTSecret string
-	SMTPHost  string
+	SMTPHost string
 }
 ```
 
@@ -352,10 +443,7 @@ Populate from env:
 ```go
 func Load() Config {
 	return Config{
-		Port: env.GetInt("PORT", 8080),
-		DB: DBConfig{
-			DSN: env.GetString("DATABASE_URL", ""),
-		},
+		Port:    env.GetInt("PORT", 8080),
 		JWTSecret: env.GetString("JWT_SECRET", "change-me"),
 		SMTPHost:  env.GetString("SMTP_HOST", ""),
 	}
@@ -369,7 +457,7 @@ func Load() Config {
 - **Success:** `{"key": value}` with the response data directly as a top-level key.
 - **Error:** `{"error": "message"}`
 - **Pagination:** include a `pagination` key alongside the data key.
-- **Always** use `writeJSON` / `writeErr` from `internal/api/response.go`.
+- **Always** use `utils.WriteJSON` / `utils.WriteErr` with the `utils.Envelope` type.
 
 ---
 
@@ -378,11 +466,13 @@ func Load() Config {
 | Convention | Guidance |
 |---|---|
 | **Go version** | 1.26 (match `go.mod`) |
-| **Package name** | Lowercase, short, no underscores — `users`, `auth`, `crm` |
-| **File naming** | Singular, descriptive — `service.go`, `repository.go`, `handler.go` |
+| **Services package** | `internal/services/` — types, repos, business logic |
+| **Handlers package** | `internal/handlers/` — HTTP handlers, routes, App struct |
+| **Utils package** | `internal/utils/` — response helpers, middleware, validators |
+| **File naming** | `services_<domain>.go`, `handlers_<category>.go` |
 | **Handler signature** | Always `func (a *App) actionHandler(w http.ResponseWriter, r *http.Request)` |
+| **Service constructor** | Accepts `*pgxpool.Pool` directly — `NewXxxService(pool)` |
 | **Service signature** | Always accept `context.Context` as the first argument |
-| **Tests** | Place next to the file — `service_test.go`, `handler_test.go` |
 | **Error handling** | Services return errors; handlers translate them to HTTP responses |
 | **No global state** | Everything lives on `App` or is injected via constructor |
 
@@ -392,13 +482,16 @@ func Load() Config {
 
 ```sh
 # Standard
-go run ./cmd/api
+DATABASE_URL=postgres://... JWT_SECRET=your-secret go run ./cmd/api
 
 # With air (hot-reload, uses .air.toml)
 air
 
 # Smoke test
 curl http://localhost:8080/health
+
+# Swagger UI
+open http://localhost:8080/swagger/
 ```
 
 ---
@@ -407,6 +500,5 @@ curl http://localhost:8080/health
 
 - **cmd/cli/** — standalone CLI commands (user creation, data exports, cron jobs).
 - **cmd/migrate/** — database migration runner using `golang-migrate` or similar.
-- **internal/mailer/** — transactional email (SMTP or SendGrid/Mailgun).
-- **internal/events/** — background job queue (async email, webhooks, reports).
+- **internal/services/services_events.go** — background job queue (async email, webhooks, reports).
 - **internal/test/** — shared test fixtures, factories, and helpers.

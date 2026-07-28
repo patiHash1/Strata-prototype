@@ -3,28 +3,49 @@ package database
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// DB is a placeholder database handle.
-// Replace with your actual driver (pgx, database/sql, etc.) when ready.
+// DB wraps a pgx connection pool and provides a common handle
+// for all repository packages.
 type DB struct {
-	DSN string
+	Pool *pgxpool.Pool
 }
 
-// New creates a new DB placeholder.
-func New(dsn string) *DB {
-	return &DB{DSN: dsn}
+// New creates a new connection pool from the provided DSN.
+// The context is used for the initial connection attempt.
+func New(ctx context.Context, dsn string) (*DB, error) {
+	cfg, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("parse pool config: %w", err)
+	}
+
+	cfg.MaxConns = 25
+	cfg.MinConns = 5
+	cfg.MaxConnLifetime = 30 * time.Minute
+	cfg.MaxConnIdleTime = 5 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("create connection pool: %w", err)
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping database: %w", err)
+	}
+
+	return &DB{Pool: pool}, nil
 }
 
-// Ping checks connectivity. Stub implementation.
+// Ping checks database connectivity.
 func (db *DB) Ping(ctx context.Context) error {
-	// TODO: implement real ping once a driver is wired in.
-	_ = ctx
-	return fmt.Errorf("database not yet configured")
+	return db.Pool.Ping(ctx)
 }
 
-// Close tears down the connection. Stub implementation.
-func (db *DB) Close() error {
-	// TODO: implement real close.
-	return nil
+// Close shuts down the connection pool.
+func (db *DB) Close() {
+	db.Pool.Close()
 }

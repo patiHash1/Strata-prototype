@@ -6,9 +6,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/patiHash1/Strata-prototype/internal/api"
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/database"
+	"github.com/patiHash1/Strata-prototype/internal/handlers"
+	"github.com/patiHash1/Strata-prototype/internal/services"
 
 	// Auto-registers the swagger spec so http-swagger can serve it.
 	_ "github.com/patiHash1/Strata-prototype/docs"
@@ -29,24 +30,58 @@ import (
 //
 //	@tag.name		System
 //	@tag.description	System health and meta endpoints.
+//	@tag.name		Auth
+//	@tag.description	Authentication, registration, and multi-tenancy.
+//	@tag.name		Organizations
+//	@tag.description	Organization management, roles, members, API keys.
+//	@tag.name		Billing
+//	@tag.description	Subscription and billing management.
 
 func main() {
-	// Load configuration from environment.
 	cfg := config.Load()
 
-	// Database is optional at this stage — pass nil to skip DB checks.
+	// ── Database ──
+	ctx := context.Background()
+
 	var db *database.DB
+	if cfg.DB.DSN != "" {
+		var err error
+		db, err = database.New(ctx, cfg.DB.DSN)
+		if err != nil {
+			log.Fatalf("database connection failed: %v", err)
+		}
+		defer db.Close()
+		log.Println("database connected")
+	} else {
+		log.Println("no DATABASE_URL set — running without database")
+	}
 
-	// Build the application.
-	app := api.New(cfg, db)
+	// ── Services ──
+	var authSvc *services.AuthService
+	var userSvc *services.UserService
+	var orgSvc *services.OrgService
+	var rbacSvc *services.RBACService
+	var billingSvc *services.BillingService
+	mailerSvc := services.NewMailer()
 
-	// Listen for OS signals for graceful shutdown.
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	if db != nil {
+		authSvc = services.NewAuthService(cfg.JWTSecret, cfg.JWTIssuer)
+		userSvc = services.NewUserService(db.Pool)
+		orgSvc = services.NewOrgService(db.Pool)
+		rbacSvc = services.NewRBACService(db.Pool)
+		billingSvc = services.NewBillingService(db.Pool)
+	}
+
+	// ── Application ──
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc)
+
+	// ── Signals ──
+	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	log.Printf("starting Strata API (port %d)", cfg.Port)
 
-	if err := app.Serve(ctx); err != nil {
+	if err := app.Serve(sigCtx); err != nil {
 		log.Fatalf("server exited: %v", err)
 	}
 }
