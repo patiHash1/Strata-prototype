@@ -182,7 +182,8 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('users.invite',   'users', 'Invite team members to the organization'),
 					('rbac.manage',    'rbac',  'Create and manage roles and permissions'),
 					('apikeys.manage', 'apikeys', 'Generate and revoke API keys'),
-					('billing.manage', 'billing', 'Manage subscriptions and billing')
+					('billing.manage', 'billing', 'Manage subscriptions and billing'),
+					('users.manage',  'users',  'Manage organization members (update role, deactivate)')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}

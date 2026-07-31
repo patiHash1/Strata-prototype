@@ -103,6 +103,28 @@ func (r *userRepository) UpdateMemberRole(ctx context.Context, memberID, roleID 
 	return err
 }
 
+func (r *userRepository) DeactivateMember(ctx context.Context, memberID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE organization_members SET is_active = false WHERE id = $1`, memberID)
+	return err
+}
+
+func (r *userRepository) RemoveMember(ctx context.Context, memberID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM organization_members WHERE id = $1`, memberID)
+	return err
+}
+
+func (r *userRepository) GetMemberByID(ctx context.Context, memberID uuid.UUID) (*OrganizationMember, error) {
+	m := &OrganizationMember{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, user_id, role_id, is_active, joined_at
+		FROM organization_members WHERE id = $1
+	`, memberID).Scan(&m.ID, &m.OrgID, &m.UserID, &m.RoleID, &m.IsActive, &m.JoinedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return m, err
+}
+
 func (r *userRepository) ListMembersByUser(ctx context.Context, userID uuid.UUID) ([]OrganizationMember, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, org_id, user_id, role_id, is_active, joined_at
@@ -174,6 +196,18 @@ func (s *UserService) UpdateMemberRole(ctx context.Context, memberID, roleID uui
 	return s.repo.UpdateMemberRole(ctx, memberID, roleID)
 }
 
+func (s *UserService) DeactivateMember(ctx context.Context, memberID uuid.UUID) error {
+	return s.repo.DeactivateMember(ctx, memberID)
+}
+
+func (s *UserService) RemoveMember(ctx context.Context, memberID uuid.UUID) error {
+	return s.repo.RemoveMember(ctx, memberID)
+}
+
+func (s *UserService) GetMemberByID(ctx context.Context, memberID uuid.UUID) (*OrganizationMember, error) {
+	return s.repo.GetMemberByID(ctx, memberID)
+}
+
 func (s *UserService) ListMembersByUser(ctx context.Context, userID uuid.UUID) ([]OrganizationMember, error) {
 	return s.repo.ListMembersByUser(ctx, userID)
 }
@@ -181,4 +215,6 @@ func (s *UserService) ListMembersByUser(ctx context.Context, userID uuid.UUID) (
 // Domain errors
 var (
 	ErrEmailAlreadyExists = errors.New("user with this email already exists")
+	ErrMemberNotFound     = errors.New("organization member not found")
+	ErrMemberNotInOrg     = errors.New("member does not belong to this organization")
 )

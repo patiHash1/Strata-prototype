@@ -481,8 +481,9 @@ func Load() Config {
 ## Running the project
 
 ```sh
+docker compose up -d
 # Standard
-DATABASE_URL=postgres://... JWT_SECRET=your-secret go run ./cmd/api
+go run ./cmd/api
 
 # With air (hot-reload, uses .air.toml)
 air

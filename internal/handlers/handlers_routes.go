@@ -50,6 +50,31 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Organization member management ──
+	mux.Handle("PATCH /api/v1/org/members/{member_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermUsersManage)(
+				http.HandlerFunc(a.updateMemberHandler),
+			),
+		),
+	)
+
+	mux.Handle("DELETE /api/v1/org/members/{member_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermUsersManage)(
+				http.HandlerFunc(a.deleteMemberHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/org/members/{member_id}/remove",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermUsersManage)(
+				http.HandlerFunc(a.removeMemberHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(
