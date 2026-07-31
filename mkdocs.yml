@@ -1,0 +1,44 @@
+site_name: Strata API Documentation
+site_description: Documentation for the Strata ERP-CRM Hybrid API
+site_author: Strata Team
+repo_url: https://github.com/patiHash1/Strata-prototype
+edit_uri: blob/main/documentation/
+
+docs_dir: documentation
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - API Reference:
+      - Authentication: api/authentication.md
+      - Organizations: api/organizations.md
+      - Members: api/members.md
+      - Billing: api/billing.md
+      - System: api/system.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Database: architecture/database.md
+      - Middleware: architecture/middleware.md
+      - Services: architecture/services.md
+  - Development:
+      - Setup: development/setup.md
+      - Adding Endpoints: development/adding-endpoints.md
+      - Adding Services: development/adding-services.md
+      - Adding Migrations: development/adding-migrations.md
+      - Conventions: development/conventions.md
+
+theme:
+  name: readthedocs
+  highlightjs: true
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.details
+
+extra:
+  version: 0.1.0
