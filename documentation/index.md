@@ -13,6 +13,7 @@ The project is in early prototype stage. The API is under active development and
 - [Organization Management](api/organizations.md)
 - [Member Management](api/members.md)
 - [Billing](api/billing.md)
+- [CRM & Revenue](api/crm.md)
 - [System Health](api/system.md)
 - [Architecture Overview](architecture/overview.md)
 - [Database Schema](architecture/database.md)

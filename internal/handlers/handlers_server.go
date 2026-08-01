@@ -22,6 +22,7 @@ type App struct {
 	RBAC    *services.RBACService
 	Billing *services.BillingService
 	Mailer  *services.Mailer
+	CRM     *services.CRMService
 	server  *http.Server
 }
 
@@ -35,6 +36,7 @@ func New(
 	rbacSvc *services.RBACService,
 	billingSvc *services.BillingService,
 	mailerSvc *services.Mailer,
+	crmSvc *services.CRMService,
 ) *App {
 	return &App{
 		Config:  cfg,
@@ -45,6 +47,7 @@ func New(
 		RBAC:    rbacSvc,
 		Billing: billingSvc,
 		Mailer:  mailerSvc,
+		CRM:     crmSvc,
 	}
 }
 

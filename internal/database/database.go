@@ -175,6 +175,79 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "create_crm_contacts",
+			sql: `
+				CREATE TABLE IF NOT EXISTS crm_contacts (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					first_name VARCHAR(100) NOT NULL,
+					last_name VARCHAR(100),
+					email VARCHAR(255),
+					phone VARCHAR(50),
+					company_name VARCHAR(255),
+					assigned_to UUID REFERENCES users(id),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_crm_deals",
+			sql: `
+				CREATE TABLE IF NOT EXISTS crm_deals (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					contact_id UUID REFERENCES crm_contacts(id) ON DELETE CASCADE,
+					title VARCHAR(255) NOT NULL,
+					amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+					stage VARCHAR(50) NOT NULL,
+					ai_win_probability INT,
+					assigned_to UUID REFERENCES users(id),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_crm_quotes",
+			sql: `
+				CREATE TABLE IF NOT EXISTS crm_quotes (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					deal_id UUID REFERENCES crm_deals(id) ON DELETE CASCADE,
+					quote_number VARCHAR(100) NOT NULL,
+					total_amount DECIMAL(12, 2) NOT NULL,
+					ai_risk_score DECIMAL(5,2),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_crm_helpdesk_tickets",
+			sql: `
+				CREATE TABLE IF NOT EXISTS crm_helpdesk_tickets (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					contact_id UUID REFERENCES crm_contacts(id),
+					subject VARCHAR(255) NOT NULL,
+					description TEXT NOT NULL,
+					priority VARCHAR(50) DEFAULT 'medium',
+					status VARCHAR(50) DEFAULT 'open',
+					ai_sentiment_score DECIMAL(3, 2),
+					ai_suggested_response TEXT,
+					assigned_to UUID REFERENCES users(id),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_crm_campaigns",
+			sql: `
+				CREATE TABLE IF NOT EXISTS crm_campaigns (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					name VARCHAR(255) NOT NULL,
+					channel VARCHAR(50) NOT NULL,
+					ai_target_segment_criteria JSONB,
+					budget DECIMAL(12, 2),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
 			name: "seed_default_permissions",
 			sql: `
 				INSERT INTO permissions (permission_key, module, description)
@@ -183,7 +256,9 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('rbac.manage',    'rbac',  'Create and manage roles and permissions'),
 					('apikeys.manage', 'apikeys', 'Generate and revoke API keys'),
 					('billing.manage', 'billing', 'Manage subscriptions and billing'),
-					('users.manage',  'users',  'Manage organization members (update role, deactivate)')
+					('users.manage',  'users',  'Manage organization members (update role, deactivate)'),
+					('crm.leads.write',  'crm',  'Create and manage CRM leads'),
+					('crm.quotes.write', 'crm',  'Manage and analyze CRM quotes')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}

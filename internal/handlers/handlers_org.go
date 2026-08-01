@@ -24,9 +24,11 @@ type inviteRequest struct {
 //	@Tags			Organizations
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			body	body	inviteRequest	true	"Invitation payload"
 //	@Success		201	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/org/invitations [post]
 func (a *App) inviteHandler(w http.ResponseWriter, r *http.Request) {
@@ -98,9 +100,11 @@ type createRoleRequest struct {
 //	@Tags			Organizations
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			body	body	createRoleRequest	true	"Role payload"
 //	@Success		201	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/org/roles [post]
 func (a *App) createRoleHandler(w http.ResponseWriter, r *http.Request) {
@@ -167,10 +171,12 @@ type updateMemberRequest struct {
 //	@Tags			Organizations
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			member_id	path	string	true	"Member ID"
 //	@Param			body		body	updateMemberRequest	true	"Update payload"
 //	@Success		200	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/org/members/{member_id} [patch]
@@ -258,9 +264,11 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 //	@Description	Deactivates (soft-deletes) a member account. Requires `users.manage` permission.
 //	@Tags			Organizations
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			member_id	path	string	true	"Member ID"
 //	@Success		200	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/org/members/{member_id} [delete]
@@ -329,9 +337,11 @@ func (a *App) deleteMemberHandler(w http.ResponseWriter, r *http.Request) {
 //	@Description	Removes a member from the organization's member list without deleting the user account. Requires `users.manage` permission.
 //	@Tags			Organizations
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			member_id	path	string	true	"Member ID"
 //	@Success		200	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/org/members/{member_id}/remove [post]
@@ -399,9 +409,11 @@ type createAPIKeyRequest struct {
 //	@Tags			Organizations
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			body	body	createAPIKeyRequest	true	"API key payload"
 //	@Success		201	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/org/api-keys [post]
 func (a *App) createAPIKeyHandler(w http.ResponseWriter, r *http.Request) {

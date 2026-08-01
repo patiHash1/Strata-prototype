@@ -144,6 +144,8 @@ PermUsersManage   = "users.manage"
 PermRBACManage    = "rbac.manage"
 PermAPIKeysManage = "apikeys.manage"
 PermBillingManage = "billing.manage"
+PermCRMLeadsWrite  = "crm.leads.write"
+PermCRMQuotesWrite = "crm.quotes.write"
 ```
 
 ## BillingService
@@ -161,6 +163,67 @@ Manages subscriptions.
 - `ErrSubNotFound` — subscription not found
 
 **Subscription statuses:** `active`, `past_due`, `canceled`, `trialing`
+
+## CRMService
+
+**File:** `services_crm.go`
+
+Manages CRM contacts (leads), deals, quotes, and AI-powered scoring/risk analysis.
+
+| Method | Description |
+|---|---|
+| `CreateLead(ctx, orgID, firstName, lastName, email, companyName, estimatedDealSize)` | Creates a contact, triggers AI win probability scoring, and creates a linked deal |
+| `AnalyzeContractRisk(ctx, orgID, quoteID, contractText)` | Runs AI risk analysis on a quote's contract text, returns risk score + flagged clauses |
+
+**Domain errors:**
+- `ErrQuoteNotFound` — quote not found
+- `ErrQuoteNotInOrg` — quote does not belong to the requesting organization
+
+**Types:**
+
+```go
+type CRMContact struct {
+    ID          uuid.UUID
+    OrgID       uuid.UUID
+    FirstName   string
+    LastName    *string
+    Email       *string
+    Phone       *string
+    CompanyName *string
+    AssignedTo  *uuid.UUID
+    CreatedAt   time.Time
+}
+
+type CRMDeal struct {
+    ID               uuid.UUID
+    OrgID            uuid.UUID
+    ContactID        *uuid.UUID
+    Title            string
+    Amount           float64
+    Stage            string
+    AIWinProbability *int
+    AssignedTo       *uuid.UUID
+    CreatedAt        time.Time
+}
+
+type CRMQuote struct {
+    ID          uuid.UUID
+    OrgID       uuid.UUID
+    DealID      *uuid.UUID
+    QuoteNumber string
+    TotalAmount float64
+    AIRiskScore *float64
+    CreatedAt   time.Time
+}
+
+type FlaggedClause struct {
+    Clause       string
+    RiskLevel    string // low, medium, high, critical
+    SuggestedFix string
+}
+```
+
+**AI simulation:** The current implementation uses keyword-based heuristic analysis for both win probability scoring and contract risk analysis. Win probabilities fall in the 40–80 range. Contract analysis scans for high-risk keywords (indemnification, penalty, termination, confidential) and assigns weighted risk scores. In production, these would be replaced with external AI/ML service calls.
 
 ## Mailer
 

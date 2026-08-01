@@ -102,6 +102,7 @@ main.go
   ├── services.NewRBACService(pool)   → *RBACService
   ├── services.NewBillingService(pool)→ *BillingService
   ├── services.NewMailer()            → *Mailer
+  ├── services.NewCRMService(pool)    → *CRMService
   └── handlers.New(cfg, db, ...)      → *App
 ```
 

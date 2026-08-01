@@ -75,6 +75,23 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── CRM ──
+	mux.Handle("POST /api/v1/crm/leads",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCRMLeadsWrite)(
+				http.HandlerFunc(a.createLeadHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/crm/quotes/risk-analysis",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCRMQuotesWrite)(
+				http.HandlerFunc(a.analyzeRiskHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(

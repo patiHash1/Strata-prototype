@@ -14,9 +14,19 @@ erDiagram
     organizations ||--o{ subscriptions : "has"
     organizations ||--o{ roles : "defines"
     users ||--o{ organization_members : "belongs to"
-    roles ||--o{ organization_members : "assigned to"
     roles ||--o{ role_permissions : "grants"
     permissions ||--o{ role_permissions : "included in"
+    organizations ||--o{ crm_contacts : "owns"
+    organizations ||--o{ crm_deals : "owns"
+    organizations ||--o{ crm_quotes : "owns"
+    organizations ||--o{ crm_helpdesk_tickets : "owns"
+    organizations ||--o{ crm_campaigns : "owns"
+    crm_contacts ||--o{ crm_deals : "linked to"
+    crm_deals ||--o{ crm_quotes : "has"
+    crm_contacts ||--o{ crm_helpdesk_tickets : "raises"
+    users ||--o{ crm_contacts : "assigned"
+    users ||--o{ crm_deals : "assigned"
+    users ||--o{ crm_helpdesk_tickets : "assigned"
 ```
 
 ## Table definitions
@@ -232,6 +242,144 @@ CREATE TABLE subscriptions (
 | `created_at` | TIMESTAMPTZ | Auto-set |
 | `updated_at` | TIMESTAMPTZ | Auto-set |
 
+## CRM tables
+
+### `crm_contacts`
+
+```sql
+CREATE TABLE crm_contacts (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    first_name   VARCHAR(100) NOT NULL,
+    last_name    VARCHAR(100),
+    email        VARCHAR(255),
+    phone        VARCHAR(50),
+    company_name VARCHAR(255),
+    assigned_to  UUID REFERENCES users(id),
+    created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `first_name` | VARCHAR(100) | Required |
+| `last_name` | VARCHAR(100) | Nullable |
+| `email` | VARCHAR(255) | Nullable |
+| `phone` | VARCHAR(50) | Nullable |
+| `company_name` | VARCHAR(255) | Nullable |
+| `assigned_to` | UUID | FK → users, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `crm_deals`
+
+```sql
+CREATE TABLE crm_deals (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id              UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    contact_id          UUID REFERENCES crm_contacts(id) ON DELETE CASCADE,
+    title               VARCHAR(255) NOT NULL,
+    amount              DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    stage               VARCHAR(50) NOT NULL,
+    ai_win_probability  INT,
+    assigned_to         UUID REFERENCES users(id),
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `contact_id` | UUID | FK → crm_contacts, nullable |
+| `title` | VARCHAR(255) | Required |
+| `amount` | DECIMAL(12,2) | Default 0.00 |
+| `stage` | VARCHAR(50) | Pipeline stage (e.g. `lead`, `qualified`, `proposal`) |
+| `ai_win_probability` | INT | AI-predicted win likelihood 0–100, nullable |
+| `assigned_to` | UUID | FK → users, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `crm_quotes`
+
+```sql
+CREATE TABLE crm_quotes (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    deal_id       UUID REFERENCES crm_deals(id) ON DELETE CASCADE,
+    quote_number  VARCHAR(100) NOT NULL,
+    total_amount  DECIMAL(12, 2) NOT NULL,
+    ai_risk_score DECIMAL(5,2),
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `deal_id` | UUID | FK → crm_deals, nullable |
+| `quote_number` | VARCHAR(100) | Required, display identifier |
+| `total_amount` | DECIMAL(12,2) | Required |
+| `ai_risk_score` | DECIMAL(5,2) | AI risk score 0–100, nullable, set by risk analysis |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `crm_helpdesk_tickets`
+
+```sql
+CREATE TABLE crm_helpdesk_tickets (
+    id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id                UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    contact_id            UUID REFERENCES crm_contacts(id),
+    subject               VARCHAR(255) NOT NULL,
+    description           TEXT NOT NULL,
+    priority              VARCHAR(50) DEFAULT 'medium',
+    status                VARCHAR(50) DEFAULT 'open',
+    ai_sentiment_score    DECIMAL(3, 2),
+    ai_suggested_response TEXT,
+    assigned_to           UUID REFERENCES users(id),
+    created_at            TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `contact_id` | UUID | FK → crm_contacts, nullable |
+| `subject` | VARCHAR(255) | Required |
+| `description` | TEXT | Required |
+| `priority` | VARCHAR(50) | Enum: `low`, `medium`, `high`, `urgent` |
+| `status` | VARCHAR(50) | Default `open` |
+| `ai_sentiment_score` | DECIMAL(3,2) | AI sentiment analysis score, nullable |
+| `ai_suggested_response` | TEXT | AI-generated response draft, nullable |
+| `assigned_to` | UUID | FK → users, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `crm_campaigns`
+
+```sql
+CREATE TABLE crm_campaigns (
+    id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id                    UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    name                      VARCHAR(255) NOT NULL,
+    channel                   VARCHAR(50) NOT NULL,
+    ai_target_segment_criteria JSONB,
+    budget                    DECIMAL(12, 2),
+    created_at                TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `name` | VARCHAR(255) | Required |
+| `channel` | VARCHAR(50) | Marketing channel (e.g. `email`, `social`, `ads`) |
+| `ai_target_segment_criteria` | JSONB | AI-generated targeting rules, nullable |
+| `budget` | DECIMAL(12,2) | Campaign budget, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
 ## Seed data
 
 The following permissions are inserted on every migration (idempotent via `ON CONFLICT DO NOTHING`):
@@ -243,6 +391,8 @@ The following permissions are inserted on every migration (idempotent via `ON CO
 | `rbac.manage` | rbac | Create and manage roles and permissions |
 | `apikeys.manage` | apikeys | Generate and revoke API keys |
 | `billing.manage` | billing | Manage subscriptions and billing |
+| `crm.leads.write` | crm | Create and manage CRM leads |
+| `crm.quotes.write` | crm | Manage and analyze CRM quotes |
 
 ## Key constraints
 

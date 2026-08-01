@@ -19,6 +19,7 @@ internal/
 │   ├── services_orgs.go     # OrgService: organizations, invitations, API keys
 │   ├── services_rbac.go     # RBACService: roles, permissions
 │   ├── services_billing.go  # BillingService: subscriptions
+│   ├── services_crm.go      # CRMService: leads, deals, quotes, AI analysis
 │   └── services_mailer.go   # Mailer: transactional email (stub)
 │
 ├── handlers/            # HTTP LAYER — handlers, routes, App wiring
@@ -27,7 +28,8 @@ internal/
 │   ├── handlers_health.go   # GET /health
 │   ├── handlers_auth.go     # POST auth/register, POST auth/login
 │   ├── handlers_org.go      # POST org/invitations, org/roles, org/api-keys
-│   └── handlers_billing.go  # POST billing/subscriptions
+│   ├── handlers_billing.go  # POST billing/subscriptions
+│   └── handlers_crm.go      # POST crm/leads, POST crm/quotes/risk-analysis
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
@@ -182,7 +184,7 @@ internal/services/
 ├── services_rbac.go
 ├── services_billing.go
 ├── services_mailer.go
-└── services_crm.go       # <-- new feature
+└── services_crm.go       # <-- new feature (leads, deals, quotes, AI)
 ```
 
 A service file contains its own types, repository (SQL queries), and exported service struct:
@@ -503,3 +505,5 @@ open http://localhost:8080/swagger/
 - **cmd/migrate/** — database migration runner using `golang-migrate` or similar.
 - **internal/services/services_events.go** — background job queue (async email, webhooks, reports).
 - **internal/test/** — shared test fixtures, factories, and helpers.
+- **AI integration** — replace simulated AI scoring/risk analysis with real ML service calls.
+- **CRM pipeline** — full deal pipeline with stages, activity tracking, and reporting.

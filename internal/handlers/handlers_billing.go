@@ -22,9 +22,11 @@ type createSubscriptionRequest struct {
 //	@Tags			Billing
 //	@Accept			json
 //	@Produce		json
+//	@Security		BearerAuth
 //	@Param			body	body	createSubscriptionRequest	true	"Subscription payload"
 //	@Success		200	{object}	utils.Envelope
 //	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/billing/subscriptions [post]
 func (a *App) createSubscriptionHandler(w http.ResponseWriter, r *http.Request) {

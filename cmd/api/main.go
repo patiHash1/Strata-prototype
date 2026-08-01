@@ -36,6 +36,13 @@ import (
 //	@tag.description	Organization management, roles, members, API keys.
 //	@tag.name		Billing
 //	@tag.description	Subscription and billing management.
+//	@tag.name		CRM
+//	@tag.description	CRM & Revenue Operations — leads, quotes, risk analysis.
+//
+//	@securityDefinitions.apikey	BearerAuth
+//	@in							header
+//	@name						Authorization
+//	@description				Enter your Bearer token in the format: Bearer <token>
 
 func main() {
 	cfg := config.Load()
@@ -68,9 +75,10 @@ func main() {
 	rbacSvc := services.NewRBACService(db.Pool)
 	billingSvc := services.NewBillingService(db.Pool)
 	mailerSvc := services.NewMailer()
+	crmSvc := services.NewCRMService(db.Pool)
 
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
