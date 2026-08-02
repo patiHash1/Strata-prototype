@@ -14,16 +14,17 @@ import (
 
 // App is the top-level application container.
 type App struct {
-	Config  config.Config
-	DB      *database.DB
-	Auth    *services.AuthService
-	Users   *services.UserService
-	Orgs    *services.OrgService
-	RBAC    *services.RBACService
-	Billing *services.BillingService
-	Mailer  *services.Mailer
-	CRM     *services.CRMService
-	server  *http.Server
+	Config     config.Config
+	DB         *database.DB
+	Auth       *services.AuthService
+	Users      *services.UserService
+	Orgs       *services.OrgService
+	RBAC       *services.RBACService
+	Billing    *services.BillingService
+	Mailer     *services.Mailer
+	CRM        *services.CRMService
+	Accounting *services.AccountingService
+	server     *http.Server
 }
 
 // New creates and wires an App with all dependencies.
@@ -37,17 +38,19 @@ func New(
 	billingSvc *services.BillingService,
 	mailerSvc *services.Mailer,
 	crmSvc *services.CRMService,
+	accountingSvc *services.AccountingService,
 ) *App {
 	return &App{
-		Config:  cfg,
-		DB:      db,
-		Auth:    authSvc,
-		Users:   userSvc,
-		Orgs:    orgSvc,
-		RBAC:    rbacSvc,
-		Billing: billingSvc,
-		Mailer:  mailerSvc,
-		CRM:     crmSvc,
+		Config:     cfg,
+		DB:         db,
+		Auth:       authSvc,
+		Users:      userSvc,
+		Orgs:       orgSvc,
+		RBAC:       rbacSvc,
+		Billing:    billingSvc,
+		Mailer:     mailerSvc,
+		CRM:        crmSvc,
+		Accounting: accountingSvc,
 	}
 }
 

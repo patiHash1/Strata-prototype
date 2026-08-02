@@ -38,6 +38,8 @@ import (
 //	@tag.description	Subscription and billing management.
 //	@tag.name		CRM
 //	@tag.description	CRM & Revenue Operations — leads, quotes, risk analysis.
+//	@tag.name		Accounting
+//	@tag.description	Finance & Enterprise Accounting — journal entries, invoices, expenses.
 //
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
@@ -76,9 +78,10 @@ func main() {
 	billingSvc := services.NewBillingService(db.Pool)
 	mailerSvc := services.NewMailer()
 	crmSvc := services.NewCRMService(db.Pool)
+	accountingSvc := services.NewAccountingService(db.Pool)
 
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

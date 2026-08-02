@@ -8,6 +8,7 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 - **Role-based access control (RBAC)** with dynamic roles and permissions
 - **User management** including invitation flows and membership lifecycle
 - **CRM & Revenue Operations** with AI-powered lead scoring, contract risk analysis, and pipeline management
+- **Finance & Enterprise Accounting** with general ledger, invoice OCR, and AI fraud-audited expenses
 - **Billing/subscription management** with Stripe integration
 - **API key authentication** for machine-to-machine integrations
 
@@ -43,6 +44,7 @@ internal/
 	│   ├── services_rbac.go     # Roles, permissions
 	│   ├── services_billing.go  # Subscriptions
 	│   ├── services_crm.go      # CRM: leads, deals, quotes, AI analysis
+	│   ├── services_accounting.go # Accounting: journal entries, invoices, expenses
 	│   └── services_mailer.go   # Transactional email (stub)
 	├── handlers/
 	│   ├── handlers_server.go   # App struct, DI wiring, Serve()
@@ -51,7 +53,8 @@ internal/
 	│   ├── handlers_auth.go     # POST auth/register, auth/login
 	│   ├── handlers_org.go      # Org endpoints
 	│   ├── handlers_billing.go  # Billing endpoints
-	│   └── handlers_crm.go      # CRM endpoints
+	│   ├── handlers_crm.go      # CRM endpoints
+	│   └── handlers_accounting.go # Accounting endpoints
 └── utils/
     ├── response.go          # WriteJSON, WriteErr, Envelope
     ├── middleware.go         # RequireAuth, RequirePermission, etc.

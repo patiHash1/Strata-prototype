@@ -248,6 +248,109 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "create_subscription_plans",
+			sql: `
+				CREATE TABLE IF NOT EXISTS subscription_plans (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					plan_code VARCHAR(50) UNIQUE NOT NULL,
+					name VARCHAR(100) NOT NULL,
+					max_tenants_limit INT NOT NULL,
+					max_vehicles_limit INT NOT NULL,
+					max_ai_credits_per_month INT NOT NULL,
+					monthly_price DECIMAL(10, 2) NOT NULL
+				)`,
+		},
+		{
+			name: "create_plan_features",
+			sql: `
+				CREATE TABLE IF NOT EXISTS plan_features (
+					plan_id UUID NOT NULL REFERENCES subscription_plans(id) ON DELETE CASCADE,
+					feature_key VARCHAR(100) NOT NULL,
+					PRIMARY KEY (plan_id, feature_key)
+				)`,
+		},
+		{
+			name: "create_chart_of_accounts",
+			sql: `
+				CREATE TABLE IF NOT EXISTS chart_of_accounts (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					account_code VARCHAR(20) NOT NULL,
+					account_name VARCHAR(100) NOT NULL,
+					account_type VARCHAR(50) NOT NULL,
+					UNIQUE(org_id, account_code)
+				)`,
+		},
+		{
+			name: "create_journal_entries",
+			sql: `
+				CREATE TABLE IF NOT EXISTS journal_entries (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					entry_number VARCHAR(100) NOT NULL,
+					entry_date DATE NOT NULL DEFAULT CURRENT_DATE,
+					memo VARCHAR(255),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_journal_items",
+			sql: `
+				CREATE TABLE IF NOT EXISTS journal_items (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					journal_entry_id UUID NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+					account_id UUID NOT NULL REFERENCES chart_of_accounts(id),
+					debit DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+					credit DECIMAL(12, 2) NOT NULL DEFAULT 0.00
+				)`,
+		},
+		{
+			name: "create_invoices",
+			sql: `
+				CREATE TABLE IF NOT EXISTS invoices (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					invoice_number VARCHAR(100) NOT NULL,
+					contact_id UUID REFERENCES crm_contacts(id),
+					total_amount DECIMAL(12, 2) NOT NULL,
+					status VARCHAR(50) DEFAULT 'draft',
+					ai_ocr_processed BOOLEAN DEFAULT FALSE,
+					due_date DATE NOT NULL,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_expenses",
+			sql: `
+				CREATE TABLE IF NOT EXISTS expenses (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					user_id UUID REFERENCES users(id),
+					amount DECIMAL(10, 2) NOT NULL,
+					category VARCHAR(100) NOT NULL,
+					receipt_url TEXT,
+					ai_fraud_flag BOOLEAN DEFAULT FALSE,
+					ai_audit_notes TEXT,
+					status VARCHAR(50) DEFAULT 'pending',
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_fixed_assets",
+			sql: `
+				CREATE TABLE IF NOT EXISTS fixed_assets (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					asset_name VARCHAR(255) NOT NULL,
+					purchase_date DATE NOT NULL,
+					purchase_cost DECIMAL(12, 2) NOT NULL,
+					salvage_value DECIMAL(12, 2) DEFAULT 0.00,
+					useful_life_years INT NOT NULL,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
 			name: "seed_default_permissions",
 			sql: `
 				INSERT INTO permissions (permission_key, module, description)
@@ -259,7 +362,10 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('users.manage',  'users',  'Manage organization members (update role, deactivate)'),
 					('crm.leads.write',  'crm',  'Create and manage CRM leads'),
 					('crm.quotes.write', 'crm',  'Manage and analyze CRM quotes'),
-					('crm.tickets.write', 'crm',  'Create and manage CRM support tickets')
+					('crm.tickets.write', 'crm',  'Create and manage CRM support tickets'),
+					('accounting.ledger.write',   'accounting', 'Post general ledger journal entries'),
+					('accounting.invoices.write', 'accounting', 'Upload and process invoices'),
+					('expenses.submit',           'accounting', 'Submit expense reports')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}

@@ -15,6 +15,7 @@ nav:
       - Members: api/members.md
       - Billing: api/billing.md
       - CRM & Revenue: api/crm.md
+      - Finance & Accounting: api/accounting.md
       - System: api/system.md
   - Architecture:
       - Overview: architecture/overview.md

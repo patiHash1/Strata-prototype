@@ -100,6 +100,31 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Accounting ──
+	mux.Handle("POST /api/v1/accounting/journal-entries",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingLedger)(
+				http.HandlerFunc(a.createJournalEntryHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/invoices/ocr",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingInvoices)(
+				http.HandlerFunc(a.processInvoiceOCRHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/expenses",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermExpensesSubmit)(
+				http.HandlerFunc(a.createExpenseHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(
