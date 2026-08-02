@@ -92,6 +92,14 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	mux.Handle("POST /api/v1/crm/tickets",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCRMTicketsWrite)(
+				http.HandlerFunc(a.createTicketHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(

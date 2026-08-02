@@ -144,8 +144,9 @@ PermUsersManage   = "users.manage"
 PermRBACManage    = "rbac.manage"
 PermAPIKeysManage = "apikeys.manage"
 PermBillingManage = "billing.manage"
-PermCRMLeadsWrite  = "crm.leads.write"
-PermCRMQuotesWrite = "crm.quotes.write"
+PermCRMLeadsWrite   = "crm.leads.write"
+PermCRMQuotesWrite  = "crm.quotes.write"
+PermCRMTicketsWrite = "crm.tickets.write"
 ```
 
 ## BillingService
@@ -174,10 +175,13 @@ Manages CRM contacts (leads), deals, quotes, and AI-powered scoring/risk analysi
 |---|---|
 | `CreateLead(ctx, orgID, firstName, lastName, email, companyName, estimatedDealSize)` | Creates a contact, triggers AI win probability scoring, and creates a linked deal |
 | `AnalyzeContractRisk(ctx, orgID, quoteID, contractText)` | Runs AI risk analysis on a quote's contract text, returns risk score + flagged clauses |
+| `CreateTicket(ctx, orgID, contactID, subject, description)` | Creates a helpdesk ticket with AI sentiment analysis, auto-priority, and suggested response |
 
 **Domain errors:**
 - `ErrQuoteNotFound` — quote not found
 - `ErrQuoteNotInOrg` — quote does not belong to the requesting organization
+- `ErrContactNotFound` — contact not found
+- `ErrContactNotInOrg` — contact does not belong to the requesting organization
 
 **Types:**
 
@@ -214,6 +218,20 @@ type CRMQuote struct {
     TotalAmount float64
     AIRiskScore *float64
     CreatedAt   time.Time
+}
+
+type CRMHelpdeskTicket struct {
+    ID                  uuid.UUID
+    OrgID               uuid.UUID
+    ContactID           *uuid.UUID
+    Subject             string
+    Description         string
+    Priority            string
+    Status              string
+    AISentimentScore    *float64
+    AISuggestedResponse *string
+    AssignedTo          *uuid.UUID
+    CreatedAt           time.Time
 }
 
 type FlaggedClause struct {

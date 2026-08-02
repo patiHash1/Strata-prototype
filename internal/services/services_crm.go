@@ -54,6 +54,21 @@ type FlaggedClause struct {
 	SuggestedFix string `json:"suggested_fix"`
 }
 
+// CRMHelpdeskTicket represents a support ticket.
+type CRMHelpdeskTicket struct {
+	ID                  uuid.UUID  `json:"id"`
+	OrgID               uuid.UUID  `json:"org_id"`
+	ContactID           *uuid.UUID `json:"contact_id,omitempty"`
+	Subject             string     `json:"subject"`
+	Description         string     `json:"description"`
+	Priority            string     `json:"priority"`
+	Status              string     `json:"status"`
+	AISentimentScore    *float64   `json:"ai_sentiment_score,omitempty"`
+	AISuggestedResponse *string    `json:"ai_suggested_response,omitempty"`
+	AssignedTo          *uuid.UUID `json:"assigned_to,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+}
+
 // ---- Repository ----
 
 type crmRepository struct {
@@ -113,6 +128,22 @@ func (r *crmRepository) GetContactByID(ctx context.Context, id uuid.UUID) (*CRMC
 		return nil, nil
 	}
 	return c, err
+}
+
+func (r *crmRepository) CreateTicket(ctx context.Context, t *CRMHelpdeskTicket) error {
+	t.ID = uuid.New()
+	t.CreatedAt = time.Now()
+	if t.Priority == "" {
+		t.Priority = "medium"
+	}
+	if t.Status == "" {
+		t.Status = "open"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO crm_helpdesk_tickets (id, org_id, contact_id, subject, description, priority, status, ai_sentiment_score, ai_suggested_response, assigned_to, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, t.ID, t.OrgID, t.ContactID, t.Subject, t.Description, t.Priority, t.Status, t.AISentimentScore, t.AISuggestedResponse, t.AssignedTo, t.CreatedAt)
+	return err
 }
 
 // ---- Service ----
@@ -198,6 +229,135 @@ func (s *CRMService) AnalyzeContractRisk(ctx context.Context, orgID uuid.UUID, q
 	return riskScore, clauses, nil
 }
 
+// CreateTicket creates a support ticket with AI sentiment analysis and auto-routing.
+func (s *CRMService) CreateTicket(ctx context.Context, orgID uuid.UUID, contactID uuid.UUID, subject, description string) (*CRMHelpdeskTicket, error) {
+	// Verify contact exists and belongs to the org
+	contact, err := s.repo.GetContactByID(ctx, contactID)
+	if err != nil {
+		return nil, err
+	}
+	if contact == nil {
+		return nil, ErrContactNotFound
+	}
+	if contact.OrgID != orgID {
+		return nil, ErrContactNotInOrg
+	}
+
+	// Simulate AI sentiment analysis
+	sentimentScore, suggestedResponse := aiAnalyzeSentiment(subject, description)
+
+	// Determine priority based on sentiment (negative → higher priority)
+	priority := aiDeterminePriority(sentimentScore)
+
+	// Auto-route to an assignee (in production this would use a routing engine)
+	assignedTo := uuid.New()
+
+	ticket := &CRMHelpdeskTicket{
+		OrgID:               orgID,
+		ContactID:           &contactID,
+		Subject:             subject,
+		Description:         description,
+		Priority:            priority,
+		Status:              "open",
+		AISentimentScore:    &sentimentScore,
+		AISuggestedResponse: &suggestedResponse,
+		AssignedTo:          &assignedTo,
+	}
+	if err := s.repo.CreateTicket(ctx, ticket); err != nil {
+		return nil, err
+	}
+
+	return ticket, nil
+}
+
+// aiAnalyzeSentiment simulates AI sentiment analysis on ticket text.
+// Returns a score from -1.0 (very negative) to 1.0 (very positive).
+func aiAnalyzeSentiment(subject, description string) (float64, string) {
+	text := subject + " " + description
+
+	// Simple keyword-based sentiment heuristic
+	negativeWords := []string{"urgent", "broken", "error", "fail", "crash", "bug", "issue", "problem", "critical", "down", "lost", "cannot", "not working", "stuck", "blocked"}
+	positiveWords := []string{"great", "thanks", "helpful", "appreciate", "good", "excellent", "love", "awesome", "perfect", "smooth"}
+
+	negCount := 0
+	posCount := 0
+
+	lower := ""
+	for _, r := range text {
+		if r >= 'A' && r <= 'Z' {
+			lower += string(r + 32)
+		} else {
+			lower += string(r)
+		}
+	}
+
+	for _, w := range negativeWords {
+		if len(lower) >= len(w) {
+			for i := 0; i <= len(lower)-len(w); i++ {
+				if lower[i:i+len(w)] == w {
+					negCount++
+					break
+				}
+			}
+		}
+	}
+	for _, w := range positiveWords {
+		if len(lower) >= len(w) {
+			for i := 0; i <= len(lower)-len(w); i++ {
+				if lower[i:i+len(w)] == w {
+					posCount++
+					break
+				}
+			}
+		}
+	}
+
+	// Calculate sentiment: -1 to 1 range
+	total := negCount + posCount
+	var score float64
+	if total == 0 {
+		score = 0.1 + rand.Float64()*0.3 // neutral-positive 0.1–0.4
+	} else {
+		score = (float64(posCount) - float64(negCount)) / float64(total)
+		// Add slight randomness
+		score += (rand.Float64() - 0.5) * 0.2
+	}
+
+	// Clamp to [-1, 1]
+	if score > 1.0 {
+		score = 1.0
+	}
+	if score < -1.0 {
+		score = -1.0
+	}
+
+	// Generate suggested response based on sentiment
+	var response string
+	if score < -0.3 {
+		response = "Thank you for reaching out. I understand this is frustrating. Our team is prioritizing your issue and will respond within 2 hours. In the meantime, could you provide any additional details or screenshots?"
+	} else if score < 0.3 {
+		response = "Thank you for contacting support. We've received your ticket and will review it shortly. A team member will follow up within 4 business hours."
+	} else {
+		response = "Thanks for your message! We're glad to hear from you. We'll review your request and get back to you within 8 business hours. Have a great day!"
+	}
+
+	return score, response
+}
+
+// aiDeterminePriority maps sentiment score to ticket priority.
+func aiDeterminePriority(sentiment float64) string {
+	switch {
+	case sentiment < -0.5:
+		return "urgent"
+	case sentiment < -0.2:
+		return "high"
+	case sentiment < 0.3:
+		return "medium"
+	default:
+		return "low"
+	}
+}
+
 // aiAnalyzeContract simulates AI-based contract risk analysis.
 // In production this would call an external AI/ML service.
 func aiAnalyzeContract(contractText string) (float64, []FlaggedClause) {
@@ -280,6 +440,8 @@ func aiAnalyzeContract(contractText string) (float64, []FlaggedClause) {
 
 // Domain errors
 var (
-	ErrQuoteNotFound = errors.New("quote not found")
-	ErrQuoteNotInOrg = errors.New("quote does not belong to this organization")
+	ErrQuoteNotFound   = errors.New("quote not found")
+	ErrQuoteNotInOrg   = errors.New("quote does not belong to this organization")
+	ErrContactNotFound = errors.New("contact not found")
+	ErrContactNotInOrg = errors.New("contact does not belong to this organization")
 )

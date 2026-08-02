@@ -145,6 +145,72 @@ Runs AI risk analysis on a quote's contract text, identifying flagged clauses wi
 
 ---
 
+### 3. Auto-Route Support Ticket & Analyze Sentiment
+
+```
+POST /api/v1/crm/tickets
+```
+
+Creates a helpdesk ticket with AI sentiment analysis, auto-assigned priority, and an AI-generated suggested response.
+
+**Required permission:** `crm.tickets.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `contact_id` | UUID | **Yes** | ID of the CRM contact raising the ticket |
+| `subject` | string | **Yes** | Ticket subject line |
+| `description` | string | **Yes** | Full description of the issue |
+
+**Example request:**
+
+```json
+{
+    "contact_id": "550e8400-e29b-41d4-a716-446655440000",
+    "subject": "Cannot access dashboard after update",
+    "description": "After the latest update, the dashboard is completely broken. I cannot see any of my reports and this is urgent."
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "ticket_id": "770e8400-e29b-41d4-a716-446655440000",
+    "ai_sentiment_score": -0.45,
+    "priority": "high",
+    "ai_suggested_response": "Thank you for reaching out. I understand this is frustrating. Our team is prioritizing your issue and will respond within 2 hours. In the meantime, could you provide any additional details or screenshots?"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `ticket_id` | UUID | ID of the created ticket |
+| `ai_sentiment_score` | decimal | AI sentiment score (-1.0 = very negative, 1.0 = very positive) |
+| `priority` | string | Auto-assigned priority: `urgent`, `high`, `medium`, or `low` |
+| `ai_suggested_response` | string | AI-generated draft response for the support agent |
+
+**Priority mapping:**
+
+| Sentiment Range | Priority | Response SLA |
+|---|---|---|
+| < -0.5 | `urgent` | 2 hours |
+| -0.5 to -0.2 | `high` | 4 hours |
+| -0.2 to 0.3 | `medium` | 8 hours |
+| > 0.3 | `low` | 24 hours |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid contact_id |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `crm.tickets.write` permission |
+| `404 Not Found` | Contact not found or not in the user's organization |
+
+---
+
 ## AI engine (simulated)
 
 The current implementation uses a keyword-based heuristic analysis engine. In production, this would be replaced with an external AI/ML service call. The simulation provides realistic output to verify request/response contracts during development.
@@ -165,3 +231,13 @@ Scans contract text for high-risk keywords and phrases:
 | `confidential` | low | Limit duration to 3 years post-termination |
 
 Clean contracts (no flagged keywords) receive a baseline risk score of 5–15.
+
+### Sentiment analysis & auto-routing (Module 1.3)
+
+Analyzes ticket subject + description text for sentiment keywords:
+
+**Negative keywords** (decrease sentiment): `urgent`, `broken`, `error`, `fail`, `crash`, `bug`, `issue`, `problem`, `critical`, `down`, `lost`, `cannot`, `not working`, `stuck`, `blocked`
+
+**Positive keywords** (increase sentiment): `great`, `thanks`, `helpful`, `appreciate`, `good`, `excellent`, `love`, `awesome`, `perfect`, `smooth`
+
+The sentiment score is calculated as `(positive_count - negative_count) / total_count` with slight randomness, clamped to [-1.0, 1.0]. Priority is auto-assigned based on the sentiment score, and a context-appropriate suggested response is generated.

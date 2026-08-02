@@ -165,3 +165,98 @@ func (a *App) analyzeRiskHandler(w http.ResponseWriter, r *http.Request) {
 		"flagged_clauses": clauses,
 	})
 }
+
+// ---- POST /api/v1/crm/tickets ----
+
+type createTicketRequest struct {
+	ContactID   string `json:"contact_id"`
+	Subject     string `json:"subject"`
+	Description string `json:"description"`
+}
+
+// CreateTicketResponse represents the payload returned when a support ticket is created.
+type CreateTicketResponse struct {
+	TicketID            string  `json:"ticket_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	AISentimentScore    float64 `json:"ai_sentiment_score" example:"-0.45"`
+	Priority            string  `json:"priority" example:"high"`
+	AISuggestedResponse string  `json:"ai_suggested_response" example:"Thank you for reaching out..."`
+}
+
+// createTicketHandler creates a support ticket with AI sentiment analysis and auto-routing.
+//
+//	@Summary		Auto-route support ticket & analyze sentiment
+//	@Description	Creates a helpdesk ticket, runs AI sentiment analysis on the description, auto-assigns priority and routing. Requires `crm.tickets.write` permission.
+//	@Tags			CRM
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createTicketRequest	true	"Ticket payload"
+//	@Success		201	{object}	CreateTicketResponse
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/crm/tickets [post]
+func (a *App) createTicketHandler(w http.ResponseWriter, r *http.Request) {
+	var req createTicketRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	contactID, err := uuid.Parse(req.ContactID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid contact_id")
+		return
+	}
+	if !utils.NotBlank(req.Subject) {
+		utils.WriteErr(w, http.StatusBadRequest, "subject is required")
+		return
+	}
+	if !utils.NotBlank(req.Description) {
+		utils.WriteErr(w, http.StatusBadRequest, "description is required")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	ticket, err := a.CRM.CreateTicket(r.Context(), orgID, contactID, req.Subject, req.Description)
+	if err != nil {
+		if err == services.ErrContactNotFound {
+			utils.WriteErr(w, http.StatusNotFound, "contact not found")
+			return
+		}
+		if err == services.ErrContactNotInOrg {
+			utils.WriteErr(w, http.StatusNotFound, "contact not found in this organization")
+			return
+		}
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create ticket")
+		return
+	}
+
+	sentimentScore := 0.0
+	if ticket.AISentimentScore != nil {
+		sentimentScore = *ticket.AISentimentScore
+	}
+	suggestedResponse := ""
+	if ticket.AISuggestedResponse != nil {
+		suggestedResponse = *ticket.AISuggestedResponse
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"ticket_id":             ticket.ID.String(),
+		"ai_sentiment_score":    sentimentScore,
+		"priority":              ticket.Priority,
+		"ai_suggested_response": suggestedResponse,
+	})
+}

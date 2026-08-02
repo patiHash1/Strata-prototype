@@ -258,7 +258,8 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('billing.manage', 'billing', 'Manage subscriptions and billing'),
 					('users.manage',  'users',  'Manage organization members (update role, deactivate)'),
 					('crm.leads.write',  'crm',  'Create and manage CRM leads'),
-					('crm.quotes.write', 'crm',  'Manage and analyze CRM quotes')
+					('crm.quotes.write', 'crm',  'Manage and analyze CRM quotes'),
+					('crm.tickets.write', 'crm',  'Create and manage CRM support tickets')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}

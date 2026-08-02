@@ -393,6 +393,7 @@ The following permissions are inserted on every migration (idempotent via `ON CO
 | `billing.manage` | billing | Manage subscriptions and billing |
 | `crm.leads.write` | crm | Create and manage CRM leads |
 | `crm.quotes.write` | crm | Manage and analyze CRM quotes |
+| `crm.tickets.write` | crm | Create and manage CRM support tickets |
 
 ## Key constraints
 

@@ -185,11 +185,12 @@ func (s *RBACService) GetPermissionKeysByRole(ctx context.Context, roleID uuid.U
 
 // Pre-defined permission keys matching the API spec requirements.
 const (
-	PermUsersInvite    = "users.invite"
-	PermUsersManage    = "users.manage"
-	PermRBACManage     = "rbac.manage"
-	PermAPIKeysManage  = "apikeys.manage"
-	PermBillingManage  = "billing.manage"
-	PermCRMLeadsWrite  = "crm.leads.write"
-	PermCRMQuotesWrite = "crm.quotes.write"
+	PermUsersInvite     = "users.invite"
+	PermUsersManage     = "users.manage"
+	PermRBACManage      = "rbac.manage"
+	PermAPIKeysManage   = "apikeys.manage"
+	PermBillingManage   = "billing.manage"
+	PermCRMLeadsWrite   = "crm.leads.write"
+	PermCRMQuotesWrite  = "crm.quotes.write"
+	PermCRMTicketsWrite = "crm.tickets.write"
 )
