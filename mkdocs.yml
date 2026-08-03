@@ -32,6 +32,9 @@ nav:
 theme:
   name: readthedocs
   highlightjs: true
+  logo: img/logo.png
+extra_css:
+  - css/extra.css
 
 markdown_extensions:
   - admonition
