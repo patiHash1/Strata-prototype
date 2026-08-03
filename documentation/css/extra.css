@@ -22,9 +22,28 @@
 }
 
 /* ---------- Body & backgrounds ---------- */
-body {
-  background-color: var(--bg-main);
-  color: var(--text-main);
+body,.md-container,.md-main,.md-header,.md-sidebar,.md-content {
+    background-color: var(--bg-main)!important;
+    color: var(--text-main)!important;
+}
+
+.md-container {
+    max-width: 100%!important;
+    padding: 0!important;
+}
+
+/* 2. Logo Styling (Reduced Size & Centered) */
+.md-header__logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0!important;
+}
+
+.md-header__logo img {
+    max-height: 60px!important; /* Significantly reduced size */
+    width: auto!important;
+    object-fit: contain;
 }
 
 /* ---------- Links ---------- */
