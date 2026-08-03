@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 )
 
@@ -14,10 +15,23 @@ import (
 type contextKey string
 
 const claimsKey contextKey = "auth.claims"
+const apiKeyClaimsKey contextKey = "apikey.claims"
 
 // GetClaims extracts auth claims from the request context. Returns nil if absent.
 func GetClaims(r *http.Request) *services.Claims {
 	c, _ := r.Context().Value(claimsKey).(*services.Claims)
+	return c
+}
+
+// APIKeyClaims holds the org identity extracted from a validated API key.
+type APIKeyClaims struct {
+	OrgID  string
+	Scopes []string
+}
+
+// GetAPIKeyClaims extracts API key claims from the request context. Returns nil if absent.
+func GetAPIKeyClaims(r *http.Request) *APIKeyClaims {
+	c, _ := r.Context().Value(apiKeyClaimsKey).(*APIKeyClaims)
 	return c
 }
 
@@ -96,6 +110,54 @@ func RequireAuth(authSvc *services.AuthService) func(http.Handler) http.Handler 
 			}
 
 			ctx := context.WithValue(r.Context(), claimsKey, claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// RequireAPIKey returns middleware that validates an API key from the X-API-Key header
+// and requires at least one of the specified scopes. Populates context with APIKeyClaims.
+func RequireAPIKey(svc interface {
+	ValidateAPIKey(ctx context.Context, keyHash string) (uuid.UUID, []string, error)
+}, requiredScopes ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			apiKey := r.Header.Get("X-API-Key")
+			if apiKey == "" {
+				WriteErr(w, http.StatusUnauthorized, "missing API key")
+				return
+			}
+
+			// Hash is produced by bcrypt; for now we pass the raw key
+			orgID, scopes, err := svc.ValidateAPIKey(r.Context(), apiKey)
+			if err != nil {
+				WriteErr(w, http.StatusUnauthorized, "invalid or expired API key")
+				return
+			}
+
+			// Check scope intersection
+			if len(requiredScopes) > 0 {
+				scopeSet := make(map[string]struct{}, len(scopes))
+				for _, s := range scopes {
+					scopeSet[s] = struct{}{}
+				}
+				authorized := false
+				for _, rs := range requiredScopes {
+					if _, ok := scopeSet[rs]; ok {
+						authorized = true
+						break
+					}
+				}
+				if !authorized {
+					WriteErr(w, http.StatusForbidden, "insufficient API key scopes")
+					return
+				}
+			}
+
+			ctx := context.WithValue(r.Context(), apiKeyClaimsKey, &APIKeyClaims{
+				OrgID:  orgID.String(),
+				Scopes: scopes,
+			})
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

@@ -40,11 +40,20 @@ import (
 //	@tag.description	CRM & Revenue Operations — leads, quotes, risk analysis.
 //	@tag.name		Accounting
 //	@tag.description	Finance & Enterprise Accounting — journal entries, invoices, expenses.
+//	@tag.name		Fleet
+//	@tag.description	Fleet & Telematics — vehicle telemetry, route optimization.
+//	@tag.name		Inventory
+//	@tag.description	Supply Chain & Inventory — reorder predictions, stock management.
 //
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
 //	@name						Authorization
 //	@description				Enter your Bearer token in the format: Bearer <token>
+//
+//	@securityDefinitions.apikey	ApiKeyAuth
+//	@in							header
+//	@name						X-API-Key
+//	@description				API key for programmatic access (e.g. fleet telematics ingestion)
 
 func main() {
 	cfg := config.Load()
@@ -79,9 +88,10 @@ func main() {
 	mailerSvc := services.NewMailer()
 	crmSvc := services.NewCRMService(db.Pool)
 	accountingSvc := services.NewAccountingService(db.Pool)
+	supplyChainSvc := services.NewSupplyChainService(db.Pool, authSvc)
 
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

@@ -20,8 +20,8 @@ internal/
 
 | Package | Format | Example |
 |---|---|---|
-| services | `services_<domain>.go` | `services_users.go`, `services_orgs.go` |
-| handlers | `handlers_<category>.go` | `handlers_auth.go`, `handlers_org.go` |
+| services | `services_<domain>.go` | `services_users.go`, `services_orgs.go`, `services_supplychain.go` |
+| handlers | `handlers_<category>.go` | `handlers_auth.go`, `handlers_org.go`, `handlers_supplychain.go` |
 | utils | `<function>.go` | `response.go`, `middleware.go`, `validator.go` |
 
 ## Naming conventions
@@ -85,9 +85,10 @@ func (a *App) actionHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // 3. Extract claims (if auth required)
+    // 3. Extract claims (JWT or API key, depending on endpoint)
     claims := utils.GetClaims(r)
     if claims == nil {
+        // For API key endpoints, use utils.GetAPIKeyClaims(r) instead
         utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
         return
     }

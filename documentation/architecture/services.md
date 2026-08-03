@@ -139,14 +139,20 @@ Manages roles, permissions, and role-permission assignments.
 
 **Permission constants:**
 ```go
-PermUsersInvite   = "users.invite"
-PermUsersManage   = "users.manage"
-PermRBACManage    = "rbac.manage"
-PermAPIKeysManage = "apikeys.manage"
-PermBillingManage = "billing.manage"
-PermCRMLeadsWrite   = "crm.leads.write"
-PermCRMQuotesWrite  = "crm.quotes.write"
-PermCRMTicketsWrite = "crm.tickets.write"
+PermUsersInvite          = "users.invite"
+PermUsersManage          = "users.manage"
+PermRBACManage           = "rbac.manage"
+PermAPIKeysManage        = "apikeys.manage"
+PermBillingManage        = "billing.manage"
+PermCRMLeadsWrite        = "crm.leads.write"
+PermCRMQuotesWrite       = "crm.quotes.write"
+PermCRMTicketsWrite      = "crm.tickets.write"
+PermAccountingLedger     = "accounting.ledger.write"
+PermAccountingInvoices   = "accounting.invoices.write"
+PermExpensesSubmit       = "expenses.submit"
+PermFleetTelematicsIngest = "fleet.telematics.ingest"
+PermFleetRoutesManage    = "fleet.routes.manage"
+PermInventoryRead        = "inventory.read"
 ```
 
 ## BillingService
@@ -242,6 +248,99 @@ type FlaggedClause struct {
 ```
 
 **AI simulation:** The current implementation uses keyword-based heuristic analysis for both win probability scoring and contract risk analysis. Win probabilities fall in the 40–80 range. Contract analysis scans for high-risk keywords (indemnification, penalty, termination, confidential) and assigns weighted risk scores. In production, these would be replaced with external AI/ML service calls.
+
+## AccountingService
+
+**File:** `services_accounting.go`
+
+Manages accounting operations: journal entries, invoice OCR processing, and expense submissions.
+
+| Method | Description |
+|---|---|
+| `PostJournalEntry(ctx, orgID, entryDate, memo, items)` | Creates a journal entry with balanced debit/credit items |
+| `ProcessInvoiceOCR(ctx, orgID, fileName, fileSize)` | Simulates AI-powered OCR extraction from an uploaded invoice |
+| `SubmitExpense(ctx, orgID, userID, amount, category, receiptFileName)` | Creates an expense with AI fraud audit |
+
+**Domain errors:**
+- `ErrNoJournalItems` — journal entry must have at least one item
+- `ErrUnbalancedEntry` — total debits must equal total credits
+- `ErrAccountNotFound` — account not found
+- `ErrAccountNotInOrg` — account does not belong to this organization
+
+## SupplyChainService
+
+**File:** `services_supplychain.go`
+
+Manages supply chain, manufacturing, fleet telematics, and inventory operations. Also handles API key validation for machine-to-machine endpoints.
+
+**Constructor:** `NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService)`
+
+Accepts an `*AuthService` for bcrypt verification of API keys during authentication.
+
+| Method | Description |
+|---|---|
+| `IngestTelemetry(ctx, orgID, input)` | Processes vehicle telemetry data, triggers AI predictive alerts for high engine temp (>110°C) or speed (>130 km/h) |
+| `OptimizeRoutes(ctx, orgID, shipmentIDs, vehicleIDs)` | Generates AI-optimized delivery routes with GeoJSON waypoints, ETA, and carbon offset |
+| `GetReorderPredictions(ctx, orgID, warehouseID)` | Returns AI-driven stockout predictions and reorder recommendations |
+| `ValidateAPIKey(ctx, rawKey)` | bcrypt-verifies an API key against stored hashes, returns org ID and scopes |
+
+**Domain errors:**
+- `ErrVehicleNotFound` — vehicle not found by VIN
+- `ErrNoShipmentsProvided` — empty shipment IDs array
+- `ErrNoVehiclesProvided` — empty vehicle IDs array
+- `ErrShipmentsNotFound` — no matching shipments
+- `ErrVehiclesNotFound` — no matching vehicles
+- `ErrAPIKeyInvalid` — invalid or expired API key
+
+**Types:**
+
+```go
+type FleetVehicle struct {
+    ID           uuid.UUID
+    OrgID        uuid.UUID
+    VIN          string
+    LicensePlate string
+    Make         string
+    Model        string
+    Status       string    // active, maintenance, decommissioned
+    CreatedAt    time.Time
+}
+
+type Shipment struct {
+    ID                 uuid.UUID
+    OrgID              uuid.UUID
+    TrackingNumber     string
+    OriginAddress      string
+    DestinationAddress string
+    Status             string    // pending, in_transit, delivered, cancelled
+    AssignedVehicleID  *uuid.UUID
+    AssignedDriverID   *uuid.UUID
+    CreatedAt          time.Time
+}
+
+type TelemetryIngestResult struct {
+    Status                     string
+    ProcessedAt                time.Time
+    AIPredictiveAlertTriggered bool
+}
+
+type RoutePlan struct {
+    RoutePlanID        uuid.UUID
+    OptimizedWaypoints []Waypoint  // GeoJSON points
+    PredictedETA       time.Time
+    CarbonOffsetKg     float64
+}
+
+type StockoutPrediction struct {
+    ProductID             uuid.UUID
+    SKU                   string
+    CurrentStock          int
+    PredictedStockoutDays int
+    RecommendedReorderQty int
+}
+```
+
+**AI simulation:** Telemetry alerts are triggered by rule-based thresholds (engine temp > 110°C, speed > 130 km/h). Route optimization generates simulated GeoJSON paths with randomized ETAs. Reorder predictions use simulated current stock levels with randomized daily consumption rates and 20–50% safety buffers. All AI features are designed to be replaced with real ML/optimization services in production.
 
 ## Mailer
 

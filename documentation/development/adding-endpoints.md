@@ -80,12 +80,19 @@ func (a *App) routes() http.Handler {
     // Public route (no auth)
     mux.HandleFunc("GET /users", a.listUsersHandler)
 
-    // Protected route (with auth + permission)
+    // Protected route — Bearer token (JWT) auth
     mux.Handle("POST /api/v1/users",
         utils.RequireAuth(a.Auth)(
             utils.RequirePermission(services.PermUsersManage)(
                 http.HandlerFunc(a.createUserHandler),
             ),
+        ),
+    )
+
+    // Protected route — API key auth
+    mux.Handle("POST /api/v1/fleet/telematics/ingest",
+        utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+            http.HandlerFunc(a.ingestTelemetryHandler),
         ),
     )
 
@@ -105,6 +112,21 @@ The project uses Go 1.22+ enhanced ServeMux patterns:
 | Method+path | `POST /api/v1/auth/login` | Method-specific routing |
 
 Access path parameters with `r.PathValue("name")`.
+
+### Authentication modes
+
+Strata supports two authentication modes at the route level:
+
+| Mode | Middleware | Header | Claims Helper |
+|---|---|---|---|
+| Bearer token (JWT) | `RequireAuth` + `RequirePermission` | `Authorization: Bearer <jwt>` | `utils.GetClaims(r)` |
+| API key | `RequireAPIKey` | `X-API-Key: <key>` | `utils.GetAPIKeyClaims(r)` |
+
+**For API key endpoints:**
+- Use `RequireAPIKey` instead of `RequireAuth`/`RequirePermission`
+- The first argument accepts any service that has a `ValidateAPIKey(context.Context, string) (uuid.UUID, []string, error)` method
+- Required scopes are checked against the key's stored scopes
+- Org context is injected via `APIKeyClaims`
 
 ## Step 3: Add permission (if needed)
 
@@ -146,7 +168,7 @@ swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency 
 | Step | File | What to do |
 |---|---|---|
 | 1 | `internal/handlers/handlers_<category>.go` | Write handler function with Swagger annotations |
-| 2 | `internal/handlers/handlers_routes.go` | Register route with middleware |
+| 2 | `internal/handlers/handlers_routes.go` | Register route with middleware (Bearer or API key) |
 | 3 | `internal/database/database.go` | Add new permission to seed (if needed) |
 | 4 | `internal/services/services_rbac.go` | Add permission constant (if needed) |
 | 5 | — | Regenerate Swagger spec |

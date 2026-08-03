@@ -14,26 +14,30 @@ cmd/
 
 internal/
 ├── services/            # BUSINESS LAYER — service + repository per domain
-│   ├── services_auth.go     # AuthService: JWT, bcrypt
-│   ├── services_users.go    # UserService: users, organization memberships
-│   ├── services_orgs.go     # OrgService: organizations, invitations, API keys
-│   ├── services_rbac.go     # RBACService: roles, permissions
-│   ├── services_billing.go  # BillingService: subscriptions
-│   ├── services_crm.go      # CRMService: leads, deals, quotes, AI analysis
-│   └── services_mailer.go   # Mailer: transactional email (stub)
+│   ├── services_auth.go        # AuthService: JWT, bcrypt
+│   ├── services_users.go       # UserService: users, organization memberships
+│   ├── services_orgs.go        # OrgService: organizations, invitations, API keys
+│   ├── services_rbac.go        # RBACService: roles, permissions
+│   ├── services_billing.go     # BillingService: subscriptions
+│   ├── services_crm.go         # CRMService: leads, deals, quotes, AI analysis
+│   ├── services_accounting.go  # AccountingService: journal entries, OCR, expenses
+│   ├── services_supplychain.go # SupplyChainService: fleet, telematics, inventory, routes
+│   └── services_mailer.go      # Mailer: transactional email (stub)
 │
 ├── handlers/            # HTTP LAYER — handlers, routes, App wiring
-│   ├── handlers_server.go   # App struct, New(), Serve() — all dependency injection
-│   ├── handlers_routes.go   # Route registration + middleware stack + Swagger UI
-│   ├── handlers_health.go   # GET /health
-│   ├── handlers_auth.go     # POST auth/register, POST auth/login
-│   ├── handlers_org.go      # POST org/invitations, org/roles, org/api-keys
-│   ├── handlers_billing.go  # POST billing/subscriptions
-│   └── handlers_crm.go      # POST crm/leads, POST crm/quotes/risk-analysis
+│   ├── handlers_server.go      # App struct, New(), Serve() — all dependency injection
+│   ├── handlers_routes.go      # Route registration + middleware stack + Swagger UI
+│   ├── handlers_health.go      # GET /health
+│   ├── handlers_auth.go        # POST auth/register, POST auth/login
+│   ├── handlers_org.go         # POST org/invitations, org/roles, org/api-keys
+│   ├── handlers_billing.go     # POST billing/subscriptions
+│   ├── handlers_crm.go         # POST crm/leads, quotes/risk-analysis, crm/tickets
+│   ├── handlers_accounting.go  # POST accounting/journal-entries, invoices/ocr, expenses
+│   └── handlers_supplychain.go # POST fleet/telematics, fleet/routes, GET inventory/reorder-predictions
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
-│   ├── middleware.go     # RequireAuth, RequirePermission, Logging, CORS, Recovery
+│   ├── middleware.go     # RequireAuth, RequirePermission, RequireAPIKey, Logging, CORS, Recovery
 │   └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 │
 ├── config/config.go     # App configuration loaded from env vars
@@ -161,11 +165,19 @@ func (a *App) routes() http.Handler {
 Protected routes use the middleware stack directly in the route registration:
 
 ```go
+// Bearer token (JWT) auth:
 mux.Handle("POST /api/v1/users",
     utils.RequireAuth(a.Auth)(
         utils.RequirePermission(services.PermUsersInvite)(
             http.HandlerFunc(a.inviteHandler),
         ),
+    ),
+)
+
+// API key auth:
+mux.Handle("POST /api/v1/fleet/telematics/ingest",
+    utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+        http.HandlerFunc(a.ingestTelemetryHandler),
     ),
 )
 ```
@@ -184,7 +196,9 @@ internal/services/
 ├── services_rbac.go
 ├── services_billing.go
 ├── services_mailer.go
-└── services_crm.go       # <-- new feature (leads, deals, quotes, AI)
+├── services_crm.go        # CRM (leads, deals, quotes, AI)
+├── services_accounting.go  # Accounting (journal entries, OCR, expenses)
+└── services_supplychain.go # Supply chain (fleet, telematics, inventory, routes)
 ```
 
 A service file contains its own types, repository (SQL queries), and exported service struct:
@@ -241,16 +255,17 @@ func (s *CRMService) Create(ctx context.Context, name, email string) (*Lead, err
 
 ```go
 type App struct {
-	Config  config.Config
-	DB      *database.DB
-	Auth    *services.AuthService
-	Users   *services.UserService
-	Orgs    *services.OrgService
-	RBAC    *services.RBACService
-	Billing *services.BillingService
-	Mailer  *services.Mailer
-	CRM     *services.CRMService       // <-- new field
-	server  *http.Server
+	Config      config.Config
+	DB          *database.DB
+	Auth        *services.AuthService
+	Users       *services.UserService
+	Orgs        *services.OrgService
+	RBAC        *services.RBACService
+	Billing     *services.BillingService
+	Mailer      *services.Mailer
+	CRM         *services.CRMService       // <-- new field
+	SupplyChain *services.SupplyChainService
+	server      *http.Server
 }
 ```
 
@@ -267,6 +282,8 @@ func New(
 	billingSvc *services.BillingService,
 	mailerSvc *services.Mailer,
 	crmSvc *services.CRMService,   // <-- new parameter
+	accountingSvc *services.AccountingService,
+	supplyChainSvc *services.SupplyChainService,
 ) *App {
 	return &App{
 		// ...
@@ -280,8 +297,10 @@ func New(
 ```go
 crmSvc := services.NewCRMService(db.Pool)
 
-app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc)
+app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc)
 ```
+
+> **Note:** Some services may require additional dependencies. For example, `SupplyChainService` also accepts `*AuthService` for API key bcrypt verification.
 
 ### Use the service from a handler
 
@@ -315,7 +334,7 @@ Shared utilities live in `internal/utils/` and have no dependencies on other pro
 ```
 internal/utils/
 ├── response.go      # WriteJSON, WriteErr, Envelope
-├── middleware.go    # RequireAuth, RequirePermission, Logging, CORS, Recovery, GetClaims
+├── middleware.go     # RequireAuth, RequirePermission, RequireAPIKey, Logging, CORS, Recovery, GetClaims
 └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 ```
 
@@ -369,7 +388,9 @@ func (a *App) routes() http.Handler {
 
 ### Per-route middleware
 
-Auth and permission checks are applied per-route:
+Auth and permission checks are applied per-route. Strata supports two auth modes:
+
+**Bearer token (JWT) auth:**
 
 ```go
 mux.Handle("POST /api/v1/org/invitations",
@@ -377,6 +398,16 @@ mux.Handle("POST /api/v1/org/invitations",
         utils.RequirePermission(services.PermUsersInvite)(
             http.HandlerFunc(a.inviteHandler),
         ),
+    ),
+)
+```
+
+**API key auth:**
+
+```go
+mux.Handle("POST /api/v1/fleet/telematics/ingest",
+    utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+        http.HandlerFunc(a.ingestTelemetryHandler),
     ),
 )
 ```
@@ -507,3 +538,4 @@ open http://localhost:8080/swagger/
 - **internal/test/** — shared test fixtures, factories, and helpers.
 - **AI integration** — replace simulated AI scoring/risk analysis with real ML service calls.
 - **CRM pipeline** — full deal pipeline with stages, activity tracking, and reporting.
+- **Telematics pipeline** — real-time stream processing for vehicle telemetry data.

@@ -115,6 +115,7 @@ type App struct {
     Billing *services.BillingService
     Mailer  *services.Mailer
     CRM     *services.CRMService       // <-- new field
+    SupplyChain *services.SupplyChainService
     server  *http.Server
 }
 ```
@@ -132,10 +133,13 @@ func New(
     billingSvc *services.BillingService,
     mailerSvc *services.Mailer,
     crmSvc *services.CRMService,   // <-- new parameter
+    accountingSvc *services.AccountingService,
+    supplyChainSvc *services.SupplyChainService,
 ) *App {
     return &App{
         // ...
-        CRM: crmSvc,
+        CRM:         crmSvc,
+        SupplyChain: supplyChainSvc,
     }
 }
 ```
@@ -145,8 +149,10 @@ func New(
 ```go
 crmSvc := services.NewCRMService(db.Pool)
 
-app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc)
+app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc)
 ```
+
+> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification), accept them in the constructor. See `SupplyChainService` for an example: `NewSupplyChainService(pool, authSvc)`.
 
 ## Step 3: Add the database table
 
@@ -204,3 +210,4 @@ func (a *App) createLeadHandler(w http.ResponseWriter, r *http.Request) {
 | Domain errors | Package-level `var` with `errors.New(...)` |
 | SQL style | Raw SQL, parameterized with `$1, $2, ...` placeholders |
 | No rows handling | Return `(nil, nil)` when `pgx.ErrNoRows` — let the caller decide |
+| Additional deps | Services needing more than `*pgxpool.Pool` (e.g., `*AuthService`) accept them in the constructor alongside `pool` |

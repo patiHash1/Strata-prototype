@@ -14,6 +14,8 @@ The project is in early prototype stage. The API is under active development and
 - [Member Management](api/members.md)
 - [Billing](api/billing.md)
 - [CRM & Revenue](api/crm.md)
+- [Fleet & Telematics](api/fleet.md)
+- [Supply Chain & Inventory](api/inventory.md)
 - [Finance & Accounting](api/accounting.md)
 - [System Health](api/system.md)
 - [Architecture Overview](architecture/overview.md)

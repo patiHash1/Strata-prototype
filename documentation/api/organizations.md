@@ -127,7 +127,7 @@ Authorization: Bearer <jwt>
 
 {
     "name": "CI Pipeline",
-    "scopes": ["users:read", "billing:read"],
+    "scopes": ["fleet.telematics.ingest"],
     "expires_in_days": 90
 }
 ```
@@ -142,11 +142,23 @@ Authorization: Bearer <jwt>
 
 > **Security note:** The `plain_text_secret` is shown only once in this response. It cannot be retrieved later. Store it securely.
 
+**Using API keys:**
+
+API keys are sent in the `X-API-Key` header:
+
+```http
+POST /api/v1/fleet/telematics/ingest
+Content-Type: application/json
+X-API-Key: <api_key>
+```
+
+They are validated via bcrypt comparison against stored hashes. The key must include the scopes required by the endpoint (e.g., `fleet.telematics.ingest` for telemetry ingestion).
+
 **Validation:**
 | Field | Rule |
 |---|---|
 | `name` | Required, non-blank |
-| `scopes` | Optional, defaults to empty array |
+| `scopes` | Optional, defaults to empty array. Should include permission keys like `fleet.telematics.ingest` |
 | `expires_in_days` | Optional, no expiration if 0 or omitted |
 
 **Behavior:**
@@ -176,11 +188,21 @@ Authorization: Bearer <jwt>
 | `rbac.manage` | rbac | Create and manage roles and permissions |
 | `apikeys.manage` | apikeys | Generate and revoke API keys |
 | `billing.manage` | billing | Manage subscriptions and billing |
+| `crm.leads.write` | crm | Create and manage CRM leads |
+| `crm.quotes.write` | crm | Manage and analyze CRM quotes |
+| `crm.tickets.write` | crm | Create and manage CRM support tickets |
+| `accounting.ledger.write` | accounting | Post general ledger journal entries |
+| `accounting.invoices.write` | accounting | Upload and process invoices |
+| `expenses.submit` | accounting | Submit expense reports |
+| `fleet.telematics.ingest` | fleet | Ingest vehicle telemetry data via API key |
+| `fleet.routes.manage` | fleet | Generate and manage optimized fleet routes |
+| `inventory.read` | inventory | Read inventory reorder predictions and stock levels |
 
 ### Permission checks
 
-Permissions are checked at the route level using the `RequirePermission` middleware, which reads the `permissions` claim from the JWT. The JWT is populated with the user's permissions at login time.
+Permissions are checked at the route level using the `RequirePermission` middleware (for JWT endpoints) or `RequireAPIKey` middleware (for API key endpoints).
 
+**JWT endpoints:**
 ```go
 mux.Handle("POST /api/v1/org/invitations",
     utils.RequireAuth(a.Auth)(
@@ -191,4 +213,13 @@ mux.Handle("POST /api/v1/org/invitations",
 )
 ```
 
-The middleware grants access if the user has **any** of the required permissions (OR logic). For AND logic, chain multiple `RequirePermission` calls.
+**API key endpoints:**
+```go
+mux.Handle("POST /api/v1/fleet/telematics/ingest",
+    utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+        http.HandlerFunc(a.ingestTelemetryHandler),
+    ),
+)
+```
+
+The middleware grants access if the user/key has **any** of the required permissions (OR logic). For AND logic, chain multiple `RequirePermission` calls.

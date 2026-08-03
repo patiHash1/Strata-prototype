@@ -5,22 +5,23 @@
 Strata follows a **three-layer architecture** with a clear separation of concerns:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   HTTP Layer (handlers)                  │
-│   • Parse request bodies and query params                │
-│   • Extract auth claims from context                     │
-│   • Call services                                        │
-│   • Write JSON responses via utils.Envelope              │
-├─────────────────────────────────────────────────────────┤
-│              Business Layer (services)                   │
-│   • Domain types and validation                          │
-│   • Repository structs with raw SQL                      │
-│   • Business rules (e.g., "can't deactivate yourself")   │
-├─────────────────────────────────────────────────────────┤
-│              Infrastructure (database)                   │
-│   • pgx connection pool                                  │
-│   • Schema migrations                                    │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                   HTTP Layer (handlers)                          │
+│   • Parse request bodies and query params                        │
+│   • Extract auth claims from context (JWT or API key)            │
+│   • Call services                                                │
+│   • Write JSON responses via utils.Envelope                      │
+├─────────────────────────────────────────────────────────────────┤
+│              Business Layer (services)                           │
+│   • Domain types and validation                                  │
+│   • Repository structs with raw SQL                              │
+│   • Business rules (e.g., "can't deactivate yourself")           │
+│   • AI simulation helpers (contract risk, sentiment, routing)    │
+├─────────────────────────────────────────────────────────────────┤
+│              Infrastructure (database)                           │
+│   • pgx connection pool                                          │
+│   • Schema migrations (idempotent CREATE TABLE IF NOT EXISTS)    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Request flow
@@ -37,8 +38,12 @@ sequenceDiagram
     Client->>Router: HTTP request
     Router->>MW: route matched
     MW->>MW: Logging, CORS, Recovery
-    MW->>Handler: RequireAuth (validate JWT)
-    MW->>Handler: RequirePermission (check claims)
+    alt Bearer Token
+        MW->>Handler: RequireAuth (validate JWT)
+        MW->>Handler: RequirePermission (check claims)
+    else API Key
+        MW->>Handler: RequireAPIKey (validate + check scopes)
+    end
     Handler->>Service: business call (ctx + payload)
     Service->>DB: SQL query
     DB-->>Service: result
@@ -53,7 +58,7 @@ sequenceDiagram
 - `App` struct holds all injected dependencies (services, config, DB)
 - Route registration happens in `routes()` using Go 1.22+ `net/http` patterns
 - Handlers are thin: parse input → call service → write output
-- Route-level middleware (`RequireAuth`, `RequirePermission`) is composed at registration time
+- Route-level middleware (`RequireAuth`, `RequirePermission`, `RequireAPIKey`) is composed at registration time
 
 ### `internal/services` — Business layer
 
@@ -64,13 +69,17 @@ One file per domain, each containing:
 3. **Service** — exported struct with business logic methods
 4. **Domain errors** — `var` block of `errors.New(...)` sentinels
 
-Example (from `services_users.go`):
+Current services:
 ```
-User             → users table
-OrganizationMember → organization_members table
-userRepository   → SQL for users + memberships
-UserService      → Create, GetByID, AddMember, UpdateMemberRole,
-                   DeactivateMember, RemoveMember, GetMemberByID
+services_auth.go        → AuthService: JWT, bcrypt
+services_users.go       → UserService: users, organization memberships
+services_orgs.go        → OrgService: organizations, invitations, API keys
+services_rbac.go        → RBACService: roles, permissions
+services_billing.go     → BillingService: subscriptions
+services_crm.go         → CRMService: leads, deals, quotes, AI analysis
+services_accounting.go  → AccountingService: journal entries, OCR, expenses
+services_supplychain.go → SupplyChainService: fleet, telematics, inventory, routes
+services_mailer.go      → Mailer: transactional email (stub)
 ```
 
 ### `internal/utils` — Shared helpers
@@ -78,7 +87,7 @@ UserService      → Create, GetByID, AddMember, UpdateMemberRole,
 Pure functions with no dependency on other project packages:
 
 - **response.go** — `WriteJSON`, `WriteErr`, `Envelope`
-- **middleware.go** — `RequireAuth`, `RequirePermission`, `LoggingMiddleware`, `CORSMiddleware`, `RecoveryMiddleware`, `GetClaims`
+- **middleware.go** — `RequireAuth`, `RequirePermission`, `RequireAPIKey`, `LoggingMiddleware`, `CORSMiddleware`, `RecoveryMiddleware`, `GetClaims`, `GetAPIKeyClaims`
 - **validator.go** — `IsEmail`, `IsDomainSlug`, `NotBlank`, `MinLen`
 
 ### `internal/config` & `internal/env`
@@ -95,18 +104,20 @@ All dependencies are constructed in `cmd/api/main.go` and injected into `App` vi
 
 ```
 main.go
-  ├── database.New(ctx, dsn)          → *database.DB
-  ├── services.NewAuthService(...)    → *AuthService
-  ├── services.NewUserService(pool)   → *UserService
-  ├── services.NewOrgService(pool)    → *OrgService
-  ├── services.NewRBACService(pool)   → *RBACService
-  ├── services.NewBillingService(pool)→ *BillingService
-  ├── services.NewMailer()            → *Mailer
-  ├── services.NewCRMService(pool)    → *CRMService
-  └── handlers.New(cfg, db, ...)      → *App
+  ├── database.New(ctx, dsn)            → *database.DB
+  ├── services.NewAuthService(...)      → *AuthService
+  ├── services.NewUserService(pool)     → *UserService
+  ├── services.NewOrgService(pool)      → *OrgService
+  ├── services.NewRBACService(pool)     → *RBACService
+  ├── services.NewBillingService(pool)  → *BillingService
+  ├── services.NewMailer()              → *Mailer
+  ├── services.NewCRMService(pool)      → *CRMService
+  ├── services.NewAccountingService(pool)      → *AccountingService
+  ├── services.NewSupplyChainService(pool, authSvc) → *SupplyChainService
+  └── handlers.New(cfg, db, ...)        → *App
 ```
 
-Services that need database access accept `*pgxpool.Pool` directly.
+Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification.
 
 ## Middleware stack
 
@@ -121,11 +132,19 @@ handler = utils.RecoveryMiddleware(handler) // innermost
 
 Route-level middleware wraps individual handlers:
 
+**Bearer token (JWT):**
 ```go
 utils.RequireAuth(a.Auth)(                 // outermost
     utils.RequirePermission(services.PermUsersManage)(
         http.HandlerFunc(a.updateMemberHandler),
     ),
+)
+```
+
+**API key auth:**
+```go
+utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+    http.HandlerFunc(a.ingestTelemetryHandler),
 )
 ```
 
@@ -142,6 +161,7 @@ utils.RequireAuth(a.Auth)(                 // outermost
 |---|---|
 | Repository pattern within services | No ORM; explicit SQL keeps queries transparent and performance predictable |
 | JWT embeds permissions | Permission checks need no DB round-trip per request |
+| API key auth for telemetry | Machine-to-machine endpoints use key-based auth for simplicity and performance |
 | Soft-delete for member deactivation | Preserves history, allows reactivation, keeps FK references valid |
 | Hard-delete only for member removal | Removes the membership cleanly; user account stays intact |
 | `Envelope` for all responses | Consistent API shape, easy to extend with pagination/meta |

@@ -2,9 +2,14 @@
 
 ## Overview
 
-Authentication in Strata uses **JWT (JSON Web Tokens)** signed with HMAC-SHA256. The `AuthService` in `internal/services/services_auth.go` handles all token operations.
+Authentication in Strata uses **two modes**:
 
-### Token claims
+1. **JWT (JSON Web Tokens)** signed with HMAC-SHA256 — for human-facing endpoints
+2. **API keys** validated via bcrypt — for machine-to-machine endpoints (e.g., telemetry ingestion)
+
+The `AuthService` in `internal/services/services_auth.go` handles JWT operations and password management. API key validation is handled by `SupplyChainService.ValidateAPIKey()`.
+
+### JWT claims
 
 ```json
 {
@@ -27,6 +32,16 @@ Authentication in Strata uses **JWT (JSON Web Tokens)** signed with HMAC-SHA256.
 | `iss` | string | JWT issuer (configurable) |
 | `iat` | number | Issued-at timestamp (epoch) |
 | `exp` | number | Expiration timestamp (epoch) — tokens are valid for 24 hours |
+
+### API key validation
+
+API keys are stored as bcrypt hashes in the `api_keys` table. When a request arrives with an `X-API-Key` header:
+
+1. All active (non-expired) API keys are fetched from the database
+2. The raw key is bcrypt-verified against each stored hash
+3. On match, the key's org ID and scopes are injected into the request context
+
+API keys are created via `POST /api/v1/org/api-keys` with specific scope permissions.
 
 ---
 
@@ -154,8 +169,20 @@ GET /api/v1/org/invitations
 Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
+## Using API keys
+
+Include the API key in the `X-API-Key` header for machine-to-machine endpoints:
+
+```http
+POST /api/v1/fleet/telematics/ingest
+X-API-Key: a1b2c3d4e5f6...
+```
+
+API keys must be created with the appropriate scopes for the endpoint they will access. For example, the telemetry ingestion endpoint requires the `fleet.telematics.ingest` scope.
+
 ## Token lifecycle
 
-- **Expiration:** 24 hours from issuance
+- **JWT Expiration:** 24 hours from issuance
 - **Refresh:** The `refresh_token` returned at login can be used to obtain a new JWT (refresh endpoint is not yet implemented — coming soon)
-- **Revocation:** Not yet implemented. In production, a token blacklist or short-lived tokens with refresh rotation should be used.
+- **JWT Revocation:** Not yet implemented. In production, a token blacklist or short-lived tokens with refresh rotation should be used.
+- **API Key Expiration:** Configurable at creation time via `expires_in_days`. Keys with no expiration are valid indefinitely (until manually revoked).

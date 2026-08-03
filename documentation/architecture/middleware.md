@@ -7,6 +7,10 @@ Middleware in Strata is implemented as higher-order functions that wrap `http.Ha
 1. **Global middleware** — wraps the entire mux (logging, CORS, panic recovery)
 2. **Route-level middleware** — wraps individual handlers (auth, permission checks)
 
+There are two authentication modes supported at the route level:
+- **Bearer token (JWT)** — `RequireAuth` + `RequirePermission`
+- **API key** — `RequireAPIKey` (for machine-to-machine endpoints like telemetry ingestion)
+
 ## Global middleware
 
 Global middleware is applied in `routes()` in `handlers_routes.go`. The order determines the execution flow (outermost first):
@@ -58,12 +62,24 @@ Catches panics in handler code and returns `500 Internal Server Error` with a JS
 
 Route-level middleware is composed at registration time:
 
+**Bearer token (JWT):**
+
 ```go
 mux.Handle("POST /api/v1/org/invitations",
     utils.RequireAuth(a.Auth)(
         utils.RequirePermission(services.PermUsersInvite)(
             http.HandlerFunc(a.inviteHandler),
         ),
+    ),
+)
+```
+
+**API key:**
+
+```go
+mux.Handle("POST /api/v1/fleet/telematics/ingest",
+    utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+        http.HandlerFunc(a.ingestTelemetryHandler),
     ),
 )
 ```
@@ -104,16 +120,67 @@ Checks that the authenticated user has at least one of the specified permissions
 
 The permission check logic is **OR** — the user needs only one of the listed permissions. For AND logic, chain multiple `RequirePermission` calls.
 
-## Context key
+### RequireAPIKey
 
-Claims are stored in the request context using a typed context key:
+```go
+func RequireAPIKey(svc interface{ ValidateAPIKey(ctx context.Context, rawKey string) (uuid.UUID, []string, error) }, requiredScopes ...string) func(http.Handler) http.Handler
+```
+
+Validates the `X-API-Key` header against stored API keys:
+
+1. Reads the raw key from the `X-API-Key` header
+2. Calls the service's `ValidateAPIKey()` method which bcrypt-verifies the key against all active keys
+3. Checks that the key has at least one of the required scopes
+4. Injects `APIKeyClaims` (containing `OrgID` and `Scopes`) into the request context
+
+API key claims are retrievable by handlers via `utils.GetAPIKeyClaims(r)`:
+
+```go
+claims := utils.GetAPIKeyClaims(r)
+if claims == nil {
+    // API key authentication required
+}
+orgID, err := uuid.Parse(claims.OrgID)
+```
+
+**Scope checking:** Like `RequirePermission`, the scope check uses **OR** logic — the key needs only one of the required scopes.
+
+## Context keys
+
+Two context keys are used for storing authentication state:
 
 ```go
 type contextKey string
-const claimsKey contextKey = "auth.claims"
+const claimsKey contextKey = "auth.claims"          // JWT (Bearer) claims
+const apiKeyClaimsKey contextKey = "apikey.claims"  // API key claims
 ```
 
 This prevents key collisions with other context values.
+
+## Helpers
+
+### GetClaims
+
+```go
+func GetClaims(r *http.Request) *services.Claims
+```
+
+Extracts JWT auth claims from the request context. Returns `nil` if absent.
+
+### GetAPIKeyClaims
+
+```go
+func GetAPIKeyClaims(r *http.Request) *APIKeyClaims
+```
+
+Extracts API key claims from the request context. Returns `nil` if absent.
+
+```go
+type APIKeyClaims struct {
+    OrgID  string
+    Scopes []string
+}
+```
 
 ## Adding new middleware
 

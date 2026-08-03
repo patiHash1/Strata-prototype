@@ -56,6 +56,7 @@ All migrations **must be idempotent** because they run on every startup:
 | Operation | Safe pattern |
 |---|---|
 | Create table | `CREATE TABLE IF NOT EXISTS` |
+| Create enum type | `DO $$ BEGIN CREATE TYPE ... EXCEPTION WHEN duplicate_object THEN NULL; END $$` |
 | Insert seed data | `INSERT ... ON CONFLICT (key) DO NOTHING` |
 | Add column | `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` |
 | Add index | `CREATE INDEX IF NOT EXISTS` |
@@ -83,17 +84,40 @@ Seed data (like default permissions) uses `ON CONFLICT DO NOTHING`:
 
 | Order | Name | Purpose |
 |---|---|---|
-| 1 | `create_enums_if_missing` | Placeholder (currently no-op) |
-| 2 | `create_organizations` | Organizations table |
-| 3 | `create_users` | Users table |
-| 4 | `create_roles` | Roles table |
-| 5 | `create_permissions` | Permissions table |
-| 6 | `create_role_permissions` | Role-permission join table |
-| 7 | `create_organization_members` | Organization membership table |
-| 8 | `create_organization_invitations` | Invitation table |
-| 9 | `create_api_keys` | API keys table |
-| 10 | `create_subscriptions` | Subscriptions table |
-| 11 | `seed_default_permissions` | Inserts default permissions |
+| 1 | `create_vehicle_status_enum` | Creates `vehicle_status` enum type |
+| 2 | `create_shipment_status_enum` | Creates `shipment_status` enum type |
+| 3 | `create_organizations` | Organizations table |
+| 4 | `create_users` | Users table |
+| 5 | `create_roles` | Roles table |
+| 6 | `create_permissions` | Permissions table |
+| 7 | `create_role_permissions` | Role-permission join table |
+| 8 | `create_organization_members` | Organization membership table |
+| 9 | `create_organization_invitations` | Invitation table |
+| 10 | `create_api_keys` | API keys table |
+| 11 | `create_subscriptions` | Subscriptions table |
+| 12 | `create_crm_contacts` | CRM contacts table |
+| 13 | `create_crm_deals` | CRM deals table |
+| 14 | `create_crm_quotes` | CRM quotes table |
+| 15 | `create_crm_helpdesk_tickets` | CRM helpdesk tickets table |
+| 16 | `create_crm_campaigns` | CRM campaigns table |
+| 17 | `create_subscription_plans` | Subscription plans table |
+| 18 | `create_plan_features` | Plan features table |
+| 19 | `create_chart_of_accounts` | Chart of accounts table |
+| 20 | `create_journal_entries` | Journal entries table |
+| 21 | `create_journal_items` | Journal items table |
+| 22 | `create_invoices` | Invoices table |
+| 23 | `create_expenses` | Expenses table |
+| 24 | `create_fixed_assets` | Fixed assets table |
+| 25 | `create_warehouses` | Warehouses table |
+| 26 | `create_products` | Products table |
+| 27 | `create_bill_of_materials` | Bill of materials table |
+| 28 | `create_bom_components` | BOM components table |
+| 29 | `create_fleet_vehicles` | Fleet vehicles table |
+| 30 | `create_fleet_drivers` | Fleet drivers table |
+| 31 | `create_shipments` | Shipments table |
+| 32 | `create_fleet_telematics_logs` | Telematics logs table |
+| 33 | `create_purchase_orders` | Purchase orders table |
+| 34 | `seed_default_permissions` | Inserts default permissions |
 
 ## Limitations & roadmap
 

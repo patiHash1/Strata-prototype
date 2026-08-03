@@ -125,6 +125,30 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Fleet & Supply Chain ──
+	// Telemetry ingestion uses API key auth
+	mux.Handle("POST /api/v1/fleet/telematics/ingest",
+		utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+			http.HandlerFunc(a.ingestTelemetryHandler),
+		),
+	)
+
+	mux.Handle("POST /api/v1/fleet/routes/optimize",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermFleetRoutesManage)(
+				http.HandlerFunc(a.optimizeRoutesHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/inventory/reorder-predictions",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermInventoryRead)(
+				http.HandlerFunc(a.getReorderPredictionsHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(

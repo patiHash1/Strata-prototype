@@ -55,8 +55,20 @@ func (db *DB) Migrate(ctx context.Context) error {
 		sql  string
 	}{
 		{
-			name: "create_enums_if_missing",
-			sql:  `SELECT 1`,
+			name: "create_vehicle_status_enum",
+			sql: `
+				DO $$ BEGIN
+					CREATE TYPE vehicle_status AS ENUM ('active', 'maintenance', 'decommissioned');
+				EXCEPTION WHEN duplicate_object THEN NULL;
+				END $$`,
+		},
+		{
+			name: "create_shipment_status_enum",
+			sql: `
+				DO $$ BEGIN
+					CREATE TYPE shipment_status AS ENUM ('pending', 'in_transit', 'delivered', 'cancelled');
+				EXCEPTION WHEN duplicate_object THEN NULL;
+				END $$`,
 		},
 		{
 			name: "create_organizations",
@@ -351,6 +363,118 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "create_warehouses",
+			sql: `
+				CREATE TABLE IF NOT EXISTS warehouses (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					name VARCHAR(100) NOT NULL,
+					address TEXT
+				)`,
+		},
+		{
+			name: "create_products",
+			sql: `
+				CREATE TABLE IF NOT EXISTS products (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					sku VARCHAR(100) NOT NULL,
+					name VARCHAR(255) NOT NULL,
+					unit_price DECIMAL(10, 2) NOT NULL,
+					cost_price DECIMAL(10, 2) NOT NULL,
+					ai_reorder_point INT DEFAULT 15,
+					UNIQUE(org_id, sku)
+				)`,
+		},
+		{
+			name: "create_bill_of_materials",
+			sql: `
+				CREATE TABLE IF NOT EXISTS bill_of_materials (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					parent_product_id UUID NOT NULL REFERENCES products(id),
+					bom_code VARCHAR(50) NOT NULL
+				)`,
+		},
+		{
+			name: "create_bom_components",
+			sql: `
+				CREATE TABLE IF NOT EXISTS bom_components (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					bom_id UUID NOT NULL REFERENCES bill_of_materials(id) ON DELETE CASCADE,
+					component_product_id UUID NOT NULL REFERENCES products(id),
+					quantity_required DECIMAL(10, 4) NOT NULL
+				)`,
+		},
+		{
+			name: "create_fleet_vehicles",
+			sql: `
+				CREATE TABLE IF NOT EXISTS fleet_vehicles (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					vin VARCHAR(17) UNIQUE NOT NULL,
+					license_plate VARCHAR(20) NOT NULL,
+					make VARCHAR(50) NOT NULL,
+					model VARCHAR(50) NOT NULL,
+					status vehicle_status DEFAULT 'active',
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_fleet_drivers",
+			sql: `
+				CREATE TABLE IF NOT EXISTS fleet_drivers (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					user_id UUID UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+					license_number VARCHAR(100) NOT NULL,
+					safety_rating DECIMAL(3, 2) DEFAULT 5.00
+				)`,
+		},
+		{
+			name: "create_shipments",
+			sql: `
+				CREATE TABLE IF NOT EXISTS shipments (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					tracking_number VARCHAR(100) UNIQUE NOT NULL,
+					origin_address TEXT NOT NULL,
+					destination_address TEXT NOT NULL,
+					status shipment_status DEFAULT 'pending',
+					assigned_vehicle_id UUID REFERENCES fleet_vehicles(id),
+					assigned_driver_id UUID REFERENCES fleet_drivers(id),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_fleet_telematics_logs",
+			sql: `
+				CREATE TABLE IF NOT EXISTS fleet_telematics_logs (
+					id BIGSERIAL PRIMARY KEY,
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					vehicle_id UUID NOT NULL REFERENCES fleet_vehicles(id) ON DELETE CASCADE,
+					latitude DECIMAL(10, 8) NOT NULL,
+					longitude DECIMAL(11, 8) NOT NULL,
+					speed_kmh DECIMAL(5, 2) NOT NULL,
+					fuel_level_pct DECIMAL(5, 2),
+					recorded_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_purchase_orders",
+			sql: `
+				CREATE TABLE IF NOT EXISTS purchase_orders (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					po_number VARCHAR(100) NOT NULL,
+					supplier_name VARCHAR(255) NOT NULL,
+					total_cost DECIMAL(12, 2) NOT NULL,
+					ai_supplier_risk_rating VARCHAR(50) DEFAULT 'Low Risk',
+					status VARCHAR(50) DEFAULT 'draft',
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
 			name: "seed_default_permissions",
 			sql: `
 				INSERT INTO permissions (permission_key, module, description)
@@ -365,7 +489,10 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('crm.tickets.write', 'crm',  'Create and manage CRM support tickets'),
 					('accounting.ledger.write',   'accounting', 'Post general ledger journal entries'),
 					('accounting.invoices.write', 'accounting', 'Upload and process invoices'),
-					('expenses.submit',           'accounting', 'Submit expense reports')
+					('expenses.submit',           'accounting', 'Submit expense reports'),
+					('fleet.telematics.ingest',   'fleet',     'Ingest vehicle telemetry data via API key'),
+					('fleet.routes.manage',       'fleet',     'Generate and manage optimized fleet routes'),
+					('inventory.read',            'inventory', 'Read inventory reorder predictions and stock levels')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}
