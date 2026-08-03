@@ -1,187 +1,444 @@
 /*
- * Strata Custom Dark Theme
- * Palette: #024959  #026873  #F2B84B  #D98825
+ * Strata — Custom Night/Dark Template
+ * Strict palette:
+ *   #024959  (deep teal — primary surface)
+ *   #026873  (teal — secondary surface / hover)
+ *   #F2B84B  (gold — primary text / accent)
+ *   #D98825  (amber — secondary accent / borders)
+ *
+ * Layout: full-width, no centered max-width column.
  */
 
 :root {
-  /* Primary: deep teal */
-  --color-primary: #024959;
-  --color-primary-dark: #013340;
-
-  /* Accent: gold / amber */
-  --color-accent: #F2B84B;
-  --color-accent-dark: #D98825;
-
-  /* Surfaces */
-  --bg-main: #1a1d23;
-  --bg-sidebar: #1e2128;
-  --bg-code: #2a2d35;
-  --text-main: #e0e0e0;
-  --text-muted: #b0b0b0;
-  --border-color: #3a3d45;
+  --c-primary:    #024959;
+  --c-secondary:  #026873;
+  --c-accent:     #F2B84B;
+  --c-accent-2:   #D98825;
 }
 
-/* ---------- Body & backgrounds ---------- */
-body,.md-container,.md-main,.md-header,.md-sidebar,.md-content {
-    background-color: var(--bg-main)!important;
-    color: var(--text-main)!important;
+/* ============================================================
+   1. Global reset / full-bleed layout
+   ============================================================ */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--c-primary) !important;
+  color: var(--c-accent) !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-.md-container {
-    max-width: 100%!important;
-    padding: 0!important;
+/* Remove the centered max-width wrapper that leaves blank side gaps */
+.wy-grid-for-nav {
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
-/* 2. Logo Styling (Reduced Size & Centered) */
-.md-header__logo {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px 0!important;
+.wy-nav-content-wrap {
+  margin-left: 0 !important;
+  padding: 0 !important;
+  background-color: var(--c-primary) !important;
 }
 
-.md-header__logo img {
-    max-height: 60px!important; /* Significantly reduced size */
-    width: auto!important;
-    object-fit: contain;
-}
-
-/* ---------- Links ---------- */
-a {
-  color: var(--color-accent);
-}
-a:hover {
-  color: var(--color-accent-dark);
-}
-a:visited {
-  color: var(--color-accent);
-}
-
-/* ---------- Sidebar ---------- */
-.wy-nav-side {
-  background-color: var(--bg-sidebar);
-}
-.wy-side-nav-search {
-  background-color: var(--color-primary);
-}
-.wy-side-nav-search input[type="text"] {
-  border-color: var(--color-primary-dark);
-}
-.wy-menu-vertical a {
-  color: var(--text-muted);
-}
-.wy-menu-vertical a:hover {
-  background-color: var(--color-primary);
-  color: #ffffff;
-}
-.wy-menu-vertical li.current > a,
-.wy-menu-vertical li.on a {
-  background-color: var(--color-primary-dark);
-  color: #ffffff;
-}
-.wy-menu-vertical li.toctree-l1.current > a {
-  border-bottom-color: var(--color-accent);
-  border-top-color: var(--color-accent);
-}
-.wy-menu-vertical li.toctree-l2.current > a {
-  background-color: var(--color-primary-dark);
-}
-
-/* ---------- Top nav ---------- */
-.wy-nav-top {
-  background-color: var(--color-primary);
-}
-
-/* ---------- Content area ---------- */
 .wy-nav-content {
-  background-color: var(--bg-main);
+  max-width: 100% !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 32px 40px !important;
+  background-color: var(--c-primary) !important;
+  min-height: calc(100vh - 60px);
 }
 
-/* ---------- Headings ---------- */
+.rst-content {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* ============================================================
+   2. Sidebar (left nav)
+   ============================================================ */
+
+.wy-nav-side {
+  background-color: var(--c-primary) !important;
+  border-right: 1px solid var(--c-accent-2);
+  min-height: 100vh;
+}
+
+.wy-side-nav-search {
+  background-color: var(--c-secondary) !important;
+  padding: 16px !important;
+  border-bottom: 1px solid var(--c-accent-2);
+}
+
+.wy-side-nav-search > a,
+.wy-side-nav-search .icon-home {
+  color: var(--c-accent) !important;
+}
+
+.wy-side-nav-search input[type="text"] {
+  background-color: var(--c-primary) !important;
+  color: var(--c-accent) !important;
+  border: 1px solid var(--c-accent-2) !important;
+  border-radius: 0 !important;
+}
+
+.wy-side-nav-search input[type="text"]::placeholder {
+  color: var(--c-accent);
+  opacity: 0.7;
+}
+
+/* Logo block in the sidebar */
+.wy-side-nav-search > a img.logo,
+.wy-side-nav-search a.icon-home img {
+  max-width: 180px !important;
+  width: auto !important;
+  height: auto !important;
+  display: block;
+  margin: 0 auto 8px auto !important;
+}
+
+/* Menu items */
+.wy-menu-vertical {
+  background-color: var(--c-primary) !important;
+}
+
+.wy-menu-vertical a {
+  color: var(--c-accent) !important;
+  background-color: var(--c-primary) !important;
+  border-right: 3px solid transparent;
+}
+
+.wy-menu-vertical a:hover {
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  border-right-color: var(--c-accent-2);
+}
+
+.wy-menu-vertical li.current > a,
+.wy-menu-vertical li.on a,
+.wy-menu-vertical li.current a {
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  border-right: 3px solid var(--c-accent-2);
+}
+
+.wy-menu-vertical li.toctree-l1.current > a {
+  border-top: 1px solid var(--c-accent-2);
+  border-bottom: 1px solid var(--c-accent-2);
+}
+
+.wy-menu-vertical li.toctree-l2.current > a,
+.wy-menu-vertical li.toctree-l3.current > a {
+  background-color: var(--c-secondary) !important;
+}
+
+.wy-menu-vertical li span.toctree-expand {
+  color: var(--c-accent-2) !important;
+}
+
+/* ============================================================
+   3. Top bar (mobile nav)
+   ============================================================ */
+
+.wy-nav-top {
+  background-color: var(--c-secondary) !important;
+  border-bottom: 1px solid var(--c-accent-2);
+  color: var(--c-accent) !important;
+}
+
+.wy-nav-top a {
+  color: var(--c-accent) !important;
+}
+
+.wy-nav-top i {
+  color: var(--c-accent) !important;
+}
+
+/* ============================================================
+   4. Typography
+   ============================================================ */
+
 h1, h2, h3, h4, h5, h6 {
-  color: var(--text-main);
+  color: var(--c-accent) !important;
+  font-weight: 600;
 }
+
 h1 {
-  border-bottom: 2px solid var(--color-primary);
+  border-bottom: 2px solid var(--c-accent-2) !important;
+  padding-bottom: 8px;
+  margin-top: 0;
 }
+
 h2 {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--c-secondary) !important;
+  padding-bottom: 6px;
 }
 
-/* ---------- Code blocks ---------- */
+p, li, dd, dt {
+  color: var(--c-accent) !important;
+}
+
+/* ============================================================
+   5. Links
+   ============================================================ */
+
+a {
+  color: var(--c-accent) !important;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--c-accent-2);
+}
+
+a:hover {
+  color: var(--c-accent-2) !important;
+  border-bottom-style: solid;
+}
+
+a:visited {
+  color: var(--c-accent) !important;
+}
+
+/* ============================================================
+   6. Code blocks
+   ============================================================ */
+
 code {
-  background-color: var(--bg-code);
-  color: var(--color-accent);
-  border: 1px solid var(--border-color);
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  border: 1px solid var(--c-accent-2) !important;
+  border-radius: 2px;
+  padding: 1px 5px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
+
 pre {
-  background-color: var(--bg-code) !important;
-  border: 1px solid var(--border-color);
+  background-color: var(--c-secondary) !important;
+  border: 1px solid var(--c-accent-2) !important;
+  border-radius: 2px;
+  padding: 14px !important;
+  overflow-x: auto;
 }
 
-/* ---------- Admonitions ---------- */
+pre code {
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  color: var(--c-accent) !important;
+}
+
+/* Syntax highlight token colors kept within the palette */
+.hljs { color: var(--c-accent); background: transparent; }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in { color: var(--c-accent-2); }
+.hljs-string,
+.hljs-attr,
+.hljs-number { color: var(--c-accent); }
+.hljs-comment,
+.hljs-quote { color: var(--c-accent); opacity: 0.55; }
+.hljs-title,
+.hljs-section,
+.hljs-name { color: var(--c-accent-2); }
+.hljs-variable,
+.hljs-template-variable { color: var(--c-accent); }
+
+/* ============================================================
+   7. Admonitions
+   ============================================================ */
+
 .admonition {
-  background-color: var(--bg-sidebar) !important;
-  border-left: 4px solid var(--color-primary) !important;
-}
-.admonition.note .admonition-title {
-  background-color: var(--color-primary) !important;
-}
-.admonition.warning .admonition-title {
-  background-color: var(--color-accent-dark) !important;
-}
-.admonition.tip .admonition-title {
-  background-color: var(--color-accent) !important;
-  color: #111;
+  background-color: var(--c-secondary) !important;
+  border-left: 4px solid var(--c-accent-2) !important;
+  border-radius: 0;
+  color: var(--c-accent) !important;
 }
 
-/* ---------- Tables ---------- */
-.wy-table-bordered-all,
-.rst-content table.docutils {
-  border-color: var(--border-color);
-}
-.wy-table-bordered-all th,
-.rst-content table.docutils th {
-  background-color: var(--color-primary);
-  color: #ffffff;
-  border-color: var(--border-color);
-}
-.wy-table-bordered-all td,
-.rst-content table.docutils td {
-  background-color: var(--bg-sidebar);
-  border-color: var(--border-color);
+.admonition-title {
+  background-color: var(--c-primary) !important;
+  color: var(--c-accent) !important;
+  border-bottom: 1px solid var(--c-accent-2) !important;
 }
 
-/* ---------- Buttons ---------- */
+.admonition.note {
+  border-left-color: var(--c-accent-2) !important;
+}
+.admonition.note > .admonition-title { background-color: var(--c-secondary) !important; }
+
+.admonition.warning {
+  border-left-color: var(--c-accent-2) !important;
+}
+.admonition.warning > .admonition-title { background-color: var(--c-accent-2) !important; color: var(--c-primary) !important; }
+
+.admonition.tip {
+  border-left-color: var(--c-accent) !important;
+}
+.admonition.tip > .admonition-title { background-color: var(--c-accent) !important; color: var(--c-primary) !important; }
+
+.admonition.danger {
+  border-left-color: var(--c-accent-2) !important;
+}
+.admonition.danger > .admonition-title { background-color: var(--c-accent-2) !important; color: var(--c-primary) !important; }
+
+/* ============================================================
+   8. Tables
+   ============================================================ */
+
+.rst-content table.docutils,
+.wy-table-bordered,
+.wy-table-bordered-all {
+  border: 1px solid var(--c-accent-2) !important;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rst-content table.docutils th,
+.wy-table thead th,
+.wy-table-bordered-all th {
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  border: 1px solid var(--c-accent-2) !important;
+  font-weight: 600;
+}
+
+.rst-content table.docutils td,
+.wy-table td,
+.wy-table-bordered-all td {
+  background-color: var(--c-primary) !important;
+  color: var(--c-accent) !important;
+  border: 1px solid var(--c-secondary) !important;
+}
+
+.rst-content table.docutils tr:nth-child(even) td {
+  background-color: var(--c-secondary) !important;
+}
+
+/* ============================================================
+   9. Buttons / pager
+   ============================================================ */
+
+.btn,
 .btn-neutral {
-  background-color: var(--bg-sidebar) !important;
-  color: var(--text-main) !important;
-  border-color: var(--border-color) !important;
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  border: 1px solid var(--c-accent-2) !important;
+  border-radius: 0 !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
 }
+
+.btn:hover,
 .btn-neutral:hover {
-  background-color: var(--color-primary) !important;
-  color: #fff !important;
+  background-color: var(--c-accent-2) !important;
+  color: var(--c-primary) !important;
 }
 
-/* ---------- Footer ---------- */
-footer {
-  color: var(--text-muted);
-}
 .rst-footer-buttons {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--c-accent-2);
+  margin-top: 32px;
+  padding-top: 16px;
 }
 
-/* ---------- Scrollbar ---------- */
+/* ============================================================
+   10. Breadcrumbs, search results, misc chrome
+   ============================================================ */
+
+.rst-breadcrumbs {
+  background-color: var(--c-secondary) !important;
+  border-bottom: 1px solid var(--c-accent-2);
+  padding: 8px 40px;
+}
+
+.rst-breadcrumbs a {
+  color: var(--c-accent) !important;
+  border-bottom: none;
+}
+
+.wy-breadcrumbs li {
+  color: var(--c-accent) !important;
+}
+
+/* Search results dropdown */
+.wy-dropdown-menu {
+  background-color: var(--c-secondary) !important;
+  border: 1px solid var(--c-accent-2) !important;
+}
+.wy-dropdown-menu > dd > a {
+  color: var(--c-accent) !important;
+}
+.wy-dropdown-menu > dd > a:hover {
+  background-color: var(--c-accent-2) !important;
+  color: var(--c-primary) !important;
+}
+
+/* ============================================================
+   11. Footer
+   ============================================================ */
+
+footer {
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  border-top: 1px solid var(--c-accent-2);
+  padding: 16px 40px !important;
+  width: 100%;
+}
+
+footer p,
+footer a {
+  color: var(--c-accent) !important;
+}
+
+.rst-content .footer {
+  background-color: var(--c-secondary) !important;
+}
+
+/* ============================================================
+   12. Blockquotes, hr, horizontal rules
+   ============================================================ */
+
+blockquote {
+  border-left: 4px solid var(--c-accent-2) !important;
+  background-color: var(--c-secondary) !important;
+  color: var(--c-accent) !important;
+  padding: 8px 16px;
+  margin: 12px 0;
+}
+
+hr {
+  border: none !important;
+  border-top: 1px solid var(--c-accent-2) !important;
+}
+
+/* ============================================================
+   13. Scrollbars
+   ============================================================ */
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-sidebar);
+  background: var(--c-primary);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-primary);
-  border-radius: 4px;
+  background: var(--c-accent-2);
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary-dark);
+  background: var(--c-accent);
+}
+
+/* Firefox */
+* {
+  scrollbar-color: var(--c-accent-2) var(--c-primary);
+  scrollbar-width: thin;
+}
+
+/* ============================================================
+   14. Selection
+   ============================================================ */
+
+::selection {
+  background: var(--c-accent-2);
+  color: var(--c-primary);
 }
