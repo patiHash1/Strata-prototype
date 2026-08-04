@@ -48,6 +48,14 @@ erDiagram
     organizations ||--o{ payroll_runs : "runs"
     organizations ||--o{ job_applications : "receives"
     organizations ||--o{ knowledge_base_documents : "maintains"
+    organizations ||--o{ ai_copilot_conversations : "uses"
+    organizations ||--o{ lowcode_workflows : "defines"
+    organizations ||--o{ audit_logs : "generates"
+    organizations ||--o{ ai_usage_logs : "tracks"
+    organizations ||--o{ iot_devices : "owns"
+    users ||--o{ ai_copilot_conversations : "prompts"
+    users ||--o{ audit_logs : "performs"
+    users ||--o{ ai_usage_logs : "consumes"
 ```
 
 ## Table definitions
@@ -425,6 +433,152 @@ The following permissions are inserted on every migration (idempotent via `ON CO
 | `hr.attendance.write` | hr | Clock in/out and manage attendance records |
 | `hr.recruitment.write` | hr | Parse resumes and manage job applications |
 | `knowledge.read` | knowledge | Search and read knowledge base documents |
+| `copilot.use` | platform | Use the AI text-to-SQL copilot query feature |
+| `workflows.execute` | platform | Trigger and execute low-code automated workflows |
+| `security.audit.read` | platform | Read security audit anomaly logs |
+
+## Platform, AI Core & BI tables
+
+### `ai_copilot_conversations`
+
+Stores natural language prompts and their AI-generated SQL responses.
+
+```sql
+CREATE TABLE ai_copilot_conversations (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id           UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id          UUID REFERENCES users(id),
+    prompt_text      TEXT NOT NULL,
+    generated_sql    TEXT,
+    response_payload JSONB,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `user_id` | UUID | FK → users, nullable |
+| `prompt_text` | TEXT | The natural language prompt |
+| `generated_sql` | TEXT | The AI-generated SQL, nullable |
+| `response_payload` | JSONB | Full response payload for audit, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `lowcode_workflows`
+
+Defines automated workflows with trigger events and action steps.
+
+```sql
+CREATE TABLE lowcode_workflows (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    name          VARCHAR(100) NOT NULL,
+    trigger_event VARCHAR(100) NOT NULL,
+    action_steps  JSONB NOT NULL,
+    is_active     BOOLEAN DEFAULT TRUE,
+    created_at    TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `name` | VARCHAR(100) | Human-readable workflow name |
+| `trigger_event` | VARCHAR(100) | Event type that triggers this workflow (e.g., `invoice.paid`) |
+| `action_steps` | JSONB | Array of action step definitions |
+| `is_active` | BOOLEAN | Whether the workflow is enabled |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `iot_devices`
+
+Registry for IoT devices connected to the platform.
+
+```sql
+CREATE TABLE iot_devices (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id      UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    device_name VARCHAR(100) NOT NULL,
+    device_type VARCHAR(50) NOT NULL,
+    mac_address VARCHAR(100) UNIQUE,
+    status      VARCHAR(50) DEFAULT 'online',
+    last_ping   TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `device_name` | VARCHAR(100) | Human-readable device name |
+| `device_type` | VARCHAR(50) | Device category |
+| `mac_address` | VARCHAR(100) | Unique MAC address, nullable |
+| `status` | VARCHAR(50) | Device status (`online`, `offline`, etc.) |
+| `last_ping` | TIMESTAMPTZ | Last heartbeat timestamp |
+
+### `audit_logs`
+
+Stores auditable actions with AI anomaly detection flags.
+
+```sql
+CREATE TABLE audit_logs (
+    id               BIGSERIAL PRIMARY KEY,
+    org_id           UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id          UUID REFERENCES users(id),
+    action           VARCHAR(100) NOT NULL,
+    ip_address       VARCHAR(45),
+    ai_anomaly_flag  BOOLEAN DEFAULT FALSE,
+    metadata         JSONB,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | BIGSERIAL | Auto-incrementing primary key |
+| `org_id` | UUID | FK → organizations |
+| `user_id` | UUID | FK → users, nullable |
+| `action` | VARCHAR(100) | Action description (e.g., `user.login`, `permission.change`) |
+| `ip_address` | VARCHAR(45) | IPv4 or IPv6 address, nullable |
+| `ai_anomaly_flag` | BOOLEAN | Whether AI flagged this as anomalous |
+| `metadata` | JSONB | Additional context data, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `ai_usage_logs`
+
+Tracks AI feature usage and credit consumption.
+
+```sql
+CREATE TABLE ai_usage_logs (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id           UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id          UUID REFERENCES users(id),
+    feature_used     VARCHAR(100) NOT NULL,
+    credits_consumed INT NOT NULL DEFAULT 1,
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `user_id` | UUID | FK → users, nullable |
+| `feature_used` | VARCHAR(100) | Feature identifier (e.g., `copilot.query`, `workflows.execute`) |
+| `credits_consumed` | INT | Number of AI credits consumed |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+## Performance indexes
+
+```sql
+CREATE INDEX idx_telematics_vehicle_time ON fleet_telematics_logs(vehicle_id, recorded_at DESC);
+CREATE INDEX idx_org_members_lookup ON organization_members(user_id, org_id);
+CREATE INDEX idx_orgs_domain_slug ON organizations(domain_slug);
+CREATE INDEX idx_audit_org_time ON audit_logs(org_id, created_at DESC);
+CREATE INDEX idx_invoices_org_status ON invoices(org_id, status);
+CREATE INDEX idx_contacts_org ON crm_contacts(org_id);
+```
 
 ## Key constraints
 

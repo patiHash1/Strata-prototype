@@ -156,6 +156,9 @@ PermFleetTelematicsIngest = "fleet.telematics.ingest"
 	PermHRAttendanceWrite    = "hr.attendance.write"
 	PermHRRecruitmentWrite   = "hr.recruitment.write"
 	PermKnowledgeRead        = "knowledge.read"
+	PermCopilotUse           = "copilot.use"
+	PermWorkflowsExecute     = "workflows.execute"
+	PermSecurityAuditRead    = "security.audit.read"
 ```
 
 ## BillingService
@@ -429,6 +432,85 @@ type KnowledgeSearchResult struct {
 ```
 
 **AI simulation:** Geofence validation uses a distance-from-center calculation against a simulated office location (San Francisco). Resume parsing extracts candidate name from the file name and randomly selects 3–7 skills from a pool of 30 common tech skills. Match scoring uses a base score of 40 + (skills × 3) with ±10 jitter. Knowledge search uses PostgreSQL `ILIKE` for full-text search with term-overlap relevance scoring. All AI features are designed to be replaced with real ML/NLP services in production.
+
+## PlatformService
+
+**File:** `services_platform.go`
+
+Manages AI copilot text-to-SQL queries, low-code workflow automation, security audit anomalies, and AI usage tracking.
+
+| Method | Description |
+|---|---|
+| `ExecuteCopilotQuery(ctx, orgID, userID, prompt)` | Converts a natural language prompt to SQL, simulates query execution, returns generated SQL + results + chart recommendation |
+| `TriggerWorkflow(ctx, orgID, eventType, payload)` | Matches active workflows by event type, simulates execution of action steps, returns execution ID and status |
+| `FetchAuditAnomalies(ctx, orgID, severity, limit)` | Retrieves audit log entries flagged by AI anomaly detection, filtered by severity, returns classified anomalies with risk scores |
+
+**Types:**
+
+```go
+type AICopilotConversation struct {
+    ID             uuid.UUID
+    OrgID          uuid.UUID
+    UserID         *uuid.UUID
+    PromptText     string
+    GeneratedSQL   *string
+    ResponsePayload []byte
+    CreatedAt      time.Time
+}
+
+type AICopilotQueryResult struct {
+    GeneratedSQL       string
+    DataTable          []map[string]interface{}
+    ChartRecommendation string
+}
+
+type LowCodeWorkflow struct {
+    ID           uuid.UUID
+    OrgID        uuid.UUID
+    Name         string
+    TriggerEvent string
+    ActionSteps  []byte  // JSONB
+    IsActive     bool
+    CreatedAt    time.Time
+}
+
+type WorkflowExecutionResult struct {
+    WorkflowExecutionID uuid.UUID
+    StepsExecuted       int
+    Status              string
+}
+
+type AuditLog struct {
+    ID             int64
+    OrgID          uuid.UUID
+    UserID         *uuid.UUID
+    Action         string
+    IPAddress      *string
+    AIAnomalyFlag  bool
+    Metadata       []byte  // JSONB
+    CreatedAt      time.Time
+}
+
+type SecurityAnomaly struct {
+    LogID       int64
+    Action      string
+    UserID      string
+    IPAddress   string
+    AnomalyType string
+    AIRiskScore float64
+}
+
+type AIUsageLog struct {
+    ID              uuid.UUID
+    OrgID           uuid.UUID
+    UserID          *uuid.UUID
+    FeatureUsed     string
+    CreditsConsumed int
+    CreatedAt       time.Time
+}
+```
+
+**AI simulation:** Text-to-SQL uses keyword-based prompt classification to select pre-written SQL queries for each domain (sales, invoices, attendance, fleet). Chart recommendation uses a simple heuristic: `top`/`by` keywords → bar chart, time fields → line chart, otherwise → table. Workflow execution simulates step counts (2–6) without actually executing any actions. Security anomaly classification uses action name heuristics (e.g., `login` → `suspicious_login`, `delete` → `unauthorized_delete_attempt`) with randomized risk scores. All AI features are designed to be replaced with real LLM/ML services in production.
 
 ## Mailer
 

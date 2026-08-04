@@ -18,6 +18,7 @@ The project is in early prototype stage. The API is under active development and
 - [Supply Chain & Inventory](api/inventory.md)
 - [Finance & Accounting](api/accounting.md)
 - [HR & Workforce](api/hr.md)
+- [AI & Platform](api/platform-ai.md)
 - [System Health](api/system.md)
 - [Architecture Overview](architecture/overview.md)
 - [Database Schema](architecture/database.md)

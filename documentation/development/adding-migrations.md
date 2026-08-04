@@ -122,7 +122,13 @@ Seed data (like default permissions) uses `ON CONFLICT DO NOTHING`:
 | 36 | `create_payroll_runs` | Payroll runs table |
 | 37 | `create_job_applications` | Job applications table |
 | 38 | `create_knowledge_base_documents` | Knowledge base documents table |
-| 39 | `seed_default_permissions` | Inserts default permissions |
+| 39 | `create_ai_copilot_conversations` | AI copilot conversations table |
+| 40 | `create_lowcode_workflows` | Low-code workflow definitions table |
+| 41 | `create_iot_devices` | IoT device registry table |
+| 42 | `create_audit_logs` | Security audit logs table |
+| 43 | `create_ai_usage_logs` | AI usage tracking table |
+| 44 | `create_indexes_category5` | Performance indexes for fleet, orgs, audit, invoices, contacts |
+| 45 | `seed_default_permissions` | Inserts default permissions (including copilot.use, workflows.execute, security.audit.read) |
 
 ## Limitations & roadmap
 

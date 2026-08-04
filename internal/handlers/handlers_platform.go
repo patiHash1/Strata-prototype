@@ -12,14 +12,17 @@ import (
 // ---- POST /api/v1/ai/copilot/query ----
 
 type copilotQueryRequest struct {
-	Prompt string `json:"prompt"`
+	Prompt string `json:"prompt" example:"Show top 5 sales reps by revenue in Q2"`
 }
+
+// DataTableRow is a single row in the AI copilot result table.
+type DataTableRow map[string]any
 
 // CopilotQueryResponse represents the text-to-SQL AI copilot result.
 type CopilotQueryResponse struct {
-	GeneratedSQL        string                   `json:"generated_sql" example:"SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue FROM crm_deals d JOIN users u ON d.assigned_to = u.id WHERE d.stage = 'closed_won' AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30' GROUP BY u.full_name ORDER BY total_revenue DESC LIMIT 5"`
-	DataTable           []map[string]interface{} `json:"data_table"`
-	ChartRecommendation string                   `json:"chart_recommendation" example:"bar_chart"`
+	GeneratedSQL        string         `json:"generated_sql" example:"SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue FROM crm_deals d JOIN users u ON d.assigned_to = u.id WHERE d.stage = 'closed_won' AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30' GROUP BY u.full_name ORDER BY total_revenue DESC LIMIT 5"`
+	DataTable           []DataTableRow `json:"data_table"`
+	ChartRecommendation string         `json:"chart_recommendation" example:"bar_chart"`
 }
 
 // copilotQueryHandler executes a text-to-SQL AI copilot query.
@@ -30,11 +33,12 @@ type CopilotQueryResponse struct {
 //	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			body	body	copilotQueryRequest	true	"Natural language prompt"
+//	@Param			body	body	copilotQueryRequest	true	"Natural language prompt (e.g., 'Show top 5 sales reps by revenue in Q2')"
 //	@Success		200	{object}	CopilotQueryResponse
 //	@Failure		400	{object}	utils.Envelope
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/ai/copilot/query [post]
 func (a *App) copilotQueryHandler(w http.ResponseWriter, r *http.Request) {
 	var req copilotQueryRequest
@@ -84,7 +88,7 @@ func (a *App) copilotQueryHandler(w http.ResponseWriter, r *http.Request) {
 // ---- POST /api/v1/workflows/trigger ----
 
 type triggerWorkflowRequest struct {
-	EventType string                 `json:"event_type"`
+	EventType string                 `json:"event_type" example:"invoice.paid"`
 	Payload   map[string]interface{} `json:"payload"`
 }
 
@@ -98,7 +102,7 @@ type TriggerWorkflowResponse struct {
 // triggerWorkflowHandler triggers a low-code automated workflow by event type.
 //
 //	@Summary		Trigger automated workflow
-//	@Description	Triggers a low-code automation workflow in response to an event (e.g., invoice.paid). Matches active workflows by event_type and executes their action steps. Supports both Bearer token and webhook signature auth. Requires `workflows.execute` permission.
+//	@Description	Triggers a low-code automation workflow in response to an event (e.g., invoice.paid). Matches active workflows by event_type and executes their action steps. Accepts both Bearer token and webhook signature authentication. Requires `workflows.execute` permission.
 //	@Tags			AI & Platform
 //	@Accept			json
 //	@Produce		json
@@ -108,6 +112,7 @@ type TriggerWorkflowResponse struct {
 //	@Failure		400	{object}	utils.Envelope
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/workflows/trigger [post]
 func (a *App) triggerWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var req triggerWorkflowRequest
@@ -170,15 +175,17 @@ type AuditAnomaliesResponse struct {
 // auditAnomaliesHandler fetches security threat and anomaly audit logs.
 //
 //	@Summary		Fetch security audit anomalies
-//	@Description	Retrieves security audit log entries flagged as anomalies by the AI detection system. Filterable by severity level. Requires `security.audit.read` permission.
+//	@Description	Retrieves security audit log entries flagged as anomalies by the AI detection system. Filterable by severity level (low, medium, high, critical). Requires `security.audit.read` permission.
 //	@Tags			AI & Platform
 //	@Produce		json
 //	@Security		BearerAuth
-//	@Param			severity	query	string	false	"Filter by severity: low, medium, high, critical"	default(high)
-//	@Param			limit		query	int		false	"Maximum number of results"	default(20)
+//	@Param			severity	query	string	false	"Filter by severity"	Enums(low, medium, high, critical)	default(high)
+//	@Param			limit		query	int		false	"Maximum number of results (1-100)"	default(20)
 //	@Success		200	{object}	AuditAnomaliesResponse
+//	@Failure		400	{object}	utils.Envelope
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/security/audit-anomalies [get]
 func (a *App) auditAnomaliesHandler(w http.ResponseWriter, r *http.Request) {
 	severity := r.URL.Query().Get("severity")

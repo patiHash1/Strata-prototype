@@ -23,6 +23,7 @@ internal/
 │   ├── services_accounting.go  # AccountingService: journal entries, OCR, expenses
 │   ├── services_supplychain.go # SupplyChainService: fleet, telematics, inventory, routes
 │   ├── services_hr.go          # HRService: attendance, resume parsing, knowledge search
+│   ├── services_platform.go    # PlatformService: AI copilot, workflows, security anomalies
 │   └── services_mailer.go      # Mailer: transactional email (stub)
 │
 ├── handlers/            # HTTP LAYER — handlers, routes, App wiring
@@ -35,7 +36,8 @@ internal/
 │   ├── handlers_crm.go         # POST crm/leads, quotes/risk-analysis, crm/tickets
 │   ├── handlers_accounting.go  # POST accounting/journal-entries, invoices/ocr, expenses
 │   ├── handlers_supplychain.go # POST fleet/telematics, fleet/routes, GET inventory/reorder-predictions
-│   └── handlers_hr.go          # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search
+│   ├── handlers_hr.go          # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search
+│   └── handlers_platform.go    # POST ai/copilot/query, workflows/trigger, GET security/audit-anomalies
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
@@ -202,6 +204,7 @@ internal/services/
 ├── services_accounting.go  # Accounting (journal entries, OCR, expenses)
 ├── services_supplychain.go # Supply chain (fleet, telematics, inventory, routes)
 ├── services_hr.go          # HR (attendance, resume parsing, knowledge search)
+├── services_platform.go    # Platform (AI copilot, workflows, security anomalies)
 └── services_mailer.go      # Mailer (transactional email stub)
 ```
 
@@ -268,6 +271,8 @@ type App struct {
 	Billing     *services.BillingService
 	Mailer      *services.Mailer
 	CRM         *services.CRMService       // <-- new field
+	HR          *services.HRService
+	Platform    *services.PlatformService   // AI copilot, workflows, security
 	SupplyChain *services.SupplyChainService
 	server      *http.Server
 }
@@ -540,6 +545,8 @@ open http://localhost:8080/swagger/
 - **cmd/migrate/** — database migration runner using `golang-migrate` or similar.
 - **internal/services/services_events.go** — background job queue (async email, webhooks, reports).
 - **internal/test/** — shared test fixtures, factories, and helpers.
-- **AI integration** — replace simulated AI scoring/risk analysis with real ML service calls.
+- **AI integration** — replace simulated AI scoring/risk analysis/copilot with real ML service calls.
 - **CRM pipeline** — full deal pipeline with stages, activity tracking, and reporting.
 - **Telematics pipeline** — real-time stream processing for vehicle telemetry data.
+- **Workflow engine** — a real low-code automation engine (e.g., Temporal) replacing simulated workflow execution.
+- **IoT/device management** — real IoT device registry and telemetry ingestion for the `iot_devices` table.

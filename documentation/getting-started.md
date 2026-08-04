@@ -45,6 +45,9 @@ internal/
 	│   ├── services_billing.go  # Subscriptions
 	│   ├── services_crm.go      # CRM: leads, deals, quotes, AI analysis
 	│   ├── services_accounting.go # Accounting: journal entries, invoices, expenses
+	│   ├── services_supplychain.go # Supply chain: fleet, telematics, inventory, routes
+	│   ├── services_hr.go        # HR: attendance, resume parsing, knowledge search
+	│   ├── services_platform.go  # Platform: AI copilot, workflows, security anomalies
 	│   └── services_mailer.go   # Transactional email (stub)
 	├── handlers/
 	│   ├── handlers_server.go   # App struct, DI wiring, Serve()
@@ -54,7 +57,10 @@ internal/
 	│   ├── handlers_org.go      # Org endpoints
 	│   ├── handlers_billing.go  # Billing endpoints
 	│   ├── handlers_crm.go      # CRM endpoints
-	│   └── handlers_accounting.go # Accounting endpoints
+	│   ├── handlers_accounting.go # Accounting endpoints
+	│   ├── handlers_supplychain.go # Fleet & inventory endpoints
+	│   ├── handlers_hr.go       # HR endpoints
+	│   └── handlers_platform.go  # AI & Platform endpoints
 └── utils/
     ├── response.go          # WriteJSON, WriteErr, Envelope
     ├── middleware.go         # RequireAuth, RequirePermission, etc.
