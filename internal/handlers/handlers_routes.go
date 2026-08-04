@@ -149,6 +149,31 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── HR, Workforce & Collaboration ──
+	mux.Handle("POST /api/v1/hr/attendance/clock-in",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRAttendanceWrite)(
+				http.HandlerFunc(a.clockInHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/hr/ats/parse-resume",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRRecruitmentWrite)(
+				http.HandlerFunc(a.parseResumeHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/hr/knowledge/search",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermKnowledgeRead)(
+				http.HandlerFunc(a.knowledgeSearchHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(

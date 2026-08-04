@@ -44,6 +44,8 @@ import (
 //	@tag.description	Fleet & Telematics — vehicle telemetry, route optimization.
 //	@tag.name		Inventory
 //	@tag.description	Supply Chain & Inventory — reorder predictions, stock management.
+//	@tag.name		HR
+//	@tag.description	HR, Workforce & Collaboration — attendance, ATS, knowledge base search.
 //
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
@@ -89,9 +91,10 @@ func main() {
 	crmSvc := services.NewCRMService(db.Pool)
 	accountingSvc := services.NewAccountingService(db.Pool)
 	supplyChainSvc := services.NewSupplyChainService(db.Pool, authSvc)
+	hrSvc := services.NewHRService(db.Pool)
 
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

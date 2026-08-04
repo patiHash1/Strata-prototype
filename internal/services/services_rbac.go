@@ -199,4 +199,7 @@ const (
 	PermFleetTelematicsIngest = "fleet.telematics.ingest"
 	PermFleetRoutesManage     = "fleet.routes.manage"
 	PermInventoryRead         = "inventory.read"
+	PermHRAttendanceWrite     = "hr.attendance.write"
+	PermHRRecruitmentWrite    = "hr.recruitment.write"
+	PermKnowledgeRead         = "knowledge.read"
 )

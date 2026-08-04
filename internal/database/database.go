@@ -475,6 +475,73 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "create_employees",
+			sql: `
+				CREATE TABLE IF NOT EXISTS employees (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					user_id UUID UNIQUE REFERENCES users(id),
+					employee_code VARCHAR(50) NOT NULL,
+					department VARCHAR(100),
+					job_title VARCHAR(100),
+					salary DECIMAL(12, 2),
+					hired_at DATE NOT NULL,
+					UNIQUE(org_id, employee_code)
+				)`,
+		},
+		{
+			name: "create_attendance_logs",
+			sql: `
+				CREATE TABLE IF NOT EXISTS attendance_logs (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+					clock_in TIMESTAMPTZ NOT NULL,
+					clock_out TIMESTAMPTZ,
+					location_lat DECIMAL(10, 8),
+					location_long DECIMAL(11, 8)
+				)`,
+		},
+		{
+			name: "create_payroll_runs",
+			sql: `
+				CREATE TABLE IF NOT EXISTS payroll_runs (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					pay_period_start DATE NOT NULL,
+					pay_period_end DATE NOT NULL,
+					total_disbursed DECIMAL(14, 2) NOT NULL,
+					status VARCHAR(50) DEFAULT 'draft',
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_job_applications",
+			sql: `
+				CREATE TABLE IF NOT EXISTS job_applications (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					candidate_name VARCHAR(150) NOT NULL,
+					email VARCHAR(255) NOT NULL,
+					resume_url TEXT NOT NULL,
+					ai_match_score INT,
+					status VARCHAR(50) DEFAULT 'applied',
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_knowledge_base_documents",
+			sql: `
+				CREATE TABLE IF NOT EXISTS knowledge_base_documents (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					title VARCHAR(255) NOT NULL,
+					content TEXT NOT NULL,
+					vector_embedding_id VARCHAR(255),
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
 			name: "seed_default_permissions",
 			sql: `
 				INSERT INTO permissions (permission_key, module, description)
@@ -492,7 +559,10 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('expenses.submit',           'accounting', 'Submit expense reports'),
 					('fleet.telematics.ingest',   'fleet',     'Ingest vehicle telemetry data via API key'),
 					('fleet.routes.manage',       'fleet',     'Generate and manage optimized fleet routes'),
-					('inventory.read',            'inventory', 'Read inventory reorder predictions and stock levels')
+					('inventory.read',            'inventory', 'Read inventory reorder predictions and stock levels'),
+					('hr.attendance.write',       'hr',        'Clock in/out and manage attendance records'),
+					('hr.recruitment.write',      'hr',        'Parse resumes and manage job applications'),
+					('knowledge.read',            'knowledge', 'Search and read knowledge base documents')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}
