@@ -17,6 +17,7 @@ The project is in early prototype stage. The API is under active development and
 - [Fleet & Telematics](api/fleet.md)
 - [Supply Chain & Inventory](api/inventory.md)
 - [Finance & Accounting](api/accounting.md)
+- [HR & Workforce](api/hr.md)
 - [System Health](api/system.md)
 - [Architecture Overview](architecture/overview.md)
 - [Database Schema](architecture/database.md)

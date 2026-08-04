@@ -151,8 +151,11 @@ PermAccountingLedger     = "accounting.ledger.write"
 PermAccountingInvoices   = "accounting.invoices.write"
 PermExpensesSubmit       = "expenses.submit"
 PermFleetTelematicsIngest = "fleet.telematics.ingest"
-PermFleetRoutesManage    = "fleet.routes.manage"
-PermInventoryRead        = "inventory.read"
+	PermFleetRoutesManage    = "fleet.routes.manage"
+	PermInventoryRead        = "inventory.read"
+	PermHRAttendanceWrite    = "hr.attendance.write"
+	PermHRRecruitmentWrite   = "hr.recruitment.write"
+	PermKnowledgeRead        = "knowledge.read"
 ```
 
 ## BillingService
@@ -341,6 +344,91 @@ type StockoutPrediction struct {
 ```
 
 **AI simulation:** Telemetry alerts are triggered by rule-based thresholds (engine temp > 110°C, speed > 130 km/h). Route optimization generates simulated GeoJSON paths with randomized ETAs. Reorder predictions use simulated current stock levels with randomized daily consumption rates and 20–50% safety buffers. All AI features are designed to be replaced with real ML/optimization services in production.
+
+## HRService
+
+**File:** `services_hr.go`
+
+Manages HR operations: employee attendance with geofence validation, AI-powered resume parsing and job matching, and RAG-based knowledge base semantic search.
+
+| Method | Description |
+|---|---|
+| `ClockIn(ctx, orgID, userID, latitude, longitude)` | Records an attendance clock-in for the employee linked to the user, validates geofence, returns log ID + geofence status |
+| `ParseResume(ctx, orgID, jobDescriptionID, resumeBytes, fileName)` | Simulates AI extraction of candidate name, email, and skills from a resume file, scores match against a job description, stores the application |
+| `SearchKnowledge(ctx, orgID, query)` | Performs semantic search over the org's knowledge base, returns an AI-synthesized answer with source documents and relevance scores |
+
+**Domain errors:**
+- `ErrEmployeeNotFound` — no employee record found for the given user in the organization
+
+**Types:**
+
+```go
+type Employee struct {
+    ID           uuid.UUID
+    OrgID        uuid.UUID
+    UserID       *uuid.UUID
+    EmployeeCode string
+    Department   *string
+    JobTitle     *string
+    Salary       *float64
+    HiredAt      time.Time
+}
+
+type AttendanceLog struct {
+    ID           uuid.UUID
+    OrgID        uuid.UUID
+    EmployeeID   uuid.UUID
+    ClockIn      time.Time
+    ClockOut     *time.Time
+    LocationLat  *float64
+    LocationLong *float64
+}
+
+type AttendanceClockInResult struct {
+    AttendanceLogID  uuid.UUID
+    ClockIn          time.Time
+    IsWithinGeofence bool
+}
+
+type JobApplication struct {
+    ID            uuid.UUID
+    OrgID         uuid.UUID
+    CandidateName string
+    Email         string
+    ResumeURL     string
+    AIMatchScore  *int
+    Status        string
+    CreatedAt     time.Time
+}
+
+type KnowledgeBaseDocument struct {
+    ID                uuid.UUID
+    OrgID             uuid.UUID
+    Title             string
+    Content           string
+    VectorEmbeddingID *string
+    CreatedAt         time.Time
+}
+
+type ResumeParseResult struct {
+    CandidateName   string
+    Email           string
+    ExtractedSkills []string
+    AIMatchScore    int
+}
+
+type SourceDocument struct {
+    Title          string
+    RelevanceScore float64
+}
+
+type KnowledgeSearchResult struct {
+    AIAnswer        string
+    SourceDocuments []SourceDocument
+}
+```
+
+**AI simulation:** Geofence validation uses a distance-from-center calculation against a simulated office location (San Francisco). Resume parsing extracts candidate name from the file name and randomly selects 3–7 skills from a pool of 30 common tech skills. Match scoring uses a base score of 40 + (skills × 3) with ±10 jitter. Knowledge search uses PostgreSQL `ILIKE` for full-text search with term-overlap relevance scoring. All AI features are designed to be replaced with real ML/NLP services in production.
 
 ## Mailer
 

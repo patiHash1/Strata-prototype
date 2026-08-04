@@ -41,6 +41,13 @@ erDiagram
     fleet_vehicles ||--o{ shipments : "assigned to"
     fleet_drivers ||--o{ shipments : "assigned to"
     users ||--o{ fleet_drivers : "linked to"
+    organizations ||--o{ employees : "employs"
+    users ||--o{ employees : "linked to"
+    employees ||--o{ attendance_logs : "clocks in"
+    organizations ||--o{ attendance_logs : "owns"
+    organizations ||--o{ payroll_runs : "runs"
+    organizations ||--o{ job_applications : "receives"
+    organizations ||--o{ knowledge_base_documents : "maintains"
 ```
 
 ## Table definitions
@@ -256,6 +263,131 @@ CREATE TABLE purchase_orders (
 | `status` | VARCHAR(50) | Default 'draft' |
 | `created_at` | TIMESTAMPTZ | Auto-set |
 
+## HR & Workforce tables
+
+### `employees`
+
+```sql
+CREATE TABLE employees (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id        UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    user_id       UUID UNIQUE REFERENCES users(id),
+    employee_code VARCHAR(50) NOT NULL,
+    department    VARCHAR(100),
+    job_title     VARCHAR(100),
+    salary        DECIMAL(12, 2),
+    hired_at      DATE NOT NULL,
+    UNIQUE(org_id, employee_code)
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `user_id` | UUID | FK → users, unique (one employee record per user) |
+| `employee_code` | VARCHAR(50) | Unique per organization |
+| `department` | VARCHAR(100) | Nullable |
+| `job_title` | VARCHAR(100) | Nullable |
+| `salary` | DECIMAL(12,2) | Nullable |
+| `hired_at` | DATE | Required |
+
+### `attendance_logs`
+
+```sql
+CREATE TABLE attendance_logs (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id         UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    employee_id    UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    clock_in       TIMESTAMPTZ NOT NULL,
+    clock_out      TIMESTAMPTZ,
+    location_lat   DECIMAL(10, 8),
+    location_long  DECIMAL(11, 8)
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `employee_id` | UUID | FK → employees, cascade delete |
+| `clock_in` | TIMESTAMPTZ | Required, time of clock-in |
+| `clock_out` | TIMESTAMPTZ | Nullable, time of clock-out |
+| `location_lat` | DECIMAL(10,8) | GPS latitude at clock-in |
+| `location_long` | DECIMAL(11,8) | GPS longitude at clock-in |
+
+### `payroll_runs`
+
+```sql
+CREATE TABLE payroll_runs (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id           UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    pay_period_start DATE NOT NULL,
+    pay_period_end   DATE NOT NULL,
+    total_disbursed  DECIMAL(14, 2) NOT NULL,
+    status           VARCHAR(50) DEFAULT 'draft',
+    created_at       TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `pay_period_start` | DATE | Start of the pay period |
+| `pay_period_end` | DATE | End of the pay period |
+| `total_disbursed` | DECIMAL(14,2) | Total amount disbursed in this run |
+| `status` | VARCHAR(50) | Default 'draft' |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `job_applications`
+
+```sql
+CREATE TABLE job_applications (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id          UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    candidate_name  VARCHAR(150) NOT NULL,
+    email           VARCHAR(255) NOT NULL,
+    resume_url      TEXT NOT NULL,
+    ai_match_score  INT,
+    status          VARCHAR(50) DEFAULT 'applied',
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `candidate_name` | VARCHAR(150) | Required |
+| `email` | VARCHAR(255) | Required |
+| `resume_url` | TEXT | URL/path to the uploaded resume file |
+| `ai_match_score` | INT | AI match score (0–100), nullable |
+| `status` | VARCHAR(50) | Default 'applied' |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
+### `knowledge_base_documents`
+
+```sql
+CREATE TABLE knowledge_base_documents (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id              UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    title               VARCHAR(255) NOT NULL,
+    content             TEXT NOT NULL,
+    vector_embedding_id VARCHAR(255),
+    created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | Primary key, auto-generated |
+| `org_id` | UUID | FK → organizations |
+| `title` | VARCHAR(255) | Document title |
+| `content` | TEXT | Full document content for search |
+| `vector_embedding_id` | VARCHAR(255) | Reference to external vector store embedding, nullable |
+| `created_at` | TIMESTAMPTZ | Auto-set |
+
 ## Custom Enums
 
 ### `vehicle_status`
@@ -290,6 +422,9 @@ The following permissions are inserted on every migration (idempotent via `ON CO
 | `fleet.telematics.ingest` | fleet | Ingest vehicle telemetry data via API key |
 | `fleet.routes.manage` | fleet | Generate and manage optimized fleet routes |
 | `inventory.read` | inventory | Read inventory reorder predictions and stock levels |
+| `hr.attendance.write` | hr | Clock in/out and manage attendance records |
+| `hr.recruitment.write` | hr | Parse resumes and manage job applications |
+| `knowledge.read` | knowledge | Search and read knowledge base documents |
 
 ## Key constraints
 
@@ -305,4 +440,6 @@ The following permissions are inserted on every migration (idempotent via `ON CO
 - `fleet_vehicles.vin` is **UNIQUE**
 - `fleet_drivers.user_id` is **UNIQUE**
 - `shipments.tracking_number` is **UNIQUE**
+- `employees` has a **UNIQUE** constraint on `(org_id, employee_code)`
+- `employees.user_id` is **UNIQUE** (one employee record per user)
 - Foreign keys use `ON DELETE CASCADE` for clean teardown, except `organization_members.role_id` which prevents accidental role deletion while members are assigned

@@ -22,6 +22,7 @@ internal/
 │   ├── services_crm.go         # CRMService: leads, deals, quotes, AI analysis
 │   ├── services_accounting.go  # AccountingService: journal entries, OCR, expenses
 │   ├── services_supplychain.go # SupplyChainService: fleet, telematics, inventory, routes
+│   ├── services_hr.go          # HRService: attendance, resume parsing, knowledge search
 │   └── services_mailer.go      # Mailer: transactional email (stub)
 │
 ├── handlers/            # HTTP LAYER — handlers, routes, App wiring
@@ -33,7 +34,8 @@ internal/
 │   ├── handlers_billing.go     # POST billing/subscriptions
 │   ├── handlers_crm.go         # POST crm/leads, quotes/risk-analysis, crm/tickets
 │   ├── handlers_accounting.go  # POST accounting/journal-entries, invoices/ocr, expenses
-│   └── handlers_supplychain.go # POST fleet/telematics, fleet/routes, GET inventory/reorder-predictions
+│   ├── handlers_supplychain.go # POST fleet/telematics, fleet/routes, GET inventory/reorder-predictions
+│   └── handlers_hr.go          # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
@@ -198,7 +200,9 @@ internal/services/
 ├── services_mailer.go
 ├── services_crm.go        # CRM (leads, deals, quotes, AI)
 ├── services_accounting.go  # Accounting (journal entries, OCR, expenses)
-└── services_supplychain.go # Supply chain (fleet, telematics, inventory, routes)
+├── services_supplychain.go # Supply chain (fleet, telematics, inventory, routes)
+├── services_hr.go          # HR (attendance, resume parsing, knowledge search)
+└── services_mailer.go      # Mailer (transactional email stub)
 ```
 
 A service file contains its own types, repository (SQL queries), and exported service struct:

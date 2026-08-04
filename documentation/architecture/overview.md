@@ -79,6 +79,7 @@ services_billing.go     → BillingService: subscriptions
 services_crm.go         → CRMService: leads, deals, quotes, AI analysis
 services_accounting.go  → AccountingService: journal entries, OCR, expenses
 services_supplychain.go → SupplyChainService: fleet, telematics, inventory, routes
+services_hr.go          → HRService: attendance, resume parsing, knowledge search
 services_mailer.go      → Mailer: transactional email (stub)
 ```
 
@@ -114,6 +115,7 @@ main.go
   ├── services.NewCRMService(pool)      → *CRMService
   ├── services.NewAccountingService(pool)      → *AccountingService
   ├── services.NewSupplyChainService(pool, authSvc) → *SupplyChainService
+  ├── services.NewHRService(pool)                   → *HRService
   └── handlers.New(cfg, db, ...)        → *App
 ```
 

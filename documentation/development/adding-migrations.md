@@ -117,7 +117,12 @@ Seed data (like default permissions) uses `ON CONFLICT DO NOTHING`:
 | 31 | `create_shipments` | Shipments table |
 | 32 | `create_fleet_telematics_logs` | Telematics logs table |
 | 33 | `create_purchase_orders` | Purchase orders table |
-| 34 | `seed_default_permissions` | Inserts default permissions |
+| 34 | `create_employees` | Employees table |
+| 35 | `create_attendance_logs` | Attendance logs table |
+| 36 | `create_payroll_runs` | Payroll runs table |
+| 37 | `create_job_applications` | Job applications table |
+| 38 | `create_knowledge_base_documents` | Knowledge base documents table |
+| 39 | `seed_default_permissions` | Inserts default permissions |
 
 ## Limitations & roadmap
 
