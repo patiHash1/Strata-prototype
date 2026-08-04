@@ -46,6 +46,8 @@ import (
 //	@tag.description	Supply Chain & Inventory — reorder predictions, stock management.
 //	@tag.name		HR
 //	@tag.description	HR, Workforce & Collaboration — attendance, ATS, knowledge base search.
+//	@tag.name		AI & Platform
+//	@tag.description	Platform, AI Core & BI — text-to-SQL copilot, workflow automation, security audit anomalies.
 //
 //	@securityDefinitions.apikey	BearerAuth
 //	@in							header
@@ -92,9 +94,10 @@ func main() {
 	accountingSvc := services.NewAccountingService(db.Pool)
 	supplyChainSvc := services.NewSupplyChainService(db.Pool, authSvc)
 	hrSvc := services.NewHRService(db.Pool)
+	platformSvc := services.NewPlatformService(db.Pool)
 
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

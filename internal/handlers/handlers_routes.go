@@ -174,6 +174,31 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── AI & Platform ──
+	mux.Handle("POST /api/v1/ai/copilot/query",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCopilotUse)(
+				http.HandlerFunc(a.copilotQueryHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/workflows/trigger",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermWorkflowsExecute)(
+				http.HandlerFunc(a.triggerWorkflowHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/security/audit-anomalies",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSecurityAuditRead)(
+				http.HandlerFunc(a.auditAnomaliesHandler),
+			),
+		),
+	)
+
 	// ── Swagger UI (development only) ──
 	if a.Config.EnableSwagger {
 		mux.Handle("GET /swagger/", httpSwagger.Handler(

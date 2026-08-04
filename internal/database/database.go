@@ -542,6 +542,82 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "create_ai_copilot_conversations",
+			sql: `
+				CREATE TABLE IF NOT EXISTS ai_copilot_conversations (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					user_id UUID REFERENCES users(id),
+					prompt_text TEXT NOT NULL,
+					generated_sql TEXT,
+					response_payload JSONB,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_lowcode_workflows",
+			sql: `
+				CREATE TABLE IF NOT EXISTS lowcode_workflows (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					name VARCHAR(100) NOT NULL,
+					trigger_event VARCHAR(100) NOT NULL,
+					action_steps JSONB NOT NULL,
+					is_active BOOLEAN DEFAULT TRUE,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_iot_devices",
+			sql: `
+				CREATE TABLE IF NOT EXISTS iot_devices (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					device_name VARCHAR(100) NOT NULL,
+					device_type VARCHAR(50) NOT NULL,
+					mac_address VARCHAR(100) UNIQUE,
+					status VARCHAR(50) DEFAULT 'online',
+					last_ping TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_audit_logs",
+			sql: `
+				CREATE TABLE IF NOT EXISTS audit_logs (
+					id BIGSERIAL PRIMARY KEY,
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					user_id UUID REFERENCES users(id),
+					action VARCHAR(100) NOT NULL,
+					ip_address VARCHAR(45),
+					ai_anomaly_flag BOOLEAN DEFAULT FALSE,
+					metadata JSONB,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_ai_usage_logs",
+			sql: `
+				CREATE TABLE IF NOT EXISTS ai_usage_logs (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					user_id UUID REFERENCES users(id),
+					feature_used VARCHAR(100) NOT NULL,
+					credits_consumed INT NOT NULL DEFAULT 1,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
+			name: "create_indexes_category5",
+			sql: `
+				CREATE INDEX IF NOT EXISTS idx_telematics_vehicle_time ON fleet_telematics_logs(vehicle_id, recorded_at DESC);
+				CREATE INDEX IF NOT EXISTS idx_org_members_lookup ON organization_members(user_id, org_id);
+				CREATE INDEX IF NOT EXISTS idx_orgs_domain_slug ON organizations(domain_slug);
+				CREATE INDEX IF NOT EXISTS idx_audit_org_time ON audit_logs(org_id, created_at DESC);
+				CREATE INDEX IF NOT EXISTS idx_invoices_org_status ON invoices(org_id, status);
+				CREATE INDEX IF NOT EXISTS idx_contacts_org ON crm_contacts(org_id);
+			`,
+		},
+		{
 			name: "seed_default_permissions",
 			sql: `
 				INSERT INTO permissions (permission_key, module, description)
@@ -562,7 +638,10 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('inventory.read',            'inventory', 'Read inventory reorder predictions and stock levels'),
 					('hr.attendance.write',       'hr',        'Clock in/out and manage attendance records'),
 					('hr.recruitment.write',      'hr',        'Parse resumes and manage job applications'),
-					('knowledge.read',            'knowledge', 'Search and read knowledge base documents')
+					('knowledge.read',            'knowledge', 'Search and read knowledge base documents'),
+					('copilot.use',               'platform',  'Use the AI text-to-SQL copilot query feature'),
+					('workflows.execute',         'platform',  'Trigger and execute low-code automated workflows'),
+					('security.audit.read',       'platform',  'Read security audit anomaly logs')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}

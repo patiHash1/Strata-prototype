@@ -202,4 +202,7 @@ const (
 	PermHRAttendanceWrite     = "hr.attendance.write"
 	PermHRRecruitmentWrite    = "hr.recruitment.write"
 	PermKnowledgeRead         = "knowledge.read"
+	PermCopilotUse            = "copilot.use"
+	PermWorkflowsExecute      = "workflows.execute"
+	PermSecurityAuditRead     = "security.audit.read"
 )
