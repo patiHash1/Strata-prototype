@@ -455,6 +455,265 @@ Calculates tax for a given subtotal based on the configured tax rates for the sp
 
 ---
 
+### 8. Import Bank Statement
+
+```
+POST /api/v1/accounting/bank-statements
+```
+
+Imports a bank statement with opening/closing balances and a list of transactions for reconciliation.
+
+**Required permission:** `accounting.bankrec.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `bank_name` | string | **Yes** | Name of the bank |
+| `account_number` | string | **Yes** | Bank account number |
+| `statement_date` | string | **Yes** | Statement date in `YYYY-MM-DD` format |
+| `opening_balance` | decimal | **Yes** | Opening balance on the statement |
+| `closing_balance` | decimal | **Yes** | Closing balance on the statement |
+| `transactions` | array | **Yes** | Array of bank transaction entries |
+| `transactions[].transaction_date` | string | **Yes** | Transaction date in `YYYY-MM-DD` format |
+| `transactions[].description` | string | **Yes** | Transaction description/payee |
+| `transactions[].reference` | string | No | Bank reference number |
+| `transactions[].debit` | decimal | No | Debit amount (default 0.00) |
+| `transactions[].credit` | decimal | No | Credit amount (default 0.00) |
+| `transactions[].amount` | decimal | **Yes** | Transaction amount |
+
+**Example request:**
+
+```json
+{
+    "bank_name": "Chase Business",
+    "account_number": "1234567890",
+    "statement_date": "2026-01-31",
+    "opening_balance": 25000.00,
+    "closing_balance": 28750.00,
+    "transactions": [
+        {
+            "transaction_date": "2026-01-05",
+            "description": "Customer Payment - Acme Corp",
+            "reference": "CHK-1001",
+            "debit": 0.00,
+            "credit": 5000.00,
+            "amount": 5000.00
+        },
+        {
+            "transaction_date": "2026-01-10",
+            "description": "Office Supplies - Staples",
+            "reference": "DC-4521",
+            "debit": 1250.00,
+            "credit": 0.00,
+            "amount": -1250.00
+        }
+    ]
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "statement_id": "aa0e8400-e29b-41d4-a716-446655440000",
+    "status": "imported"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `statement_id` | UUID | ID of the imported bank statement |
+| `status` | string | Import status — `"imported"` on success |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, empty transactions array, invalid date format |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.bankrec.write` permission |
+
+---
+
+### 9. Reconcile Bank Statement
+
+```
+POST /api/v1/accounting/bank-statements/{statement_id}/reconcile
+```
+
+Runs AI-powered reconciliation between the imported bank statement transactions and the general ledger entries. Matches transactions by amount proximity (±1%) and returns matched/unmatched counts.
+
+**Required permission:** `accounting.bankrec.write`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `statement_id` | UUID | **Yes** | ID of the bank statement to reconcile |
+
+**Response (200 OK):**
+
+```json
+{
+    "total_matched": 42,
+    "total_unmatched": 3,
+    "outstanding_debit": 1500.00,
+    "outstanding_credit": 0.00,
+    "reconciled_balance": 28750.00,
+    "matches": [
+        {
+            "bank_transaction_id": "bb0e8400-e29b-41d4-a716-446655440000",
+            "journal_entry_id": "660e8400-e29b-41d4-a716-446655440000",
+            "amount_difference": 0.00,
+            "confidence": 0.98
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `total_matched` | integer | Number of transactions matched to ledger entries |
+| `total_unmatched` | integer | Number of transactions with no matching ledger entry |
+| `outstanding_debit` | decimal | Total unmatched debit amount |
+| `outstanding_credit` | decimal | Total unmatched credit amount |
+| `reconciled_balance` | decimal | Reconciled balance after matching |
+| `matches` | array | Array of matched transaction pairs |
+| `matches[].bank_transaction_id` | UUID | ID of the matched bank transaction |
+| `matches[].journal_entry_id` | UUID | ID of the matched journal entry |
+| `matches[].amount_difference` | decimal | Absolute difference between matched amounts |
+| `matches[].confidence` | decimal | AI confidence score (0.0–1.0) |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Invalid statement_id UUID |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.bankrec.write` permission |
+| `404 Not Found` | Bank statement not found |
+
+---
+
+### 10. Create Exchange Rate
+
+```
+POST /api/v1/accounting/exchange-rates
+```
+
+Creates a new currency exchange rate for multi-currency accounting.
+
+**Required permission:** `accounting.exchangerates.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `from_currency` | string | **Yes** | Source currency ISO 4217 code (e.g., `USD`, `EUR`) |
+| `to_currency` | string | **Yes** | Target currency ISO 4217 code (e.g., `GBP`, `JPY`) |
+| `rate` | decimal | **Yes** | Exchange rate (must be > 0) |
+| `effective_date` | string | **Yes** | Date the rate becomes effective in `YYYY-MM-DD` format |
+
+**Example request:**
+
+```json
+{
+    "from_currency": "USD",
+    "to_currency": "EUR",
+    "rate": 0.92,
+    "effective_date": "2026-01-15"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "exchange_rate_id": "cc0e8400-e29b-41d4-a716-446655440000",
+    "from_currency": "USD",
+    "to_currency": "EUR",
+    "rate": 0.92,
+    "effective_date": "2026-01-15"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `exchange_rate_id` | UUID | ID of the created exchange rate |
+| `from_currency` | string | Source currency code |
+| `to_currency` | string | Target currency code |
+| `rate` | decimal | Exchange rate |
+| `effective_date` | string | Effective date |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid currency codes, rate ≤ 0, invalid date |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.exchangerates.write` permission |
+| `409 Conflict` | Exchange rate already exists for this currency pair and effective date |
+
+---
+
+### 11. Convert Currency
+
+```
+POST /api/v1/accounting/convert
+```
+
+Converts an amount from one currency to another using the latest effective exchange rate.
+
+**Required permission:** `accounting.currencyconvert.read`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `amount` | decimal | **Yes** | Amount to convert (must be ≥ 0) |
+| `from_currency` | string | **Yes** | Source currency ISO 4217 code |
+| `to_currency` | string | **Yes** | Target currency ISO 4217 code |
+
+**Example request:**
+
+```json
+{
+    "amount": 1000.00,
+    "from_currency": "USD",
+    "to_currency": "EUR"
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+    "original_amount": 1000.00,
+    "from_currency": "USD",
+    "to_currency": "EUR",
+    "converted_amount": 920.00
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `original_amount` | decimal | Original amount in source currency |
+| `from_currency` | string | Source currency code |
+| `to_currency` | string | Target currency code |
+| `converted_amount` | decimal | Converted amount in target currency |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid currency codes, amount < 0 |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.currencyconvert.read` permission |
+| `404 Not Found` | No exchange rate found for the specified currency pair |
+
+---
+
 ## AI engine (simulated)
 
 The current implementation uses heuristic-based simulation. In production, these would be replaced with external AI/ML service calls.
@@ -472,3 +731,17 @@ Applies five rule-based checks against the expense submission:
 - High-value expense flagging
 
 Flagged expenses return `ai_fraud_flag: true` with a semicolon-delimited list of violations in `ai_audit_notes`. Clean expenses return `ai_fraud_flag: false` with a compliance confirmation message.
+
+### Bank reconciliation auto-matching (Module 2.6)
+
+Matches imported bank statement transactions against general ledger entries by:
+- Amount proximity within ±1% tolerance
+- Date proximity (within 5 business days)
+- Reference/description keyword matching
+- Confidence scoring from 0.0 to 1.0 based on match quality
+
+Unmatched transactions are flagged as outstanding debit/credit for manual review.
+
+### Multi-currency exchange rate management (Module 2.7)
+
+Stores exchange rates per currency pair with effective dates. The currency conversion endpoint queries the latest effective rate for the given pair and performs the calculation. Rate conflict detection prevents duplicate entries for the same currency pair and effective date.

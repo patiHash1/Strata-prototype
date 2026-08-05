@@ -8,7 +8,10 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 - **Role-based access control (RBAC)** with dynamic roles and permissions
 - **User management** including invitation flows and membership lifecycle
 - **CRM & Revenue Operations** with AI-powered lead scoring, contract risk analysis, and pipeline management
-- **Finance & Enterprise Accounting** with general ledger, invoice OCR, and AI fraud-audited expenses
+- **Finance & Enterprise Accounting** with double-entry ledger, bank reconciliation, multi-currency exchange rates, invoice OCR, and AI fraud-audited expenses
+- **Supply Chain & Inventory** with multi-warehouse stock tracking, receive/issue/transfer/snapshot, BOM, work orders, fleet telematics, and route optimization
+- **HR & Workforce** with time & attendance, shift management & AI prediction, payroll with per-employee tax withholding, ATS candidate matching, and knowledge base RAG
+- **Platform & AI** with text-to-SQL copilot, BI dashboards, low-code workflows, IoT gateway with batch ingestion, and security audit
 - **Billing/subscription management** with Stripe integration
 - **API key authentication** for machine-to-machine integrations
 
@@ -38,29 +41,33 @@ internal/
 ├── env/env.go               # Safe environment variable helpers
 ├── database/database.go     # pgx connection pool + migrations
 	├── services/
-	│   ├── services_auth.go     # JWT, bcrypt, refresh tokens
-	│   ├── services_users.go    # Users, organization memberships
-	│   ├── services_orgs.go     # Organizations, invitations, API keys
-	│   ├── services_rbac.go     # Roles, permissions
-	│   ├── services_billing.go  # Subscriptions
-	│   ├── services_crm.go      # CRM: leads, deals, quotes, AI analysis
-	│   ├── services_accounting.go # Accounting: journal entries, invoices, expenses
-	│   ├── services_supplychain.go # Supply chain: fleet, telematics, inventory, routes
-	│   ├── services_hr.go        # HR: attendance, resume parsing, knowledge search
-	│   ├── services_platform.go  # Platform: AI copilot, workflows, security anomalies
-	│   └── services_mailer.go   # Transactional email (stub)
+	│   ├── services_auth.go       # JWT, bcrypt, refresh tokens
+	│   ├── services_users.go      # Users, organization memberships
+	│   ├── services_orgs.go       # Organizations, invitations, API keys
+	│   ├── services_rbac.go       # Roles, permissions
+	│   ├── services_billing.go    # Subscriptions
+	│   ├── services_crm.go        # CRM: leads, deals, quotes, AI analysis
+	│   ├── services_accounting.go # Accounting: journal entries, bank reconciliation, multi-currency, invoices, expenses
+	│   ├── services_supplychain.go # Supply chain: fleet, telematics, inventory, routes, warehouse stock
+	│   ├── services_hr.go         # HR: attendance, shifts, payroll/tax, resume parsing, knowledge search
+	│   ├── services_platform.go   # Platform: AI copilot, workflows, IoT batch, security anomalies
+	│   └── services_mailer.go     # Transactional email (stub)
 	├── handlers/
-	│   ├── handlers_server.go   # App struct, DI wiring, Serve()
-	│   ├── handlers_routes.go   # Route registration + middleware
-	│   ├── handlers_health.go   # GET /health
-	│   ├── handlers_auth.go     # POST auth/register, auth/login
-	│   ├── handlers_org.go      # Org endpoints
-	│   ├── handlers_billing.go  # Billing endpoints
-	│   ├── handlers_crm.go      # CRM endpoints
-	│   ├── handlers_accounting.go # Accounting endpoints
-	│   ├── handlers_supplychain.go # Fleet & inventory endpoints
-	│   ├── handlers_hr.go       # HR endpoints
-	│   └── handlers_platform.go  # AI & Platform endpoints
+	│   ├── handlers_server.go             # App struct, DI wiring, Serve()
+	│   ├── handlers_routes.go             # Route registration + middleware
+	│   ├── handlers_health.go             # GET /health
+	│   ├── handlers_auth.go               # POST auth/register, auth/login
+	│   ├── handlers_org.go                # Org endpoints
+	│   ├── handlers_billing.go            # Billing endpoints
+	│   ├── handlers_crm.go                # CRM endpoints
+	│   ├── handlers_accounting.go         # Accounting endpoints + bank statements, exchange rates
+	│   ├── handlers_accounting_extra.go   # Bank reconciliation, exchange rates, currency conversion
+	│   ├── handlers_supplychain.go        # Fleet & inventory endpoints + receive/issue/transfer/snapshot
+	│   ├── handlers_supplychain_extra.go  # Inventory receive/issue/transfer/snapshot
+	│   ├── handlers_hr.go                 # HR endpoints + clock-out, shifts, payroll detail/tax
+	│   ├── handlers_hr_extra.go           # Clock-out, shift management, tax profiles, payroll detail
+	│   ├── handlers_platform.go           # AI & Platform endpoints + batch IoT readings
+	│   └── handlers_platform_extra.go     # Batch IoT reading ingestion
 └── utils/
     ├── response.go          # WriteJSON, WriteErr, Envelope
     ├── middleware.go         # RequireAuth, RequirePermission, etc.

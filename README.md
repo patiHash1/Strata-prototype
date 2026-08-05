@@ -27,17 +27,21 @@ internal/
 │   └── services_mailer.go      # Mailer: transactional email (stub)
 │
 ├── handlers/            # HTTP LAYER — handlers, routes, App wiring
-│   ├── handlers_server.go      # App struct, New(), Serve() — all dependency injection
-│   ├── handlers_routes.go      # Route registration + middleware stack + Swagger UI
-│   ├── handlers_health.go      # GET /health
-│   ├── handlers_auth.go        # POST auth/register, POST auth/login
-│   ├── handlers_org.go         # POST org/invitations, org/roles, org/api-keys
-│   ├── handlers_billing.go     # POST billing/subscriptions
-│   ├── handlers_crm.go         # POST crm/leads, quotes/risk-analysis, crm/tickets, crm/field-visits, crm/campaigns, crm/campaigns/{id}/launch
-│   ├── handlers_accounting.go  # POST accounting/journal-entries, invoices/ocr, expenses, assets, tax-rates, tax/calculate; GET assets/{id}/depreciation
-│   ├── handlers_supplychain.go # POST fleet/telematics, fleet/routes, manufacturing/boms, manufacturing/work-orders, procurement/purchase-orders; GET inventory/reorder-predictions, procurement/supplier-risk
-│   ├── handlers_hr.go          # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search, hr/employees, hr/payroll/runs; GET hr/employees, hr/employees/{id}, hr/payroll/runs, hr/payroll/runs/{id}; PATCH hr/employees/{id}
-│   └── handlers_platform.go    # POST ai/copilot/query, workflows/trigger, bi/dashboards, iot/devices, iot/readings; GET security/audit-anomalies, bi/dashboards, bi/dashboards/{id}/data, iot/devices
+│   ├── handlers_server.go             # App struct, New(), Serve() — all dependency injection
+│   ├── handlers_routes.go             # Route registration + middleware stack + Swagger UI
+│   ├── handlers_health.go             # GET /health
+│   ├── handlers_auth.go               # POST auth/register, POST auth/login
+│   ├── handlers_org.go                # POST org/invitations, org/roles, org/api-keys
+│   ├── handlers_billing.go            # POST billing/subscriptions
+│   ├── handlers_crm.go                # POST crm/leads, quotes/risk-analysis, crm/tickets, crm/field-visits, crm/campaigns, crm/campaigns/{id}/launch
+│   ├── handlers_accounting.go         # POST accounting/journal-entries, invoices/ocr, expenses, assets, tax-rates, tax/calculate; GET assets/{id}/depreciation; bank statements, exchange rates, currency convert
+│   ├── handlers_accounting_extra.go   # Bank reconciliation, exchange rates, currency conversion
+│   ├── handlers_supplychain.go        # POST fleet/telematics, fleet/routes, manufacturing/boms, manufacturing/work-orders, procurement/purchase-orders; GET inventory/reorder-predictions, procurement/supplier-risk; inventory receive/issue/transfer/snapshot
+│   ├── handlers_supplychain_extra.go  # Inventory receive/issue/transfer/snapshot
+│   ├── handlers_hr.go                 # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search, hr/employees, hr/payroll/runs; GET hr/employees, hr/employees/{id}, hr/payroll/runs, hr/payroll/runs/{id}; PATCH hr/employees/{id}; clock-out, shifts/templates, shifts/assignments, shifts/predictions, shifts/schedule, payroll/detail, payroll/tax-profiles
+│   ├── handlers_hr_extra.go           # Clock-out, shift management, tax profiles, payroll detail
+│   ├── handlers_platform.go           # POST ai/copilot/query, workflows/trigger, bi/dashboards, iot/devices, iot/readings; GET security/audit-anomalies, bi/dashboards, bi/dashboards/{id}/data, iot/devices; iot/readings/batch
+│   └── handlers_platform_extra.go     # Batch IoT reading ingestion
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
@@ -529,25 +533,25 @@ func Load() Config {
 | CRM & RevOps | 1.3 Helpdesk/Ticket Router | ✅ |
 | CRM & RevOps | 1.4 Field Sales Dispatch | ✅ |
 | CRM & RevOps | 1.5 Campaign Engines | ✅ |
-| Finance & AP | 2.1 Double-Entry Ledger | ✅ |
+| Finance & AP | 2.1 Double-Entry Ledger & Bank Rec | ✅ |
 | Finance & AP | 2.2 Invoice OCR | ✅ |
 | Finance & AP | 2.3 Expense/Fraud Detection | ✅ |
 | Finance & AP | 2.4 Fixed Assets | ✅ |
-| Finance & AP | 2.5 Multi-Currency & Tax | ✅ |
-| Supply & Fleet | 3.1 Multi-Warehouse/Reorder | ✅ |
+| Finance & AP | 2.5 Multi-Currency Exchange & Tax | ✅ |
+| Supply & Fleet | 3.1 Multi-Warehouse Stock & AI Reorder | ✅ |
 | Supply & Fleet | 3.2 BOM & Work Orders | ✅ |
 | Supply & Fleet | 3.3 Fleet Telematics | ✅ |
 | Supply & Fleet | 3.4 Route Optimizer | ✅ |
 | Supply & Fleet | 3.5 Vendor/Supplier Risk | ✅ |
 | HR & Talent | 4.1 Core HR/Employee Portal | ✅ |
-| HR & Talent | 4.2 Time/Attendance | ✅ |
-| HR & Talent | 4.3 Payroll & Taxes | ✅ |
+| HR & Talent | 4.2 Time, Attendance & Shift Predict | ✅ |
+| HR & Talent | 4.3 Payroll, Tax Withholding & Disbursements | ✅ |
 | HR & Talent | 4.4 ATS/Candidate Matcher | ✅ |
 | HR & Talent | 4.5 Knowledge Base/RAG | ✅ |
 | Platform & AI | 5.1 Text-to-SQL Copilot | ✅ |
 | Platform & AI | 5.2 BI & Dashboards | ✅ |
 | Platform & AI | 5.3 Low-Code Workflows | ✅ |
-| Platform & AI | 5.4 IoT Gateway | ✅ |
+| Platform & AI | 5.4 IoT Gateway & Batch Ingestion | ✅ |
 | Platform & AI | 5.5 Audit/Security/RBAC | ✅ |
 
 ---
@@ -581,6 +585,11 @@ open http://localhost:8080/swagger/
 - ~~Telematics pipeline~~ — DONE (real-time stream processing for vehicle telemetry data).
 - ~~Workflow engine~~ — DONE (low-code automation engine with event-driven triggers).
 - ~~IoT/device management~~ — DONE (IoT device registry and telemetry ingestion).
+- ~~Bank reconciliation~~ — DONE (automated bank statement matching and reconciliation).
+- ~~Multi-currency exchange rates~~ — DONE (real-time currency conversion and exchange rate management).
+- ~~Inventory levels per warehouse~~ — DONE (multi-warehouse stock tracking with receive/issue/transfer/snapshot).
+- ~~Shift management & AI prediction~~ — DONE (shift templates, assignments, scheduling, and AI-driven predictions).
+- ~~Payroll tax withholding per employee~~ — DONE (per-employee tax profiles, withholding calculations, and payroll detail).
 - **Real AI/ML integration** — replace simulated AI with real ML service calls.
 - **Real-time BI dashboards** — replace simulated dashboard data with real-time analytics.
 - **Vector RAG** — replace ILIKE search with pgvector embedding-based semantic search.

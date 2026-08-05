@@ -196,7 +196,292 @@ Performs a RAG-powered semantic search over the organization's knowledge base do
 
 ---
 
-### 4. Create Employee
+### 4. Clock Out
+
+```
+POST /api/v1/hr/attendance/clock-out
+```
+
+Clocks the authenticated user out, closing the most recent open attendance log. Uses the JWT to identify the user — no request body required.
+
+**Required permission:** `hr.attendance.clockout`
+
+**No request body required** (user identified from JWT).
+
+**Response (200 OK):**
+
+```json
+{
+    "attendance_log_id": "aa0e8400-e29b-41d4-a716-446655440000",
+    "clock_in": "2026-01-15T09:00:00Z",
+    "clock_out": "2026-01-15T17:30:00Z",
+    "hours_worked": 8.5
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `attendance_log_id` | UUID | ID of the attendance record |
+| `clock_in` | string (ISO 8601) | Clock-in timestamp |
+| `clock_out` | string (ISO 8601) | Clock-out timestamp |
+| `hours_worked` | decimal | Total hours worked |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | No open attendance log found (already clocked out) |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.attendance.clockout` permission |
+
+---
+
+### 5. Create Shift Template
+
+```
+POST /api/v1/hr/shifts/templates
+```
+
+Creates a reusable shift template defining start/end times and required headcount, optionally scoped to a specific day of the week and department.
+
+**Required permission:** `hr.shifts.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | **Yes** | Shift template name (e.g., `Morning Shift`) |
+| `start_time` | string | **Yes** | Shift start time in `HH:MM` format (24-hour) |
+| `end_time` | string | **Yes** | Shift end time in `HH:MM` format (24-hour) |
+| `day_of_week` | integer | No | Day of week (0=Sunday, 6=Saturday). If omitted, applies to all days |
+| `department` | string | No | Department the shift belongs to |
+| `required_headcount` | integer | **Yes** | Minimum number of employees needed for this shift |
+
+**Example request:**
+
+```json
+{
+    "name": "Morning Shift",
+    "start_time": "06:00",
+    "end_time": "14:00",
+    "day_of_week": 1,
+    "department": "Warehouse",
+    "required_headcount": 5
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "shift_template_id": "bb0e8400-e29b-41d4-a716-446655440000",
+    "name": "Morning Shift",
+    "start_time": "06:00",
+    "end_time": "14:00",
+    "required_headcount": 5
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `shift_template_id` | UUID | ID of the created shift template |
+| `name` | string | Shift template name |
+| `start_time` | string | Shift start time |
+| `end_time` | string | Shift end time |
+| `required_headcount` | integer | Required headcount |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid time format, required_headcount ≤ 0 |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.shifts.write` permission |
+
+---
+
+### 6. Assign Shift
+
+```
+POST /api/v1/hr/shifts/assignments
+```
+
+Assigns an employee to a shift template on a specific date.
+
+**Required permission:** `hr.shifts.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `employee_id` | UUID | **Yes** | ID of the employee to assign |
+| `shift_template_id` | UUID | **Yes** | ID of the shift template |
+| `shift_date` | string | **Yes** | Date of the shift in `YYYY-MM-DD` format |
+
+**Example request:**
+
+```json
+{
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+    "shift_template_id": "bb0e8400-e29b-41d4-a716-446655440000",
+    "shift_date": "2026-01-20"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "shift_assignment_id": "cc0e8400-e29b-41d4-a716-446655440000",
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+    "shift_date": "2026-01-20",
+    "status": "scheduled"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `shift_assignment_id` | UUID | ID of the shift assignment |
+| `employee_id` | UUID | ID of the assigned employee |
+| `shift_date` | string | Date of the shift |
+| `status` | string | Assignment status — `"scheduled"` on creation |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid UUIDs, invalid date format |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.shifts.write` permission |
+| `404 Not Found` | Employee or shift template not found |
+
+---
+
+### 7. Predict Shift Needs
+
+```
+GET /api/v1/hr/shifts/predictions?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD&department=...
+```
+
+Returns AI-predicted headcount needs per day based on historical patterns and seasonality. The AI simulation analyzes day-of-week patterns and monthly seasonal adjustments to produce confidence-scored predictions.
+
+**Required permission:** `hr.shifts.write`
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `from_date` | string | **Yes** | Start date in `YYYY-MM-DD` format |
+| `to_date` | string | **Yes** | End date in `YYYY-MM-DD` format |
+| `department` | string | No | Filter predictions by department |
+
+**Response (200 OK):**
+
+```json
+{
+    "predictions": [
+        {
+            "date": "2026-01-20",
+            "department": "Warehouse",
+            "predicted_headcount_needed": 8,
+            "confidence_score": 0.85,
+            "reasoning": "Tuesday typically has 15% higher demand. Monthly seasonal factor: 1.05."
+        },
+        {
+            "date": "2026-01-21",
+            "department": "Warehouse",
+            "predicted_headcount_needed": 6,
+            "confidence_score": 0.78,
+            "reasoning": "Wednesday baseline demand. Monthly seasonal factor: 1.05."
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `predictions` | array | Array of daily shift need predictions |
+| `predictions[].date` | string | Prediction date |
+| `predictions[].department` | string | Department name |
+| `predictions[].predicted_headcount_needed` | integer | AI-predicted number of employees needed |
+| `predictions[].confidence_score` | decimal | Confidence in the prediction (0.0–1.0) |
+| `predictions[].reasoning` | string | Explanation of the AI's prediction logic |
+
+**AI simulation logic:**
+
+- **Day-of-week patterns:** Weekdays receive a demand multiplier based on historical data (e.g., Monday/Friday ±5%, Tuesday/Wednesday +10–15%, Thursday baseline)
+- **Seasonal adjustments:** Monthly seasonal factors (e.g., December +30% for holiday rush, January ±0%, July −10% for summer slowdown)
+- **Confidence scoring:** Based on data freshness and pattern consistency — higher confidence for well-established patterns, lower for weekends and holidays
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing query parameters, invalid date format, from_date > to_date |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.shifts.write` permission |
+
+---
+
+### 8. Get Employee Schedule
+
+```
+GET /api/v1/hr/shifts/schedule?employee_id=...&from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
+```
+
+Retrieves an employee's shift schedule for a given date range.
+
+**Required permission:** `hr.shifts.write`
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `employee_id` | UUID | **Yes** | ID of the employee |
+| `from_date` | string | **Yes** | Start date in `YYYY-MM-DD` format |
+| `to_date` | string | **Yes** | End date in `YYYY-MM-DD` format |
+
+**Response (200 OK):**
+
+```json
+{
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+    "schedule": [
+        {
+            "shift_assignment_id": "cc0e8400-e29b-41d4-a716-446655440000",
+            "shift_date": "2026-01-20",
+            "start_time": "06:00",
+            "end_time": "14:00",
+            "shift_name": "Morning Shift",
+            "status": "scheduled"
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `employee_id` | UUID | Employee ID |
+| `schedule` | array | Array of scheduled shifts |
+| `schedule[].shift_assignment_id` | UUID | Shift assignment ID |
+| `schedule[].shift_date` | string | Shift date |
+| `schedule[].start_time` | string | Shift start time |
+| `schedule[].end_time` | string | Shift end time |
+| `schedule[].shift_name` | string | Name of the shift template |
+| `schedule[].status` | string | Assignment status |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing query parameters, invalid UUID, invalid date format, from_date > to_date |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.shifts.write` permission |
+| `404 Not Found` | Employee not found |
+
+---
+
+### 9. Create Employee
 
 ```
 POST /api/v1/hr/employees
@@ -263,7 +548,7 @@ Creates a new employee record linked to an existing user. Records department, jo
 
 ---
 
-### 5. List Employees
+### 10. List Employees
 
 ```
 GET /api/v1/hr/employees?department=Engineering
@@ -309,7 +594,7 @@ Lists all employees in the organization, optionally filtered by department.
 
 ---
 
-### 6. Get Employee
+### 11. Get Employee
 
 ```
 GET /api/v1/hr/employees/{employee_id}
@@ -354,7 +639,7 @@ Retrieves a single employee record by ID.
 
 ---
 
-### 7. Update Employee
+### 12. Update Employee
 
 ```
 PATCH /api/v1/hr/employees/{employee_id}
@@ -413,7 +698,7 @@ Partially updates an employee record. Only the fields provided in the request bo
 
 ---
 
-### 8. Run Payroll
+### 13. Run Payroll
 
 ```
 POST /api/v1/hr/payroll/runs
@@ -465,7 +750,7 @@ Executes a payroll run for all active employees within the specified pay period.
 
 ---
 
-### 9. List Payroll Runs
+### 14. List Payroll Runs
 
 ```
 GET /api/v1/hr/payroll/runs
@@ -504,7 +789,7 @@ Lists all payroll runs for the organization, ordered by most recent first.
 
 ---
 
-### 10. Get Payroll Run
+### 15. Get Payroll Run
 
 ```
 GET /api/v1/hr/payroll/runs/{run_id}
@@ -554,6 +839,131 @@ Retrieves a single payroll run by ID, including per-employee disbursement detail
 
 ---
 
+### Payroll Run Detail
+
+```
+GET /api/v1/hr/payroll/runs/{run_id}/detail
+```
+
+Retrieves detailed payroll run information including per-employee tax breakdowns (gross pay, tax withheld, social security, net pay).
+
+**Required permission:** `hr.payroll.read`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `run_id` | UUID | **Yes** | ID of the payroll run to retrieve |
+
+**Response (200 OK):**
+
+```json
+{
+    "payroll_run": {
+        "payroll_run_id": "990e8400-e29b-41d4-a716-446655440000",
+        "pay_period_start": "2026-01-01",
+        "pay_period_end": "2026-01-15",
+        "total_disbursed": 250000.00,
+        "status": "completed"
+    },
+    "disbursements": [
+        {
+            "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+            "employee_code": "EMP-001",
+            "gross_pay": 6250.00,
+            "tax_withheld": 1250.00,
+            "social_security": 387.50,
+            "net_pay": 4612.50
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `payroll_run` | object | Payroll run summary |
+| `disbursements` | array | Per-employee disbursement details with tax breakdown |
+| `disbursements[].employee_id` | UUID | Employee ID |
+| `disbursements[].employee_code` | string | Employee code |
+| `disbursements[].gross_pay` | decimal | Gross pay before deductions |
+| `disbursements[].tax_withheld` | decimal | Income tax withheld |
+| `disbursements[].social_security` | decimal | Social security contribution |
+| `disbursements[].net_pay` | decimal | Net pay after all deductions |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.payroll.read` permission |
+| `404 Not Found` | Payroll run not found |
+
+---
+
+### Set Employee Tax Profile
+
+```
+POST /api/v1/hr/payroll/tax-profiles
+```
+
+Creates a tax profile for an employee, configuring their tax country, filing status, allowances, and additional withholding amounts. Used by the payroll engine to calculate progressive US-style tax brackets.
+
+**Required permission:** `hr.payroll.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `employee_id` | UUID | **Yes** | ID of the employee |
+| `tax_country` | string | **Yes** | Tax jurisdiction country code (e.g., `US`) |
+| `tax_id` | string | **Yes** | Employee tax identification number (e.g., SSN, EIN) |
+| `filing_status` | string | **Yes** | Filing status: `single`, `married_joint`, `married_separate`, `head_of_household` |
+| `allowances` | integer | No | Number of withholding allowances (default 0) |
+| `additional_withholding` | decimal | No | Additional amount to withhold per pay period (default 0.00) |
+
+**Example request:**
+
+```json
+{
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+    "tax_country": "US",
+    "tax_id": "123-45-6789",
+    "filing_status": "single",
+    "allowances": 1,
+    "additional_withholding": 50.00
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "tax_profile_id": "dd0e8400-e29b-41d4-a716-446655440000",
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+    "tax_country": "US",
+    "filing_status": "single"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `tax_profile_id` | UUID | ID of the created tax profile |
+| `employee_id` | UUID | Employee ID |
+| `tax_country` | string | Tax jurisdiction country |
+| `filing_status` | string | Employee filing status |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid filing status, invalid employee_id |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.payroll.write` permission |
+| `404 Not Found` | Employee not found |
+| `409 Conflict` | Tax profile already exists for this employee |
+
+---
+
 ## AI engine (simulated)
 
 The current implementation uses simulated AI for all three endpoints. In production, these would be replaced with external AI/ML service calls.
@@ -584,6 +994,25 @@ In production, this would call an NLP service (e.g., AWS Textract, Google Docume
 
 In production, this would use a vector database (e.g., pgvector, Pinecone, Weaviate) with embedding-based semantic search and an LLM for answer synthesis with proper RAG pipeline (retrieval → augmentation → generation).
 
+### Shift prediction (Module 4.6)
+
+Uses day-of-week patterns and monthly seasonality to predict required headcount:
+- **Day-of-week patterns:** Weekday demand multipliers (Monday +5%, Tuesday +15%, Wednesday +10%, Thursday baseline, Friday +5%, weekends −30%)
+- **Monthly seasonal adjustments:** December +30% (holiday rush), June–August −10% (summer slowdown), other months near baseline
+- **Confidence scoring:** Confidence is higher for weekdays with stable historical patterns (0.80–0.95), lower for weekends and holidays (0.60–0.75)
+
+In production, this would be replaced with a time-series forecasting model (e.g., Prophet, ARIMA) trained on historical attendance and sales data.
+
+### Tax calculation (Module 4.7)
+
+Applies progressive US-style tax brackets with standard deduction and social security:
+- **Standard deduction:** $13,850 (single), $27,700 (married joint) — annualized per pay period
+- **Progressive brackets:** 10%, 12%, 22%, 24%, 32%, 35%, 37% applied to taxable income after deduction
+- **Social security:** 6.2% on wages up to the annual wage base limit
+- **Additional withholding:** Applied on top of calculated tax per the employee's tax profile
+
+In production, this would integrate with a tax compliance service (e.g., Avalara, TaxJar) for multi-jurisdictional support.
+
 ---
 
 ## Database tables
@@ -595,6 +1024,10 @@ The HR module introduces five new database tables:
 | `employees` | Employee records linked to users and organizations |
 | `attendance_logs` | Clock-in/out records with GPS coordinates |
 | `payroll_runs` | Payroll processing batches |
+| `payroll_disbursements` | Per-employee payroll disbursement records with tax breakdown |
+| `employee_tax_profiles` | Employee tax profiles (country, filing status, allowances) |
+| `shift_templates` | Reusable shift templates with start/end times and headcount |
+| `shift_assignments` | Employee shift assignments per date |
 | `job_applications` | Candidate applications with AI match scores |
 | `knowledge_base_documents` | HR policy documents for RAG search |
 
@@ -609,9 +1042,11 @@ The HR module introduces seven new permissions:
 | Permission Key | Module | Description |
 |---|---|---|
 | `hr.attendance.write` | hr | Clock in/out and manage attendance records |
+| `hr.attendance.clockout` | hr | Clock out and close attendance logs |
 | `hr.recruitment.write` | hr | Parse resumes and manage job applications |
 | `hr.employees.write` | hr | Create and update employee records |
 | `hr.employees.read` | hr | View employee records and details |
-| `hr.payroll.write` | hr | Execute payroll runs |
-| `hr.payroll.read` | hr | View payroll run history and details |
+| `hr.payroll.write` | hr | Execute payroll runs and manage tax profiles |
+| `hr.payroll.read` | hr | View payroll run history, details, and tax breakdowns |
+| `hr.shifts.write` | hr | Create shift templates, assign shifts, predict needs, view schedules |
 | `knowledge.read` | knowledge | Search and read knowledge base documents |

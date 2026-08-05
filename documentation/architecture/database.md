@@ -396,18 +396,74 @@ CREATE TABLE knowledge_base_documents (
 | `vector_embedding_id` | VARCHAR(255) | Reference to external vector store embedding, nullable |
 | `created_at` | TIMESTAMPTZ | Auto-set |
 
+## CRM tables
+
+- `crm_contacts`, `crm_deals`, `crm_quotes`, `crm_helpdesk_tickets`, `field_sales_visits`, `crm_campaigns`
+
+## Finance & Accounting tables
+
+- `chart_of_accounts`, `journal_entries`, `journal_items`, `invoices`, `expenses`, `fixed_assets`, `tax_rates`
+
+## Bank Reconciliation (Module 2.1)
+
+- `bank_statements` — imported bank statements
+- `bank_transactions` — individual transaction lines
+- `reconciliation_matches` — links bank transactions to journal entries
+
+## Multi-Currency (Module 2.5)
+
+- `currencies` — currency definitions (10 seeded)
+- `exchange_rates` — conversion rates between currencies
+
+## Inventory Levels (Module 3.1)
+
+- `inventory_levels` — per-warehouse stock with generated `quantity_available` column
+- `stock_movements` — audit trail of receipt/issue/transfer movements
+
+## Shift Management (Module 4.2)
+
+- `shift_templates` — reusable shift definitions
+- `shift_assignments` — employee shift assignments
+
+## Payroll Tax (Module 4.3)
+
+- `employee_tax_profiles` — per-employee tax configuration
+- `payroll_disbursements` — per-employee payout records
+
+## IoT Device Readings (Module 5.4)
+
+- `iot_device_readings` — persistent sensor reading storage
+
 ## Custom Enums
 
 ### `vehicle_status`
 
 ```sql
-CREATE TYPE vehicle_status AS ENUM ('active', 'maintenance', 'decommissioned');
+CREATE TYPE vehicle_status AS ENUM ('active', 'maintenance', 'decommissioned', 'in_transit');
 ```
 
 ### `shipment_status`
 
 ```sql
-CREATE TYPE shipment_status AS ENUM ('pending', 'in_transit', 'delivered', 'cancelled');
+CREATE TYPE shipment_status AS ENUM ('pending', 'assigned', 'in_transit', 'delivered', 'delayed');
+```
+
+### `org_status`
+
+```sql
+CREATE TYPE org_status AS ENUM ('active', 'suspended', 'pending_verification');
+```
+
+### `subscription_status`
+
+```sql
+CREATE TYPE subscription_status AS ENUM ('active', 'past_due', 'canceled', 'trialing');
+```
+
+### `ticket_priority`
+
+```sql
+CREATE TYPE ticket_priority AS ENUM ('low', 'medium', 'high', 'urgent');
 ```
 
 ## Seed data
@@ -436,6 +492,16 @@ The following permissions are inserted on every migration (idempotent via `ON CO
 | `copilot.use` | platform | Use the AI text-to-SQL copilot query feature |
 | `workflows.execute` | platform | Trigger and execute low-code automated workflows |
 | `security.audit.read` | platform | Read security audit anomaly logs |
+
+The following tables are also seeded with default data on every migration (idempotent via `ON CONFLICT DO NOTHING`):
+
+### `currencies`
+
+10 currencies: USD, EUR, GBP, JPY, INR, CAD, AUD, CHF, CNY, BRL
+
+### `subscription_plans`
+
+3 plans: starter, professional, enterprise
 
 ## Platform, AI Core & BI tables
 
@@ -578,6 +644,15 @@ CREATE INDEX idx_orgs_domain_slug ON organizations(domain_slug);
 CREATE INDEX idx_audit_org_time ON audit_logs(org_id, created_at DESC);
 CREATE INDEX idx_invoices_org_status ON invoices(org_id, status);
 CREATE INDEX idx_contacts_org ON crm_contacts(org_id);
+CREATE INDEX idx_bank_transactions_stmt ON bank_transactions(statement_id);
+CREATE INDEX idx_inventory_levels_warehouse ON inventory_levels(warehouse_id);
+CREATE INDEX idx_inventory_levels_product ON inventory_levels(product_id);
+CREATE INDEX idx_stock_movements_product ON stock_movements(product_id);
+CREATE INDEX idx_stock_movements_created ON stock_movements(created_at DESC);
+CREATE INDEX idx_shift_assignments_employee ON shift_assignments(employee_id);
+CREATE INDEX idx_shift_assignments_date ON shift_assignments(shift_date);
+CREATE INDEX idx_payroll_disbursements_run ON payroll_disbursements(payroll_run_id);
+CREATE INDEX idx_iot_readings_device_time ON iot_device_readings(device_id, recorded_at DESC);
 ```
 
 ## Key constraints

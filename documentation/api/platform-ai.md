@@ -356,7 +356,7 @@ Retrieves dashboard data with AI-powered anomaly detection. Each widget's data i
 
 ### POST /api/v1/iot/devices
 
-Registers a new IoT device in the organization's device fleet. Devices are identified by a unique serial number and can be associated with a location.
+Registers a new IoT device in the organization's device fleet. Devices are identified by a unique device name and can optionally include a MAC address.
 
 **Permission:** `iot.devices.write`
 
@@ -364,42 +364,50 @@ Registers a new IoT device in the organization's device fleet. Devices are ident
 
 ```json
 {
-  "serial_number": "IOT-2026-0042",
+  "device_name": "Temperature Sensor A1",
   "device_type": "temperature_sensor",
-  "location": "Warehouse A - Zone 3"
+  "mac_address": "AA:BB:CC:DD:EE:01"
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `serial_number` | `string` | ✅ | Unique device serial number |
+| `device_name` | `string` | ✅ | Unique device name |
 | `device_type` | `string` | ✅ | Device type (e.g., `temperature_sensor`, `humidity_sensor`, `vibration_sensor`) |
-| `location` | `string` | — | Physical location description |
+| `mac_address` | `string` | — | Device MAC address (optional, unique) |
 
 #### Response `201 Created`
 
 ```json
 {
-  "device_id": "550e8400-e29b-41d4-a716-446655440000",
-  "serial_number": "IOT-2026-0042",
-  "status": "registered"
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "org_id": "660e8400-e29b-41d4-a716-446655440000",
+  "device_name": "Temperature Sensor A1",
+  "device_type": "temperature_sensor",
+  "mac_address": "AA:BB:CC:DD:EE:01",
+  "status": "online",
+  "last_ping": "2026-01-15T14:30:00Z"
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `device_id` | `string` (UUID) | ID of the registered device |
-| `serial_number` | `string` | Device serial number |
-| `status` | `string` | Device status — `"registered"` on creation |
+| `id` | `string` (UUID) | ID of the registered device |
+| `org_id` | `string` (UUID) | Organization ID |
+| `device_name` | `string` | Device name |
+| `device_type` | `string` | Device type |
+| `mac_address` | `string` (or null) | Device MAC address |
+| `status` | `string` | Device status — `"online"` on creation |
+| `last_ping` | `string` (ISO 8601) | Last ping timestamp |
 
 #### Errors
 
 | Status | Description |
 |---|---|
-| `400` | Invalid request body, missing `serial_number`, or duplicate serial number |
+| `400` | Invalid request body, missing `device_name` or `device_type` |
 | `401` | Missing or invalid bearer token |
 | `403` | Token lacks `iot.devices.write` permission |
-| `409` | Device with this serial number already exists |
+| `409` | Device with this MAC address already exists |
 | `500` | Internal server error |
 
 ---
@@ -416,12 +424,13 @@ Lists all registered IoT devices for the organization.
 {
   "devices": [
     {
-      "device_id": "550e8400-e29b-41d4-a716-446655440000",
-      "serial_number": "IOT-2026-0042",
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "org_id": "660e8400-e29b-41d4-a716-446655440000",
+      "device_name": "Temperature Sensor A1",
       "device_type": "temperature_sensor",
-      "location": "Warehouse A - Zone 3",
-      "status": "active",
-      "last_reading_at": "2026-01-15T14:30:00Z"
+      "mac_address": "AA:BB:CC:DD:EE:01",
+      "status": "online",
+      "last_ping": "2026-01-15T14:30:00Z"
     }
   ]
 }
@@ -430,12 +439,13 @@ Lists all registered IoT devices for the organization.
 | Field | Type | Description |
 |---|---|---|
 | `devices` | `array` | Array of IoT device objects |
-| `devices[].device_id` | `string` (UUID) | Device ID |
-| `devices[].serial_number` | `string` | Device serial number |
+| `devices[].id` | `string` (UUID) | Device ID |
+| `devices[].org_id` | `string` (UUID) | Organization ID |
+| `devices[].device_name` | `string` | Device name |
 | `devices[].device_type` | `string` | Device type |
-| `devices[].location` | `string` | Physical location |
+| `devices[].mac_address` | `string` (or null) | Device MAC address |
 | `devices[].status` | `string` | Current device status |
-| `devices[].last_reading_at` | `string` (ISO 8601 or null) | Timestamp of the last reading |
+| `devices[].last_ping` | `string` (ISO 8601 or null) | Timestamp of the last ping |
 
 #### Errors
 
@@ -449,7 +459,7 @@ Lists all registered IoT devices for the organization.
 
 ### POST /api/v1/iot/readings
 
-Ingests a sensor reading from an IoT device. The AI engine analyzes the reading for anomalies and triggers alerts when values exceed expected thresholds.
+Ingests a sensor reading from an IoT device. Readings are persisted to the `iot_device_readings` table. The AI engine analyzes the reading for anomalies and triggers alerts when values exceed expected thresholds.
 
 **Permission:** `iot.readings.ingest`
 
@@ -458,34 +468,34 @@ Ingests a sensor reading from an IoT device. The AI engine analyzes the reading 
 ```json
 {
   "device_id": "550e8400-e29b-41d4-a716-446655440000",
-  "metric": "temperature_c",
-  "value": 42.5,
-  "recorded_at": "2026-01-15T14:30:00Z"
+  "metric_name": "temperature",
+  "metric_value": 42.5,
+  "unit": "celsius"
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `device_id` | `string` (UUID) | ✅ | ID of the registered IoT device |
-| `metric` | `string` | ✅ | Metric name (e.g., `temperature_c`, `humidity_pct`, `vibration_hz`) |
-| `value` | `float` | ✅ | Numeric reading value |
-| `recorded_at` | `string` (ISO 8601) | — | Timestamp of the reading (defaults to server time) |
+| `metric_name` | `string` | ✅ | Metric name (e.g., `temperature`, `humidity`, `vibration`) |
+| `metric_value` | `float` | ✅ | Numeric reading value |
+| `unit` | `string` | — | Unit of measurement (e.g., `celsius`, `percent`, `hz`) |
 
-#### Response `202 Accepted`
+#### Response `200 OK`
 
 ```json
 {
-  "reading_id": "770e8400-e29b-41d4-a716-446655440000",
-  "ai_anomaly_detected": false,
-  "ai_anomaly_detail": null
+  "status": "processed",
+  "anomaly_detected": false,
+  "anomaly_description": null
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `reading_id` | `string` (UUID) | ID of the ingested reading |
-| `ai_anomaly_detected` | `boolean` | Whether the AI engine flagged this reading as anomalous |
-| `ai_anomaly_detail` | `string` (or null) | Description of the anomaly if detected, otherwise `null` |
+| `status` | `string` | Processing status — `"processed"` on success |
+| `anomaly_detected` | `boolean` | Whether the AI engine flagged this reading as anomalous |
+| `anomaly_description` | `string` (or null) | Description of the anomaly if detected, otherwise `null` |
 
 #### AI anomaly detection
 
@@ -493,9 +503,9 @@ The AI engine checks readings against expected ranges:
 
 | Metric | Expected range | Anomaly if |
 |---|---|---|
-| `temperature_c` | 15–35°C | Outside range |
-| `humidity_pct` | 30–70% | Outside range |
-| `vibration_hz` | 0–50 Hz | > 50 Hz |
+| `temperature` | 15–35°C | Outside range |
+| `humidity` | 30–70% | Outside range |
+| `vibration` | 0–50 Hz | > 50 Hz |
 
 #### Errors
 
@@ -505,6 +515,66 @@ The AI engine checks readings against expected ranges:
 | `401` | Missing or invalid bearer token |
 | `403` | Token lacks `iot.readings.ingest` permission |
 | `404` | Device not found |
+| `500` | Internal server error |
+
+---
+
+### POST /api/v1/iot/readings/batch
+
+High-frequency batch ingestion endpoint for edge devices. Accepts an array of readings and processes them in bulk, returning accepted and rejected counts.
+
+**Permission:** `iot.readings.ingest`
+
+#### Request
+
+```json
+{
+  "readings": [
+    {
+      "device_id": "550e8400-e29b-41d4-a716-446655440000",
+      "metric_name": "temperature",
+      "metric_value": 22.5,
+      "unit": "celsius"
+    },
+    {
+      "device_id": "550e8400-e29b-41d4-a716-446655440001",
+      "metric_name": "humidity",
+      "metric_value": 55.0,
+      "unit": "percent"
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `readings` | `array` | ✅ | Array of reading objects (must not be empty) |
+| `readings[].device_id` | `string` (UUID) | ✅ | ID of the registered IoT device |
+| `readings[].metric_name` | `string` | ✅ | Metric name |
+| `readings[].metric_value` | `float` | ✅ | Numeric reading value |
+| `readings[].unit` | `string` | — | Unit of measurement |
+
+#### Response `200 OK`
+
+```json
+{
+  "accepted": 2,
+  "rejected": 0
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `accepted` | `integer` | Number of readings successfully ingested |
+| `rejected` | `integer` | Number of readings rejected (e.g., unknown device) |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `400` | Invalid request body, empty `readings` array, or missing required fields in a reading |
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `iot.readings.ingest` permission |
 | `500` | Internal server error |
 
 ---

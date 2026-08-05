@@ -165,11 +165,11 @@ PermFleetTelematicsIngest = "fleet.telematics.ingest"
 
 **File:** `services_billing.go`
 
-Manages subscriptions.
+Manages subscriptions. Uses `plan_id` (UUID FK to `subscription_plans`) instead of the previous `plan_code` (string) for relational integrity.
 
 | Method | Description |
 |---|---|
-| `CreateOrUpgrade(ctx, orgID, planCode)` | Create or upgrade a subscription |
+| `CreateOrUpgrade(ctx, orgID, planID)` | Create or upgrade a subscription |
 | `GetByOrgID(ctx, orgID)` | Get current subscription for an org |
 
 **Domain errors:**
@@ -259,13 +259,17 @@ type FlaggedClause struct {
 
 **File:** `services_accounting.go`
 
-Manages accounting operations: journal entries, invoice OCR processing, and expense submissions.
+Manages accounting operations: journal entries, invoice OCR processing, expense submissions, bank reconciliation, and multi-currency exchange rates.
 
 | Method | Description |
 |---|---|
 | `PostJournalEntry(ctx, orgID, entryDate, memo, items)` | Creates a journal entry with balanced debit/credit items |
 | `ProcessInvoiceOCR(ctx, orgID, fileName, fileSize)` | Simulates AI-powered OCR extraction from an uploaded invoice |
 | `SubmitExpense(ctx, orgID, userID, amount, category, receiptFileName)` | Creates an expense with AI fraud audit |
+| `ImportBankStatement(ctx, orgID, input)` | Imports a bank statement and its transaction lines |
+| `ReconcileBankStatement(ctx, orgID, statementID)` | Auto-matches bank transactions to journal entries by amount proximity (±1%), creates reconciliation matches |
+| `SetExchangeRate(ctx, orgID, fromCurrency, toCurrency, rate)` | Sets or updates a currency exchange rate |
+| `ConvertAmount(ctx, orgID, amount, fromCurrency, toCurrency)` | Converts an amount using the stored exchange rate |
 
 **Domain errors:**
 - `ErrNoJournalItems` — journal entry must have at least one item
@@ -273,11 +277,19 @@ Manages accounting operations: journal entries, invoice OCR processing, and expe
 - `ErrAccountNotFound` — account not found
 - `ErrAccountNotInOrg` — account does not belong to this organization
 
+**Types:**
+- `BankStatement` — imported bank statement record
+- `BankTransaction` — individual transaction line within a statement
+- `ReconciliationMatch` — links a bank transaction to a journal entry
+- `Currency` — currency definition
+- `ExchangeRate` — conversion rate between two currencies
+- `ReconciliationReport` — summary of matched/unmatched items for a statement
+
 ## SupplyChainService
 
 **File:** `services_supplychain.go`
 
-Manages supply chain, manufacturing, fleet telematics, and inventory operations. Also handles API key validation for machine-to-machine endpoints.
+Manages supply chain, manufacturing, fleet telematics, inventory levels per warehouse, stock movements, and route optimization. Also handles API key validation for machine-to-machine endpoints.
 
 **Constructor:** `NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService)`
 
@@ -287,7 +299,11 @@ Accepts an `*AuthService` for bcrypt verification of API keys during authenticat
 |---|---|
 | `IngestTelemetry(ctx, orgID, input)` | Processes vehicle telemetry data, triggers AI predictive alerts for high engine temp (>110°C) or speed (>130 km/h) |
 | `OptimizeRoutes(ctx, orgID, shipmentIDs, vehicleIDs)` | Generates AI-optimized delivery routes with GeoJSON waypoints, ETA, and carbon offset |
-| `GetReorderPredictions(ctx, orgID, warehouseID)` | Returns AI-driven stockout predictions and reorder recommendations |
+| `GetReorderPredictions(ctx, orgID, warehouseID)` | Returns AI-driven stockout predictions and reorder recommendations using real inventory data |
+| `ReceiveStock(ctx, orgID, input)` | Records stock receipt, creates stock movement audit entry |
+| `IssueStock(ctx, orgID, input)` | Records stock issue, creates stock movement audit entry |
+| `TransferStock(ctx, orgID, input)` | Transfers stock between warehouses |
+| `GetInventorySnapshot(ctx, orgID, warehouseID)` | Returns current inventory levels for a warehouse |
 | `ValidateAPIKey(ctx, rawKey)` | bcrypt-verifies an API key against stored hashes, returns org ID and scopes |
 
 **Domain errors:**
@@ -308,7 +324,7 @@ type FleetVehicle struct {
     LicensePlate string
     Make         string
     Model        string
-    Status       string    // active, maintenance, decommissioned
+    Status       string    // active, maintenance, decommissioned, in_transit
     CreatedAt    time.Time
 }
 
@@ -318,7 +334,7 @@ type Shipment struct {
     TrackingNumber     string
     OriginAddress      string
     DestinationAddress string
-    Status             string    // pending, in_transit, delivered, cancelled
+    Status             string    // pending, assigned, in_transit, delivered, delayed
     AssignedVehicleID  *uuid.UUID
     AssignedDriverID   *uuid.UUID
     CreatedAt          time.Time
@@ -344,21 +360,52 @@ type StockoutPrediction struct {
     PredictedStockoutDays int
     RecommendedReorderQty int
 }
+
+type InventoryLevel struct {
+    ID                uuid.UUID
+    OrgID             uuid.UUID
+    WarehouseID       uuid.UUID
+    ProductID         uuid.UUID
+    QuantityOnHand    int
+    QuantityReserved  int
+    QuantityAvailable int       // generated column
+    UpdatedAt         time.Time
+}
+
+type StockMovement struct {
+    ID             uuid.UUID
+    OrgID          uuid.UUID
+    ProductID      uuid.UUID
+    FromWarehouseID *uuid.UUID
+    ToWarehouseID   *uuid.UUID
+    Quantity       int
+    MovementType   string    // receipt, issue, transfer
+    CreatedAt      time.Time
+}
 ```
 
-**AI simulation:** Telemetry alerts are triggered by rule-based thresholds (engine temp > 110°C, speed > 130 km/h). Route optimization generates simulated GeoJSON paths with randomized ETAs. Reorder predictions use simulated current stock levels with randomized daily consumption rates and 20–50% safety buffers. All AI features are designed to be replaced with real ML/optimization services in production.
+**AI simulation:** Telemetry alerts are triggered by rule-based thresholds (engine temp > 110°C, speed > 130 km/h). Route optimization generates simulated GeoJSON paths with randomized ETAs. Reorder predictions now use real inventory data from `inventory_levels` instead of simulated levels, with randomized daily consumption rates and 20–50% safety buffers. All AI features are designed to be replaced with real ML/optimization services in production.
 
 ## HRService
 
 **File:** `services_hr.go`
 
-Manages HR operations: employee attendance with geofence validation, AI-powered resume parsing and job matching, and RAG-based knowledge base semantic search.
+Manages HR operations: employee attendance with geofence validation, AI-powered resume parsing and job matching, RAG-based knowledge base semantic search, shift management with AI prediction, and payroll tax withholding with progressive tax brackets.
 
 | Method | Description |
 |---|---|
 | `ClockIn(ctx, orgID, userID, latitude, longitude)` | Records an attendance clock-in for the employee linked to the user, validates geofence, returns log ID + geofence status |
+| `ClockOut(ctx, orgID, attendanceLogID)` | Records clock-out time for an existing attendance log, returns the updated log |
 | `ParseResume(ctx, orgID, jobDescriptionID, resumeBytes, fileName)` | Simulates AI extraction of candidate name, email, and skills from a resume file, scores match against a job description, stores the application |
 | `SearchKnowledge(ctx, orgID, query)` | Performs semantic search over the org's knowledge base, returns an AI-synthesized answer with source documents and relevance scores |
+| `CreateShiftTemplate(ctx, orgID, input)` | Creates a reusable shift definition (name, start time, end time, color) |
+| `AssignShift(ctx, orgID, input)` | Assigns an employee to a shift on a given date |
+| `PredictShiftNeeds(ctx, orgID, department, date)` | AI-predicts required staffing levels for a department on a date |
+| `GetEmployeeSchedule(ctx, orgID, employeeID, startDate, endDate)` | Returns all shift assignments for an employee in a date range |
+| `SetEmployeeTaxProfile(ctx, orgID, employeeID, input)` | Configures per-employee tax withholding settings |
+| `CalculatePayrollTax(ctx, orgID, employeeID, grossPay)` | Calculates tax using per-employee progressive tax brackets |
+| `RunPayroll(ctx, orgID, payPeriodStart, payPeriodEnd)` | Runs payroll for the period — uses per-employee progressive tax brackets (not flat 70%) |
+| `GetPayrollRunDetail(ctx, orgID, payrollRunID)` | Returns full payroll run with per-employee disbursement breakdowns |
 
 **Domain errors:**
 - `ErrEmployeeNotFound` — no employee record found for the given user in the organization
@@ -391,6 +438,13 @@ type AttendanceClockInResult struct {
     AttendanceLogID  uuid.UUID
     ClockIn          time.Time
     IsWithinGeofence bool
+}
+
+type ClockOutResult struct {
+    AttendanceLogID uuid.UUID
+    ClockIn         time.Time
+    ClockOut        time.Time
+    DurationMinutes float64
 }
 
 type JobApplication struct {
@@ -429,21 +483,67 @@ type KnowledgeSearchResult struct {
     AIAnswer        string
     SourceDocuments []SourceDocument
 }
+
+type ShiftTemplate struct {
+    ID        uuid.UUID
+    OrgID     uuid.UUID
+    Name      string
+    StartTime string    // HH:MM format
+    EndTime   string    // HH:MM format
+    Color     *string
+}
+
+type ShiftAssignment struct {
+    ID           uuid.UUID
+    OrgID        uuid.UUID
+    TemplateID   uuid.UUID
+    EmployeeID   uuid.UUID
+    ShiftDate    time.Time
+    CreatedAt    time.Time
+}
+
+type ShiftPrediction struct {
+    Department          string
+    Date                time.Time
+    PredictedHeadcount  int
+    ConfidenceScore     float64
+}
+
+type EmployeeTaxProfile struct {
+    ID              uuid.UUID
+    OrgID           uuid.UUID
+    EmployeeID      uuid.UUID
+    TaxFilingStatus string    // single, married_filing_jointly, head_of_household
+    Allowances      int
+    AdditionalWithholding float64
+}
+
+type PayrollDisbursement struct {
+    ID           uuid.UUID
+    PayrollRunID uuid.UUID
+    EmployeeID   uuid.UUID
+    GrossPay     float64
+    TaxWithheld  float64
+    NetPay       float64
+    CreatedAt    time.Time
+}
 ```
 
-**AI simulation:** Geofence validation uses a distance-from-center calculation against a simulated office location (San Francisco). Resume parsing extracts candidate name from the file name and randomly selects 3–7 skills from a pool of 30 common tech skills. Match scoring uses a base score of 40 + (skills × 3) with ±10 jitter. Knowledge search uses PostgreSQL `ILIKE` for full-text search with term-overlap relevance scoring. All AI features are designed to be replaced with real ML/NLP services in production.
+**AI simulation:** Geofence validation uses a distance-from-center calculation against a simulated office location (San Francisco). Resume parsing extracts candidate name from the file name and randomly selects 3–7 skills from a pool of 30 common tech skills. Match scoring uses a base score of 40 + (skills × 3) with ±10 jitter. Knowledge search uses PostgreSQL `ILIKE` for full-text search with term-overlap relevance scoring. Shift prediction uses historical assignment patterns with random jitter. All AI features are designed to be replaced with real ML/NLP services in production.
 
 ## PlatformService
 
 **File:** `services_platform.go`
 
-Manages AI copilot text-to-SQL queries, low-code workflow automation, security audit anomalies, and AI usage tracking.
+Manages AI copilot text-to-SQL queries, low-code workflow automation, security audit anomalies, AI usage tracking, and batch IoT device reading ingestion.
 
 | Method | Description |
 |---|---|
 | `ExecuteCopilotQuery(ctx, orgID, userID, prompt)` | Converts a natural language prompt to SQL, simulates query execution, returns generated SQL + results + chart recommendation |
 | `TriggerWorkflow(ctx, orgID, eventType, payload)` | Matches active workflows by event type, simulates execution of action steps, returns execution ID and status |
 | `FetchAuditAnomalies(ctx, orgID, severity, limit)` | Retrieves audit log entries flagged by AI anomaly detection, filtered by severity, returns classified anomalies with risk scores |
+| `IngestDeviceReading(ctx, orgID, input)` | Ingests a single IoT device sensor reading, persists to `iot_device_readings` table, returns result with processing status |
+| `IngestDeviceReadingBatch(ctx, orgID, readings)` | Ingests a batch of IoT device sensor readings in a single transaction for efficiency |
 
 **Types:**
 
@@ -508,7 +608,26 @@ type AIUsageLog struct {
     CreditsConsumed int
     CreatedAt       time.Time
 }
+
+type IoTDeviceReading struct {
+    ID         uuid.UUID
+    OrgID      uuid.UUID
+    DeviceID   uuid.UUID
+    SensorType string
+    Value      float64
+    Unit       string
+    RecordedAt time.Time
+    CreatedAt  time.Time
+}
+
+type IngestReadingResult struct {
+    Status      string
+    ReadingID   uuid.UUID
+    ProcessedAt time.Time
+}
 ```
+
+> **Note:** `IoTDeviceReading` is now persisted to the `iot_device_readings` table. `IngestDeviceReading` returns an `IngestReadingResult` with the reading ID. `IngestDeviceReadingBatch` accepts multiple readings for single-transaction bulk ingestion.
 
 **AI simulation:** Text-to-SQL uses keyword-based prompt classification to select pre-written SQL queries for each domain (sales, invoices, attendance, fleet). Chart recommendation uses a simple heuristic: `top`/`by` keywords → bar chart, time fields → line chart, otherwise → table. Workflow execution simulates step counts (2–6) without actually executing any actions. Security anomaly classification uses action name heuristics (e.g., `login` → `suspicious_login`, `delete` → `unauthorized_delete_attempt`) with randomized risk scores. All AI features are designed to be replaced with real LLM/ML services in production.
 

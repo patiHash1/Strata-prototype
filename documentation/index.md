@@ -8,27 +8,50 @@ The project is in early prototype stage. The API is under active development and
 
 ## Quick links
 
+### Getting Started
 - [Getting Started](getting-started.md)
+- [Development Setup](development/setup.md)
+- [System Health](api/system.md)
+
+### Core Platform
 - [API Authentication](api/authentication.md)
 - [Organization Management](api/organizations.md)
 - [Member Management](api/members.md)
 - [Billing](api/billing.md)
+
+### CRM & Revenue
 - [CRM & Revenue](api/crm.md)
+
+### Supply Chain
 - [Fleet & Telematics](api/fleet.md)
 - [Manufacturing & BOM](api/fleet.md#manufacturing)
 - [Procurement & Suppliers](api/fleet.md#procurement)
 - [Supply Chain & Inventory](api/inventory.md)
+- [Inventory Management](api/inventory.md#inventory-management)
+
+### Finance & Accounting
 - [Finance & Accounting](api/accounting.md)
+- [Bank Reconciliation](api/accounting.md#bank-reconciliation)
+- [Multi-Currency](api/accounting.md#multi-currency-exchange-rates)
+
+### HR & Workforce
 - [HR & Workforce](api/hr.md)
+- [Shift Management](api/hr.md#shift-management--ai-prediction)
+- [Payroll Tax Withholding](api/hr.md#payroll-tax-withholding)
+
+### AI & Platform
 - [AI & Platform](api/platform-ai.md)
 - [BI & Dashboards](api/platform-ai.md#bi-dashboards)
 - [IoT Gateway](api/platform-ai.md#iot-gateway)
-- [System Health](api/system.md)
+- [Batch IoT Ingestion](api/platform-ai.md#iot-gateway)
+
+### Architecture
 - [Architecture Overview](architecture/overview.md)
 - [Database Schema](architecture/database.md)
 - [Middleware](architecture/middleware.md)
 - [Services Layer](architecture/services.md)
-- [Development Setup](development/setup.md)
+
+### Development
 - [Adding Endpoints](development/adding-endpoints.md)
 - [Adding Services](development/adding-services.md)
 - [Adding Migrations](development/adding-migrations.md)

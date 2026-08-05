@@ -77,9 +77,10 @@ services_orgs.go        → OrgService: organizations, invitations, API keys
 services_rbac.go        → RBACService: roles, permissions
 services_billing.go     → BillingService: subscriptions
 services_crm.go         → CRMService: leads, deals, quotes, AI analysis
-services_accounting.go  → AccountingService: journal entries, OCR, expenses
-services_supplychain.go → SupplyChainService: fleet, telematics, inventory, routes
-services_hr.go          → HRService: attendance, resume parsing, knowledge search
+services_accounting.go  → AccountingService: journal entries, OCR, expenses, bank reconciliation, multi-currency exchange rates
+services_supplychain.go → SupplyChainService: fleet, telematics, inventory levels per warehouse, stock movements, routes
+services_hr.go          → HRService: attendance, resume parsing, knowledge search, shift management, AI shift prediction, payroll tax withholding
+services_platform.go    → PlatformService: text-to-SQL, workflows, audit anomalies, batch IoT ingestion
 services_mailer.go      → Mailer: transactional email (stub)
 ```
 
@@ -120,6 +121,8 @@ main.go
 ```
 
 Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification.
+
+> **Note:** The `BillingService` now references `subscription_plans` via `plan_id` (UUID FK) instead of the previous `plan_code` (string). This was refactored to support proper relational integrity with the seeded `subscription_plans` table.
 
 ## Middleware stack
 
@@ -168,3 +171,5 @@ utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
 | Hard-delete only for member removal | Removes the membership cleanly; user account stays intact |
 | `Envelope` for all responses | Consistent API shape, easy to extend with pagination/meta |
 | Raw SQL migrations at startup | Simple, idempotent, no external migration tool needed yet |
+| Inventory levels use generated column | `quantity_available = quantity_on_hand - quantity_reserved` ensures data integrity |
+| Bank rec auto-matching | Matches by amount proximity (±1%) with manual override support via `reconciliation_matches` |

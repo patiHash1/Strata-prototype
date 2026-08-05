@@ -142,7 +142,7 @@ Authorization: Bearer <jwt>
 
 ### Create bill of materials
 
-Creates a bill of materials (BOM) for a manufactured product, defining the raw materials, components, and quantities required.
+Creates a bill of materials (BOM) for a manufactured product, defining the raw materials and components with their required quantities.
 
 ```http
 POST /api/v1/manufacturing/boms
@@ -150,17 +150,16 @@ Content-Type: application/json
 Authorization: Bearer <jwt>
 
 {
-    "product_name": "Widget Pro",
+    "parent_product_id": "550e8400-e29b-41d4-a716-446655440010",
+    "bom_code": "BOM-WP-001",
     "components": [
         {
-            "material_name": "Aluminum Sheet",
-            "quantity": 2.5,
-            "unit": "kg"
+            "component_product_id": "550e8400-e29b-41d4-a716-446655440020",
+            "quantity_required": 2.5
         },
         {
-            "material_name": "M4 Screws",
-            "quantity": 12,
-            "unit": "pcs"
+            "component_product_id": "550e8400-e29b-41d4-a716-446655440030",
+            "quantity_required": 12.0
         }
     ]
 }
@@ -169,9 +168,10 @@ Authorization: Bearer <jwt>
 **Response** `201 Created`:
 ```json
 {
-    "bom_id": "550e8400-e29b-41d4-a716-446655440000",
-    "product_name": "Widget Pro",
-    "component_count": 2
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "org_id": "660e8400-e29b-41d4-a716-446655440000",
+    "parent_product_id": "550e8400-e29b-41d4-a716-446655440010",
+    "bom_code": "BOM-WP-001"
 }
 ```
 
@@ -179,11 +179,11 @@ Authorization: Bearer <jwt>
 
 | Field | Rule |
 |---|---|
-| `product_name` | Required, non-blank string |
+| `parent_product_id` | Required, valid UUID, must reference an existing product |
+| `bom_code` | Required, non-blank string (unique per organization) |
 | `components` | Required, array with at least one component |
-| `components[].material_name` | Required, non-blank string |
-| `components[].quantity` | Required, positive decimal |
-| `components[].unit` | Required, non-blank string (e.g., `kg`, `pcs`, `m`) |
+| `components[].component_product_id` | Required, valid UUID, must reference an existing product |
+| `components[].quantity_required` | Required, positive decimal |
 
 **Permissions:** Requires `manufacturing.boms.write` permission.
 
@@ -191,7 +191,7 @@ Authorization: Bearer <jwt>
 
 | Status | Condition |
 |---|---|
-| `400` | Missing required fields, empty components array, invalid quantities |
+| `400` | Missing required fields, empty components array, invalid quantities, invalid UUIDs |
 | `401` | Missing or invalid JWT |
 | `403` | Insufficient permissions |
 | `500` | Internal server error |
