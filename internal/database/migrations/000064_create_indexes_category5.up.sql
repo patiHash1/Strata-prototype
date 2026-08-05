@@ -1,0 +1,12 @@
+CREATE INDEX IF NOT EXISTS idx_telematics_vehicle_time ON fleet_telematics_logs(vehicle_id, recorded_at DESC);
+				CREATE INDEX IF NOT EXISTS idx_org_members_lookup ON organization_members(user_id, org_id);
+				CREATE INDEX IF NOT EXISTS idx_orgs_domain_slug ON organizations(domain_slug);
+				CREATE INDEX IF NOT EXISTS idx_audit_org_time ON audit_logs(org_id, created_at DESC);
+				CREATE INDEX IF NOT EXISTS idx_invoices_org_status ON invoices(org_id, status);
+				CREATE INDEX IF NOT EXISTS idx_contacts_org ON crm_contacts(org_id);
+				CREATE INDEX IF NOT EXISTS idx_bank_txns_statement ON bank_transactions(statement_id);
+				CREATE INDEX IF NOT EXISTS idx_inventory_levels_wh ON inventory_levels(warehouse_id);
+				CREATE INDEX IF NOT EXISTS idx_stock_movements_product ON stock_movements(product_id, created_at DESC);
+				CREATE INDEX IF NOT EXISTS idx_shift_assignments_emp ON shift_assignments(employee_id, shift_date);
+				CREATE INDEX IF NOT EXISTS idx_payroll_disb_run ON payroll_disbursements(payroll_run_id);
+				CREATE INDEX IF NOT EXISTS idx_iot_readings_device ON iot_device_readings(device_id, recorded_at DESC);

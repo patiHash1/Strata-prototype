@@ -1,0 +1,1 @@
+ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'draft'
