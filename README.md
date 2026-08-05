@@ -1,10 +1,31 @@
-# Strata-prototype
+<div align="center">
 
-Building Strata — the frontier ERP-CRM Hybrid, direct competitor to Odoo.
+<img src="https://raw.githubusercontent.com/patiHash1/Strata-prototype/main/.github/strata-logo.svg" alt="Strata Logo" width="120" onerror="this.style.display='none'">
+
+# ⛰️ Strata
+
+### The Open-Source ERP‑CRM Hybrid — Built for the Frontier
+
+[![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?style=for-the-badge&logo=go&logoColor=white)](https://go.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+[![Modules](https://img.shields.io/badge/Modules-25%2F25-brightgreen?style=for-the-badge)]()
+
+<br>
+
+> **Strata** is a modular, AI‑native ERP‑CRM platform — a direct open‑source competitor to Odoo.  
+> Built in **Go** with a clean layered architecture, it ships with **25 fully‑implemented business modules**  
+> spanning CRM, Finance, Supply Chain, HR, and Platform AI.
+
+</div>
 
 ---
 
-## Project structure
+## 📦 Project Structure
+
+<details open>
+<summary><b>Click to expand/collapse</b></summary>
 
 ```
 cmd/
@@ -57,27 +78,35 @@ internal/
 docs/                    # Auto-generated Swagger/OpenAPI spec (do not edit)
 ```
 
-### Package dependency flow
+</details>
 
-```
-cmd/api/main.go
-    │
-    ├── internal/config       (env → struct)
-    ├── internal/database     (pgx pool + embedded migrations)
-    ├── internal/services     (business logic + DB queries)
-    │   └── depends on: database
-    ├── internal/handlers     (HTTP handlers + App struct)
-    │   └── depends on: services, utils, config, database
-    └── internal/utils        (pure helpers — no dependencies)
+### 🔗 Package Dependency Flow
+
+```mermaid
+graph TD
+    A[cmd/api/main.go] --> B[internal/config]
+    A --> C[internal/database]
+    A --> D[internal/services]
+    A --> E[internal/handlers]
+    A --> F[internal/utils]
+    D --> C
+    E --> D
+    E --> F
+    E --> B
+    E --> C
+    style A fill:#00ADD8,stroke:#00ADD8,color:#fff
+    style D fill:#7B42BC,stroke:#7B42BC,color:#fff
+    style E fill:#7B42BC,stroke:#7B42BC,color:#fff
+    style F fill:#2EA043,stroke:#2EA043,color:#fff
 ```
 
 ---
 
-## API documentation (Swagger)
+## 📘 API Documentation (Swagger)
 
 The project uses [swaggo/swag](https://github.com/swaggo/swag) to generate an OpenAPI 2.0 spec from Go annotations, served via a Swagger UI.
 
-### Viewing the docs
+### 🔍 Viewing the Docs
 
 ```sh
 # Start the server (Swagger UI is enabled by default)
@@ -87,9 +116,12 @@ ENABLE_SWAGGER=true go run ./cmd/api
 #   http://localhost:8080/swagger/
 ```
 
-### Annotating a new endpoint
+### ✍️ Annotating a New Endpoint
 
 Add Go comments above your handler function in `internal/handlers/`:
+
+<details>
+<summary><b>📄 Example annotation</b></summary>
 
 ```go
 // ListUsersResponse represents the response body for the list users endpoint.
@@ -114,27 +146,32 @@ func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### Regenerating the spec
+</details>
+
+### 🔄 Regenerating the Spec
 
 ```sh
 swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency --parseInternal
 ```
 
-> The `docs/` directory is gitignored and regenerated on demand. CI should run `swag init` before building to ensure the spec is always fresh.
+> ℹ️ The `docs/` directory is gitignored and regenerated on demand. CI should run `swag init` before building to ensure the spec is always fresh.
 
-### Config
+### ⚙️ Config
 
-| Env var | Default | Description |
-|---|---|---|
-| `ENABLE_SWAGGER` | `true` | Set to `false` in production to disable the Swagger UI route. |
+| Env Variable | Default | Description |
+|:---|:---|:---|
+| `ENABLE_SWAGGER` | `true` | Set to `false` in production to disable the Swagger UI route |
 | `JWT_SECRET` | `dev-secret-change-in-production` | HMAC signing key for JWTs |
 | `DATABASE_URL` | `""` | Postgres connection string (if empty, runs DB-less) |
 
 ---
 
-## Adding a new endpoint
+## ➕ Adding a New Endpoint
 
-### 1. Create a handler file in `internal/handlers/`
+### ① Create a Handler File in `internal/handlers/`
+
+<details>
+<summary><b>📄 Example: <code>handlers_users.go</code></b></summary>
 
 ```go
 // internal/handlers/handlers_users.go
@@ -155,9 +192,11 @@ func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-> **File naming:** `handlers_<category>.go` — one file per endpoint category (auth, org, billing, etc.)
+</details>
 
-### 2. Register the route in `internal/handlers/handlers_routes.go`
+> 📁 **File naming:** `handlers_<category>.go` — one file per endpoint category (auth, org, billing, etc.)
+
+### ② Register the Route in `internal/handlers/handlers_routes.go`
 
 ```go
 func (a *App) routes() http.Handler {
@@ -170,7 +209,7 @@ func (a *App) routes() http.Handler {
 }
 ```
 
-### 3. Add permission-gated routes
+### ③ Add Permission‑Gated Routes
 
 Protected routes use the middleware stack directly in the route registration:
 
@@ -194,7 +233,7 @@ mux.Handle("POST /api/v1/fleet/telematics/ingest",
 
 ---
 
-## Adding a new feature (service layer)
+## 🧩 Adding a New Feature (Service Layer)
 
 For non-trivial business logic with database access, add a service file under `internal/services/`:
 
@@ -215,6 +254,9 @@ internal/services/
 ```
 
 A service file contains its own types, repository (SQL queries), and exported service struct:
+
+<details>
+<summary><b>📄 Example: <code>services_crm.go</code></b></summary>
 
 ```go
 // internal/services/services_crm.go
@@ -262,7 +304,9 @@ func (s *CRMService) Create(ctx context.Context, name, email string) (*Lead, err
 }
 ```
 
-### Wire the new service
+</details>
+
+### 🔌 Wire the New Service
 
 **Step 1 — Add field to `App` in `internal/handlers/handlers_server.go`:**
 
@@ -315,9 +359,9 @@ crmSvc := services.NewCRMService(db.Pool)
 app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc)
 ```
 
-> **Note:** Some services may require additional dependencies. For example, `SupplyChainService` also accepts `*AuthService` for API key bcrypt verification.
+> ℹ️ Some services may require additional dependencies. For example, `SupplyChainService` also accepts `*AuthService` for API key bcrypt verification.
 
-### Use the service from a handler
+### 🎯 Use the Service from a Handler
 
 ```go
 // internal/handlers/handlers_crm.go
@@ -338,13 +382,13 @@ func (a *App) createLeadHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-This keeps handlers thin — they parse input, call a service, write output. Business logic stays testable without HTTP.
+> 💡 This keeps handlers **thin** — they parse input, call a service, write output. Business logic stays testable without HTTP.
 
 ---
 
-## Adding a utility or helper
+## 🛠️ Adding a Utility or Helper
 
-Shared utilities live in `internal/utils/` and have no dependencies on other project packages:
+Shared utilities live in `internal/utils/` and have **no dependencies** on other project packages:
 
 ```
 internal/utils/
@@ -370,9 +414,9 @@ if !utils.NotBlank(req.Name) {
 
 ---
 
-## Adding middleware
+## 🧱 Adding Middleware
 
-### 1. Write the middleware function in `internal/utils/middleware.go`
+### ① Write the Middleware Function in `internal/utils/middleware.go`
 
 ```go
 func rateLimitMiddleware(next http.Handler) http.Handler {
@@ -383,7 +427,7 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 }
 ```
 
-### 2. Wire it in `internal/handlers/handlers_routes.go`
+### ② Wire It in `internal/handlers/handlers_routes.go`
 
 ```go
 func (a *App) routes() http.Handler {
@@ -399,11 +443,11 @@ func (a *App) routes() http.Handler {
 }
 ```
 
-**Middleware runs outside-in.** The first wrapped middleware runs outermost (last to run).
+> 🔄 **Middleware runs outside‑in.** The first wrapped middleware runs outermost (last to run).
 
-### Per-route middleware
+### 🔐 Per‑Route Middleware
 
-Auth and permission checks are applied per-route. Strata supports two auth modes:
+Auth and permission checks are applied per‑route. Strata supports two auth modes:
 
 **Bearer token (JWT) auth:**
 
@@ -429,9 +473,9 @@ mux.Handle("POST /api/v1/fleet/telematics/ingest",
 
 ---
 
-## Adding a new database table
+## 🗄️ Adding a New Database Table
 
-### 1. Create a migration file in `internal/database/migrations/`
+### ① Create a Migration File in `internal/database/migrations/`
 
 Migrations are numbered `.up.sql` files loaded via Go's `embed.FS`. Create a new file with the next available sequence number:
 
@@ -447,9 +491,9 @@ CREATE TABLE IF NOT EXISTS leads (
 );
 ```
 
-Files are sorted lexicographically by filename, so the `000068_` prefix guarantees execution order.
+> 📋 Files are sorted lexicographically by filename, so the `000068_` prefix guarantees execution order.
 
-### 2. Add service + repository in `internal/services/services_<domain>.go`
+### ② Add Service + Repository in `internal/services/services_<domain>.go`
 
 The service file contains everything: types, repository struct with SQL, and exported service.
 
@@ -481,13 +525,13 @@ func NewCRMService(pool *pgxpool.Pool) *CRMService {
 }
 ```
 
-### 3. Wire in `handlers_server.go` and `cmd/api/main.go`
+### ③ Wire in `handlers_server.go` and `cmd/api/main.go`
 
 Add the field to `App`, add the constructor parameter, create the service in main.
 
 ---
 
-## Configuration conventions
+## ⚙️ Configuration Conventions
 
 All configuration lives in `internal/config/config.go` loaded via `internal/env/env.go`.
 
@@ -518,65 +562,74 @@ func Load() Config {
 
 ---
 
-## Response conventions
+## 📬 Response Conventions
 
-- **Success:** `{"key": value}` with the response data directly as a top-level key.
-- **Error:** `{"error": "message"}`
-- **Pagination:** include a `pagination` key alongside the data key.
-- **Always** use `utils.WriteJSON` / `utils.WriteErr` with the `utils.Envelope` type.
+| Type | Format | Example |
+|:---|:---|:---|
+| ✅ **Success** | `{"key": value}` | `{"user": {...}}` |
+| ❌ **Error** | `{"error": "message"}` | `{"error": "not found"}` |
+| 📄 **Pagination** | `{"key": [...], "pagination": {...}}` | `{"users": [...], "pagination": {...}}` |
+
+> 💡 **Always** use `utils.WriteJSON` / `utils.WriteErr` with the `utils.Envelope` type.
 
 ---
 
-## Project conventions
+## 📐 Project Conventions
 
 | Convention | Guidance |
-|---|---|
-| **Go version** | 1.26 (match `go.mod`) |
-| **Services package** | `internal/services/` — types, repos, business logic |
-| **Handlers package** | `internal/handlers/` — HTTP handlers, routes, App struct |
-| **Utils package** | `internal/utils/` — response helpers, middleware, validators |
-| **File naming** | `services_<domain>.go`, `handlers_<category>.go` |
-| **Handler signature** | Always `func (a *App) actionHandler(w http.ResponseWriter, r *http.Request)` |
-| **Service constructor** | Accepts `*pgxpool.Pool` directly — `NewXxxService(pool)` |
-| **Service signature** | Always accept `context.Context` as the first argument |
-| **Error handling** | Services return errors; handlers translate them to HTTP responses |
-| **No global state** | Everything lives on `App` or is injected via constructor |
+|:---|:---|
+| 🐹 **Go version** | 1.26 (match `go.mod`) |
+| 📦 **Services package** | `internal/services/` — types, repos, business logic |
+| 🌐 **Handlers package** | `internal/handlers/` — HTTP handlers, routes, App struct |
+| 🔧 **Utils package** | `internal/utils/` — response helpers, middleware, validators |
+| 📁 **File naming** | `services_<domain>.go`, `handlers_<category>.go` |
+| ✍️ **Handler signature** | `func (a *App) actionHandler(w http.ResponseWriter, r *http.Request)` |
+| 🏗️ **Service constructor** | Accepts `*pgxpool.Pool` directly — `NewXxxService(pool)` |
+| 🧵 **Service signature** | Always accept `context.Context` as the first argument |
+| ⚠️ **Error handling** | Services return errors; handlers translate them to HTTP responses |
+| 🚫 **No global state** | Everything lives on `App` or is injected via constructor |
 
 ---
 
-## Module coverage (25/25 implemented)
+## 📊 Module Coverage
 
-| Category | Module | Status |
-|---|---|---|
-| CRM & RevOps | 1.1 Sales/Lead Score | ✅ |
-| CRM & RevOps | 1.2 Quotes/Contract Risk | ✅ |
-| CRM & RevOps | 1.3 Helpdesk/Ticket Router | ✅ |
-| CRM & RevOps | 1.4 Field Sales Dispatch | ✅ |
-| CRM & RevOps | 1.5 Campaign Engines | ✅ |
-| Finance & AP | 2.1 Double-Entry Ledger & Bank Rec | ✅ |
-| Finance & AP | 2.2 Invoice OCR | ✅ |
-| Finance & AP | 2.3 Expense/Fraud Detection | ✅ |
-| Finance & AP | 2.4 Fixed Assets | ✅ |
-| Finance & AP | 2.5 Multi-Currency Exchange & Tax | ✅ |
-| Supply & Fleet | 3.1 Multi-Warehouse Stock & AI Reorder | ✅ |
-| Supply & Fleet | 3.2 BOM & Work Orders | ✅ |
-| Supply & Fleet | 3.3 Fleet Telematics | ✅ |
-| Supply & Fleet | 3.4 Route Optimizer | ✅ |
-| Supply & Fleet | 3.5 Vendor/Supplier Risk | ✅ |
-| HR & Talent | 4.1 Core HR/Employee Portal | ✅ |
-| HR & Talent | 4.2 Time, Attendance & Shift Predict | ✅ |
-| HR & Talent | 4.3 Payroll, Tax Withholding & Disbursements | ✅ |
-| HR & Talent | 4.4 ATS/Candidate Matcher | ✅ |
-| HR & Talent | 4.5 Knowledge Base/RAG | ✅ |
-| Platform & AI | 5.1 Text-to-SQL Copilot | ✅ |
-| Platform & AI | 5.2 BI & Dashboards | ✅ |
-| Platform & AI | 5.3 Low-Code Workflows | ✅ |
-| Platform & AI | 5.4 IoT Gateway & Batch Ingestion | ✅ |
-| Platform & AI | 5.5 Audit/Security/RBAC | ✅ |
+<div align="center">
+
+### 🟢 **25 / 25 Modules Implemented**
+
+</div>
+
+| # | Category | Module | Status |
+|:---:|:---|:---|:---:|
+| 1.1 | 🟣 CRM & RevOps | Sales / Lead Score | ✅ |
+| 1.2 | 🟣 CRM & RevOps | Quotes / Contract Risk | ✅ |
+| 1.3 | 🟣 CRM & RevOps | Helpdesk / Ticket Router | ✅ |
+| 1.4 | 🟣 CRM & RevOps | Field Sales Dispatch | ✅ |
+| 1.5 | 🟣 CRM & RevOps | Campaign Engines | ✅ |
+| 2.1 | 🟢 Finance & AP | Double‑Entry Ledger & Bank Rec | ✅ |
+| 2.2 | 🟢 Finance & AP | Invoice OCR | ✅ |
+| 2.3 | 🟢 Finance & AP | Expense / Fraud Detection | ✅ |
+| 2.4 | 🟢 Finance & AP | Fixed Assets | ✅ |
+| 2.5 | 🟢 Finance & AP | Multi‑Currency Exchange & Tax | ✅ |
+| 3.1 | 🔵 Supply & Fleet | Multi‑Warehouse Stock & AI Reorder | ✅ |
+| 3.2 | 🔵 Supply & Fleet | BOM & Work Orders | ✅ |
+| 3.3 | 🔵 Supply & Fleet | Fleet Telematics | ✅ |
+| 3.4 | 🔵 Supply & Fleet | Route Optimizer | ✅ |
+| 3.5 | 🔵 Supply & Fleet | Vendor / Supplier Risk | ✅ |
+| 4.1 | 🟠 HR & Talent | Core HR / Employee Portal | ✅ |
+| 4.2 | 🟠 HR & Talent | Time, Attendance & Shift Predict | ✅ |
+| 4.3 | 🟠 HR & Talent | Payroll, Tax Withholding & Disbursements | ✅ |
+| 4.4 | 🟠 HR & Talent | ATS / Candidate Matcher | ✅ |
+| 4.5 | 🟠 HR & Talent | Knowledge Base / RAG | ✅ |
+| 5.1 | 🔴 Platform & AI | Text‑to‑SQL Copilot | ✅ |
+| 5.2 | 🔴 Platform & AI | BI & Dashboards | ✅ |
+| 5.3 | 🔴 Platform & AI | Low‑Code Workflows | ✅ |
+| 5.4 | 🔴 Platform & AI | IoT Gateway & Batch Ingestion | ✅ |
+| 5.5 | 🔴 Platform & AI | Audit / Security / RBAC | ✅ |
 
 ---
 
-## Running the project
+## 🚀 Running the Project
 
 ```sh
 # Start PostgreSQL
@@ -598,26 +651,48 @@ curl http://localhost:8080/health
 open http://localhost:8080/swagger/
 ```
 
-> **Cloud deployment:** The server binds to `$PORT` (default `8080`). Railway and similar platforms set `PORT` automatically — no hardcoded port strings.
+> ☁️ **Cloud deployment:** The server binds to `$PORT` (default `8080`). Railway and similar platforms set `PORT` automatically — no hardcoded port strings.
 
 ---
 
-## Roadmap patterns (what comes next)
+## 🗺️ Roadmap
 
-- **cmd/cli/** — standalone CLI commands (user creation, data exports, cron jobs).
-- **internal/services/services_events.go** — background job queue (async email, webhooks, reports).
-- **internal/test/** — shared test fixtures, factories, and helpers.
-- ~~CRM pipeline~~ — DONE (full deal pipeline with field sales visits, campaigns, tickets).
-- ~~Telematics pipeline~~ — DONE (real-time stream processing for vehicle telemetry data).
-- ~~Workflow engine~~ — DONE (low-code automation engine with event-driven triggers).
-- ~~IoT/device management~~ — DONE (IoT device registry and telemetry ingestion).
-- ~~Bank reconciliation~~ — DONE (automated bank statement matching and reconciliation).
-- ~~Multi-currency exchange rates~~ — DONE (real-time currency conversion and exchange rate management).
-- ~~Inventory levels per warehouse~~ — DONE (multi-warehouse stock tracking with receive/issue/transfer/snapshot).
-- ~~Shift management & AI prediction~~ — DONE (shift templates, assignments, scheduling, and AI-driven predictions).
-- ~~Payroll tax withholding per employee~~ — DONE (per-employee tax profiles, withholding calculations, and payroll detail).
-- **Real AI/ML integration** — replace simulated AI with real ML service calls.
-- **Real-time BI dashboards** — replace simulated dashboard data with real-time analytics.
-- **Vector RAG** — replace ILIKE search with pgvector embedding-based semantic search.
-- **Stripe integration** — replace simulated billing with real Stripe API calls.
-- **Webhook support** — add webhook delivery for workflow actions.
+<div align="center">
+
+| Status | What's Next |
+|:---:|:---|
+| 🚧 | **`cmd/cli/`** — standalone CLI commands (user creation, data exports, cron jobs) |
+| 🚧 | **`internal/services/services_events.go`** — background job queue (async email, webhooks, reports) |
+| 🚧 | **`internal/test/`** — shared test fixtures, factories, and helpers |
+| 🚧 | **Real AI/ML integration** — replace simulated AI with real ML service calls |
+| 🚧 | **Real‑time BI dashboards** — replace simulated dashboard data with real‑time analytics |
+| 🚧 | **Vector RAG** — replace ILIKE search with pgvector embedding‑based semantic search |
+| 🚧 | **Stripe integration** — replace simulated billing with real Stripe API calls |
+| 🚧 | **Webhook support** — add webhook delivery for workflow actions |
+
+</div>
+
+<details>
+<summary><b>✅ Completed milestones</b></summary>
+
+- ~~CRM pipeline~~ — full deal pipeline with field sales visits, campaigns, tickets
+- ~~Telematics pipeline~~ — real‑time stream processing for vehicle telemetry data
+- ~~Workflow engine~~ — low‑code automation engine with event‑driven triggers
+- ~~IoT/device management~~ — IoT device registry and telemetry ingestion
+- ~~Bank reconciliation~~ — automated bank statement matching and reconciliation
+- ~~Multi‑currency exchange rates~~ — real‑time currency conversion and exchange rate management
+- ~~Inventory levels per warehouse~~ — multi‑warehouse stock tracking with receive/issue/transfer/snapshot
+- ~~Shift management & AI prediction~~ — shift templates, assignments, scheduling, and AI‑driven predictions
+- ~~Payroll tax withholding per employee~~ — per‑employee tax profiles, withholding calculations, and payroll detail
+
+</details>
+
+---
+
+<div align="center">
+
+### 🏔️ Built with Go · PostgreSQL · Docker
+
+<sub>Strata — The Open‑Source ERP‑CRM for the Frontier</sub>
+
+</div>
