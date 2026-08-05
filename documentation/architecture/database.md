@@ -2,7 +2,7 @@
 
 ## Overview
 
-The database is PostgreSQL 16. Tables are created via idempotent migrations in `internal/database/database.go`. The schema uses UUID primary keys and `TIMESTAMPTZ` for timestamps.
+The database is PostgreSQL 16. Tables are created via idempotent migrations stored as numbered `.up.sql` files in `internal/database/migrations/`, loaded via Go's `embed.FS` at startup. The schema uses UUID primary keys and `TIMESTAMPTZ` for timestamps.
 
 ## Entity-Relationship Diagram
 

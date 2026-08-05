@@ -98,7 +98,7 @@ Configuration is loaded from environment variables at startup. `env` provides sa
 
 ### `internal/database`
 
-Owns the `pgxpool.Pool` and runs schema migrations on startup (idempotent `CREATE TABLE IF NOT EXISTS`).
+Owns the `pgxpool.Pool` with connection retry logic (5 attempts, 2s delay). Schema migrations are embedded as numbered `.up.sql` files in `internal/database/migrations/`, loaded via `embed.FS` at startup, and executed in lexicographic order (idempotent `CREATE TABLE IF NOT EXISTS`).
 
 ## Dependency injection
 
@@ -170,6 +170,6 @@ utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
 | Soft-delete for member deactivation | Preserves history, allows reactivation, keeps FK references valid |
 | Hard-delete only for member removal | Removes the membership cleanly; user account stays intact |
 | `Envelope` for all responses | Consistent API shape, easy to extend with pagination/meta |
-| Raw SQL migrations at startup | Simple, idempotent, no external migration tool needed yet |
+| Raw SQL migrations at startup | Simple, idempotent, no external migration tool needed yet. SQL files are embedded via `embed.FS` and numbered for ordering. |
 | Inventory levels use generated column | `quantity_available = quantity_on_hand - quantity_reserved` ensures data integrity |
 | Bank rec auto-matching | Matches by amount proximity (±1%) with manual override support via `reconciliation_matches` |

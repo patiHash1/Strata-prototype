@@ -9,8 +9,7 @@ Building Strata — the frontier ERP-CRM Hybrid, direct competitor to Odoo.
 ```
 cmd/
 ├── api/main.go          # Entry point. Wires config, database, services, and starts the server.
-├── cli/                 # CLI commands (future — admin tasks, data imports, etc.)
-└── migrate/             # Database migrations (future)
+└── cli/                 # CLI commands (future — admin tasks, data imports, etc.)
 
 internal/
 ├── services/            # BUSINESS LAYER — service + repository per domain
@@ -49,7 +48,10 @@ internal/
 │   └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 │
 ├── config/config.go     # App configuration loaded from env vars
-├── database/database.go # pgx connection pool (real, not a placeholder)
+├── database/
+│   ├── database.go      # pgx connection pool with retry logic
+│   ├── migrations.go    # Embedded migration loader (embed.FS)
+│   └── migrations/      # 67 numbered .up.sql migration files
 └── env/env.go           # Safe environment variable helpers (GetString, GetInt, GetBool)
 
 docs/                    # Auto-generated Swagger/OpenAPI spec (do not edit)
@@ -61,7 +63,7 @@ docs/                    # Auto-generated Swagger/OpenAPI spec (do not edit)
 cmd/api/main.go
     │
     ├── internal/config       (env → struct)
-    ├── internal/database     (pgx pool)
+    ├── internal/database     (pgx pool + embedded migrations)
     ├── internal/services     (business logic + DB queries)
     │   └── depends on: database
     ├── internal/handlers     (HTTP handlers + App struct)
@@ -429,7 +431,25 @@ mux.Handle("POST /api/v1/fleet/telematics/ingest",
 
 ## Adding a new database table
 
-### 1. Add service + repository in `internal/services/services_<domain>.go`
+### 1. Create a migration file in `internal/database/migrations/`
+
+Migrations are numbered `.up.sql` files loaded via Go's `embed.FS`. Create a new file with the next available sequence number:
+
+```sql
+-- internal/database/migrations/000068_create_leads.up.sql
+CREATE TABLE IF NOT EXISTS leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    status VARCHAR(50) DEFAULT 'new',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+Files are sorted lexicographically by filename, so the `000068_` prefix guarantees execution order.
+
+### 2. Add service + repository in `internal/services/services_<domain>.go`
 
 The service file contains everything: types, repository struct with SQL, and exported service.
 
@@ -461,7 +481,7 @@ func NewCRMService(pool *pgxpool.Pool) *CRMService {
 }
 ```
 
-### 2. Wire in `handlers_server.go` and `cmd/api/main.go`
+### 3. Wire in `handlers_server.go` and `cmd/api/main.go`
 
 Add the field to `App`, add the constructor parameter, create the service in main.
 
@@ -559,12 +579,17 @@ func Load() Config {
 ## Running the project
 
 ```sh
+# Start PostgreSQL
 docker compose up -d
-# Standard
+
+# Standard (reads PORT from env, defaults to 8080)
 go run ./cmd/api
 
 # With air (hot-reload, uses .air.toml)
 air
+
+# Custom port (for cloud deployments like Railway)
+PORT=3000 go run ./cmd/api
 
 # Smoke test
 curl http://localhost:8080/health
@@ -573,12 +598,13 @@ curl http://localhost:8080/health
 open http://localhost:8080/swagger/
 ```
 
+> **Cloud deployment:** The server binds to `$PORT` (default `8080`). Railway and similar platforms set `PORT` automatically — no hardcoded port strings.
+
 ---
 
 ## Roadmap patterns (what comes next)
 
 - **cmd/cli/** — standalone CLI commands (user creation, data exports, cron jobs).
-- **cmd/migrate/** — database migration runner using `golang-migrate` or similar.
 - **internal/services/services_events.go** — background job queue (async email, webhooks, reports).
 - **internal/test/** — shared test fixtures, factories, and helpers.
 - ~~CRM pipeline~~ — DONE (full deal pipeline with field sales visits, campaigns, tickets).

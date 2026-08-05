@@ -33,12 +33,17 @@ ENABLE_SWAGGER=true
 ### 3. Run the server
 
 ```bash
-# Standard
+# Standard (reads PORT from env, defaults to 8080)
 go run ./cmd/api
 
 # Or with hot-reload
 air
+
+# Custom port (for cloud deployments like Railway)
+PORT=3000 go run ./cmd/api
 ```
+
+> **Note:** The database connection includes a retry loop (5 attempts, 2s delay) to handle cold-start scenarios in containerized environments.
 
 ### 4. Verify it works
 

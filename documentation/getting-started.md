@@ -34,13 +34,15 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 cmd/
 ├── api/main.go              # Entry point — wires everything
 └── cli/                     # (future) CLI commands
-└── migrate/                 # (future) Migration runner
 
 internal/
 ├── config/config.go         # Configuration loaded from env vars
 ├── env/env.go               # Safe environment variable helpers
-├── database/database.go     # pgx connection pool + migrations
-	├── services/
+├── database/
+│   ├── database.go          # pgx connection pool with retry logic
+│   ├── migrations.go        # Embedded migration loader (embed.FS)
+│   └── migrations/          # 67 numbered .up.sql migration files
+├── services/
 	│   ├── services_auth.go       # JWT, bcrypt, refresh tokens
 	│   ├── services_users.go      # Users, organization memberships
 	│   ├── services_orgs.go       # Organizations, invitations, API keys
@@ -83,7 +85,7 @@ documentation/               # Human-readable documentation (this)
 cmd/api/main.go
     │
     ├── internal/config        (env → struct)
-    ├── internal/database      (pgx pool + migrations)
+    ├── internal/database      (pgx pool + embedded migrations)
     ├── internal/services      (business logic + SQL)
     │   └── depends on: database
     ├── internal/handlers      (HTTP handlers + App)

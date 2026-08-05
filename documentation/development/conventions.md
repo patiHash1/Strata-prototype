@@ -12,7 +12,8 @@ internal/
 ├── handlers/     # HTTP handlers + routes + App struct
 ├── utils/        # Pure helpers with no project dependencies
 ├── config/       # Configuration struct loaded from env vars
-├── database/     # pgx connection pool + migrations
+├── database/     # pgx connection pool + embedded migrations
+│   └── migrations/  # Numbered .up.sql files
 └── env/          # Safe environment variable getters
 ```
 
