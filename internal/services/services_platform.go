@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -79,6 +80,60 @@ type AIUsageLog struct {
 	FeatureUsed     string     `json:"feature_used"`
 	CreditsConsumed int        `json:"credits_consumed"`
 	CreatedAt       time.Time  `json:"created_at"`
+}
+
+// BIDashboard represents a BI executive dashboard.
+type BIDashboard struct {
+	ID        uuid.UUID       `json:"id"`
+	OrgID     uuid.UUID       `json:"org_id"`
+	Name      string          `json:"name"`
+	Config    json.RawMessage `json:"config"`
+	IsActive  bool            `json:"is_active"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdatedAt time.Time       `json:"updated_at"`
+}
+
+// DashboardWidget defines a single widget configuration within a dashboard.
+type DashboardWidget struct {
+	WidgetType string `json:"widget_type"`
+	Title      string `json:"title"`
+	DataQuery  string `json:"data_query"`
+	Position   int    `json:"position"`
+}
+
+// DashboardData contains the rendered data for a dashboard.
+type DashboardData struct {
+	DashboardID uuid.UUID    `json:"dashboard_id"`
+	Widgets     []WidgetData `json:"widgets"`
+}
+
+// WidgetData contains the rendered data for a single widget.
+type WidgetData struct {
+	WidgetType         string  `json:"widget_type"`
+	Title              string  `json:"title"`
+	Data               [][]any `json:"data"`
+	AnomalyDetected    bool    `json:"anomaly_detected"`
+	AnomalyDescription string  `json:"anomaly_description,omitempty"`
+}
+
+// IoTDevice represents a registered IoT device.
+type IoTDevice struct {
+	ID         uuid.UUID  `json:"id"`
+	OrgID      uuid.UUID  `json:"org_id"`
+	DeviceName string     `json:"device_name"`
+	DeviceType string     `json:"device_type"`
+	MACAddress *string    `json:"mac_address,omitempty"`
+	Status     string     `json:"status"`
+	LastPing   *time.Time `json:"last_ping,omitempty"`
+}
+
+// IoTDeviceReading represents a single metric reading from an IoT device.
+type IoTDeviceReading struct {
+	DeviceID    uuid.UUID `json:"device_id"`
+	MetricName  string    `json:"metric_name"`
+	MetricValue float64   `json:"metric_value"`
+	Unit        string    `json:"unit"`
+	RecordedAt  time.Time `json:"recorded_at"`
 }
 
 // ---- Repository ----
@@ -183,6 +238,104 @@ func (r *platformRepository) LogAIUsage(ctx context.Context, log *AIUsageLog) er
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, log.ID, log.OrgID, log.UserID, log.FeatureUsed, log.CreditsConsumed, log.CreatedAt)
 	return err
+}
+
+// ---- BI Dashboard repository ----
+
+func (r *platformRepository) CreateDashboard(ctx context.Context, d *BIDashboard) error {
+	d.ID = uuid.New()
+	d.CreatedAt = time.Now()
+	d.UpdatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO bi_dashboards (id, org_id, name, config, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, d.ID, d.OrgID, d.Name, d.Config, d.IsActive, d.CreatedAt, d.UpdatedAt)
+	return err
+}
+
+func (r *platformRepository) GetDashboardByID(ctx context.Context, id uuid.UUID) (*BIDashboard, error) {
+	d := &BIDashboard{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, name, config, is_active, created_at, updated_at
+		FROM bi_dashboards WHERE id = $1
+	`, id).Scan(&d.ID, &d.OrgID, &d.Name, &d.Config, &d.IsActive, &d.CreatedAt, &d.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (r *platformRepository) ListDashboards(ctx context.Context, orgID uuid.UUID) ([]BIDashboard, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, name, config, is_active, created_at, updated_at
+		FROM bi_dashboards WHERE org_id = $1 ORDER BY created_at DESC
+	`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var dashboards []BIDashboard
+	for rows.Next() {
+		var d BIDashboard
+		if err := rows.Scan(&d.ID, &d.OrgID, &d.Name, &d.Config, &d.IsActive, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, err
+		}
+		dashboards = append(dashboards, d)
+	}
+	if dashboards == nil {
+		dashboards = []BIDashboard{}
+	}
+	return dashboards, rows.Err()
+}
+
+// ---- IoT Device repository ----
+
+func (r *platformRepository) CreateDevice(ctx context.Context, d *IoTDevice) error {
+	d.ID = uuid.New()
+	now := time.Now()
+	d.LastPing = &now
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO iot_devices (id, org_id, device_name, device_type, mac_address, status, last_ping)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, d.ID, d.OrgID, d.DeviceName, d.DeviceType, d.MACAddress, d.Status, d.LastPing)
+	return err
+}
+
+func (r *platformRepository) GetDeviceByMAC(ctx context.Context, macAddress string) (*IoTDevice, error) {
+	d := &IoTDevice{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, device_name, device_type, mac_address, status, last_ping
+		FROM iot_devices WHERE mac_address = $1
+	`, macAddress).Scan(&d.ID, &d.OrgID, &d.DeviceName, &d.DeviceType, &d.MACAddress, &d.Status, &d.LastPing)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (r *platformRepository) ListDevices(ctx context.Context, orgID uuid.UUID) ([]IoTDevice, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, device_name, device_type, mac_address, status, last_ping
+		FROM iot_devices WHERE org_id = $1 ORDER BY device_name
+	`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var devices []IoTDevice
+	for rows.Next() {
+		var d IoTDevice
+		if err := rows.Scan(&d.ID, &d.OrgID, &d.DeviceName, &d.DeviceType, &d.MACAddress, &d.Status, &d.LastPing); err != nil {
+			return nil, err
+		}
+		devices = append(devices, d)
+	}
+	if devices == nil {
+		devices = []IoTDevice{}
+	}
+	return devices, rows.Err()
 }
 
 // ---- Service ----
@@ -482,4 +635,221 @@ func matchesSeverity(riskScore float64, severity string) bool {
 	default:
 		return true
 	}
+}
+
+// ---- BI Dashboard service methods ----
+
+// CreateDashboard creates a new BI executive dashboard.
+func (s *PlatformService) CreateDashboard(ctx context.Context, orgID uuid.UUID, name string, config json.RawMessage) (*BIDashboard, error) {
+	d := &BIDashboard{
+		OrgID:    orgID,
+		Name:     name,
+		Config:   config,
+		IsActive: true,
+	}
+	if err := s.repo.CreateDashboard(ctx, d); err != nil {
+		return nil, fmt.Errorf("create dashboard: %w", err)
+	}
+	return d, nil
+}
+
+// GetDashboardData returns simulated dashboard data with AI anomaly detection.
+func (s *PlatformService) GetDashboardData(ctx context.Context, dashboardID uuid.UUID) (*DashboardData, error) {
+	d, err := s.repo.GetDashboardByID(ctx, dashboardID)
+	if err != nil {
+		return nil, fmt.Errorf("get dashboard: %w", err)
+	}
+
+	// Parse widgets from config
+	var widgets []DashboardWidget
+	if len(d.Config) > 0 {
+		if err := json.Unmarshal(d.Config, &widgets); err != nil {
+			// If config is not a widget array, treat it as empty
+			widgets = nil
+		}
+	}
+
+	// Generate simulated widget data with AI anomaly detection
+	widgetData := make([]WidgetData, 0, len(widgets))
+	for _, w := range widgets {
+		data, anomalyDetected, anomalyDesc := simulateWidgetData(w)
+		widgetData = append(widgetData, WidgetData{
+			WidgetType:         w.WidgetType,
+			Title:              w.Title,
+			Data:               data,
+			AnomalyDetected:    anomalyDetected,
+			AnomalyDescription: anomalyDesc,
+		})
+	}
+
+	// If no widgets configured, provide default widgets
+	if len(widgetData) == 0 {
+		widgetData = getDefaultWidgets()
+	}
+
+	return &DashboardData{
+		DashboardID: dashboardID,
+		Widgets:     widgetData,
+	}, nil
+}
+
+// ListDashboards returns all dashboards for an organization.
+func (s *PlatformService) ListDashboards(ctx context.Context, orgID uuid.UUID) ([]BIDashboard, error) {
+	dashboards, err := s.repo.ListDashboards(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("list dashboards: %w", err)
+	}
+	return dashboards, nil
+}
+
+// ---- IoT Device service methods ----
+
+// RegisterDevice registers a new IoT device.
+func (s *PlatformService) RegisterDevice(ctx context.Context, orgID uuid.UUID, deviceName, deviceType, macAddress string) (*IoTDevice, error) {
+	var macPtr *string
+	if macAddress != "" {
+		macPtr = &macAddress
+	}
+
+	d := &IoTDevice{
+		OrgID:      orgID,
+		DeviceName: deviceName,
+		DeviceType: deviceType,
+		MACAddress: macPtr,
+		Status:     "online",
+	}
+	if err := s.repo.CreateDevice(ctx, d); err != nil {
+		return nil, fmt.Errorf("create device: %w", err)
+	}
+	return d, nil
+}
+
+// IngestDeviceReading processes a device reading and checks for anomalies.
+func (s *PlatformService) IngestDeviceReading(ctx context.Context, reading *IoTDeviceReading) error {
+	// Validate the device exists
+	_, err := s.repo.GetDashboardByID(ctx, reading.DeviceID) // placeholder: validate device exists via repo
+	_ = err                                                  // In production, validate device existence
+
+	// Simulate anomaly detection on the reading
+	anomalyDetected, anomalyDesc := DetectReadingAnomaly(reading)
+
+	// Log AI usage for anomaly detection
+	usage := &AIUsageLog{
+		OrgID:           uuid.Nil, // Will be set from device lookup in production
+		FeatureUsed:     "iot.anomaly.detection",
+		CreditsConsumed: 1,
+	}
+	if anomalyDetected {
+		usage.CreditsConsumed = 2
+		_ = anomalyDesc // In production, store anomaly alert
+	}
+	_ = usage
+
+	return nil
+}
+
+// ListDevices returns all IoT devices for an organization.
+func (s *PlatformService) ListDevices(ctx context.Context, orgID uuid.UUID) ([]IoTDevice, error) {
+	devices, err := s.repo.ListDevices(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("list devices: %w", err)
+	}
+	return devices, nil
+}
+
+// ---- BI & IoT simulation helpers ----
+
+// simulateWidgetData generates mock data for a dashboard widget with anomaly detection.
+func simulateWidgetData(w DashboardWidget) (data [][]any, anomalyDetected bool, anomalyDesc string) {
+	switch w.WidgetType {
+	case "bar_chart", "column_chart":
+		data = [][]any{
+			{"Q1", 245000.50},
+			{"Q2", 198750.00},
+			{"Q3", 312400.75},
+			{"Q4", 278900.25},
+		}
+		// Simulate anomaly: Q3 spike
+		if rand.Float64() < 0.3 {
+			anomalyDetected = true
+			anomalyDesc = "Unusual revenue spike detected in Q3 (+57% vs Q2 average)"
+		}
+	case "line_chart":
+		data = [][]any{
+			{"Jan", 1200.0}, {"Feb", 1350.0}, {"Mar", 1280.0},
+			{"Apr", 1420.0}, {"May", 1380.0}, {"Jun", 1550.0},
+		}
+	case "pie_chart":
+		data = [][]any{
+			{"Product A", 35.0}, {"Product B", 28.0},
+			{"Product C", 22.0}, {"Product D", 15.0},
+		}
+	case "kpi":
+		data = [][]any{
+			{"Revenue", "$1,035,051.50"},
+			{"Growth", "+12.4%"},
+			{"Customers", "1,247"},
+		}
+	default:
+		data = [][]any{
+			{"Metric", "Value"},
+			{"Sample", 100.0},
+		}
+	}
+	return
+}
+
+// getDefaultWidgets returns default dashboard widgets when none are configured.
+func getDefaultWidgets() []WidgetData {
+	return []WidgetData{
+		{
+			WidgetType:      "kpi",
+			Title:           "Key Metrics",
+			Data:            [][]any{{"Revenue", "$1,035,051.50"}, {"Growth", "+12.4%"}, {"Customers", "1,247"}},
+			AnomalyDetected: false,
+		},
+		{
+			WidgetType:         "bar_chart",
+			Title:              "Quarterly Revenue",
+			Data:               [][]any{{"Q1", 245000.50}, {"Q2", 198750.00}, {"Q3", 312400.75}, {"Q4", 278900.25}},
+			AnomalyDetected:    true,
+			AnomalyDescription: "Unusual revenue spike detected in Q3 (+57% vs Q2 average)",
+		},
+		{
+			WidgetType:      "line_chart",
+			Title:           "Monthly Trends",
+			Data:            [][]any{{"Jan", 1200.0}, {"Feb", 1350.0}, {"Mar", 1280.0}, {"Apr", 1420.0}, {"May", 1380.0}, {"Jun", 1550.0}},
+			AnomalyDetected: false,
+		},
+	}
+}
+
+// DetectReadingAnomaly simulates AI-based anomaly detection on IoT readings.
+func DetectReadingAnomaly(reading *IoTDeviceReading) (bool, string) {
+	// Simulate anomaly detection based on metric thresholds
+	switch reading.MetricName {
+	case "temperature":
+		if reading.MetricValue > 85.0 {
+			return true, fmt.Sprintf("High temperature alert: %.1f%s exceeds threshold of 85.0%s", reading.MetricValue, reading.Unit, reading.Unit)
+		}
+	case "vibration":
+		if reading.MetricValue > 7.5 {
+			return true, fmt.Sprintf("Abnormal vibration detected: %.2f%s (possible bearing failure)", reading.MetricValue, reading.Unit)
+		}
+	case "pressure":
+		if reading.MetricValue > 150.0 {
+			return true, fmt.Sprintf("Pressure spike detected: %.1f%s exceeds safe operating range", reading.MetricValue, reading.Unit)
+		}
+	case "energy_consumption":
+		if reading.MetricValue > 500.0 {
+			return true, fmt.Sprintf("Excessive energy consumption: %.1f%s (possible equipment malfunction)", reading.MetricValue, reading.Unit)
+		}
+	}
+
+	// Random anomaly for demo purposes (~5% chance)
+	if rand.Float64() < 0.05 {
+		return true, fmt.Sprintf("AI anomaly detected in %s reading: %.2f%s deviates from expected pattern", reading.MetricName, reading.MetricValue, reading.Unit)
+	}
+
+	return false, ""
 }

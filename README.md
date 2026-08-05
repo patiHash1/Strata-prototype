@@ -33,11 +33,11 @@ internal/
 │   ├── handlers_auth.go        # POST auth/register, POST auth/login
 │   ├── handlers_org.go         # POST org/invitations, org/roles, org/api-keys
 │   ├── handlers_billing.go     # POST billing/subscriptions
-│   ├── handlers_crm.go         # POST crm/leads, quotes/risk-analysis, crm/tickets
-│   ├── handlers_accounting.go  # POST accounting/journal-entries, invoices/ocr, expenses
-│   ├── handlers_supplychain.go # POST fleet/telematics, fleet/routes, GET inventory/reorder-predictions
-│   ├── handlers_hr.go          # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search
-│   └── handlers_platform.go    # POST ai/copilot/query, workflows/trigger, GET security/audit-anomalies
+│   ├── handlers_crm.go         # POST crm/leads, quotes/risk-analysis, crm/tickets, crm/field-visits, crm/campaigns, crm/campaigns/{id}/launch
+│   ├── handlers_accounting.go  # POST accounting/journal-entries, invoices/ocr, expenses, assets, tax-rates, tax/calculate; GET assets/{id}/depreciation
+│   ├── handlers_supplychain.go # POST fleet/telematics, fleet/routes, manufacturing/boms, manufacturing/work-orders, procurement/purchase-orders; GET inventory/reorder-predictions, procurement/supplier-risk
+│   ├── handlers_hr.go          # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search, hr/employees, hr/payroll/runs; GET hr/employees, hr/employees/{id}, hr/payroll/runs, hr/payroll/runs/{id}; PATCH hr/employees/{id}
+│   └── handlers_platform.go    # POST ai/copilot/query, workflows/trigger, bi/dashboards, iot/devices, iot/readings; GET security/audit-anomalies, bi/dashboards, bi/dashboards/{id}/data, iot/devices
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
@@ -520,6 +520,38 @@ func Load() Config {
 
 ---
 
+## Module coverage (25/25 implemented)
+
+| Category | Module | Status |
+|---|---|---|
+| CRM & RevOps | 1.1 Sales/Lead Score | ✅ |
+| CRM & RevOps | 1.2 Quotes/Contract Risk | ✅ |
+| CRM & RevOps | 1.3 Helpdesk/Ticket Router | ✅ |
+| CRM & RevOps | 1.4 Field Sales Dispatch | ✅ |
+| CRM & RevOps | 1.5 Campaign Engines | ✅ |
+| Finance & AP | 2.1 Double-Entry Ledger | ✅ |
+| Finance & AP | 2.2 Invoice OCR | ✅ |
+| Finance & AP | 2.3 Expense/Fraud Detection | ✅ |
+| Finance & AP | 2.4 Fixed Assets | ✅ |
+| Finance & AP | 2.5 Multi-Currency & Tax | ✅ |
+| Supply & Fleet | 3.1 Multi-Warehouse/Reorder | ✅ |
+| Supply & Fleet | 3.2 BOM & Work Orders | ✅ |
+| Supply & Fleet | 3.3 Fleet Telematics | ✅ |
+| Supply & Fleet | 3.4 Route Optimizer | ✅ |
+| Supply & Fleet | 3.5 Vendor/Supplier Risk | ✅ |
+| HR & Talent | 4.1 Core HR/Employee Portal | ✅ |
+| HR & Talent | 4.2 Time/Attendance | ✅ |
+| HR & Talent | 4.3 Payroll & Taxes | ✅ |
+| HR & Talent | 4.4 ATS/Candidate Matcher | ✅ |
+| HR & Talent | 4.5 Knowledge Base/RAG | ✅ |
+| Platform & AI | 5.1 Text-to-SQL Copilot | ✅ |
+| Platform & AI | 5.2 BI & Dashboards | ✅ |
+| Platform & AI | 5.3 Low-Code Workflows | ✅ |
+| Platform & AI | 5.4 IoT Gateway | ✅ |
+| Platform & AI | 5.5 Audit/Security/RBAC | ✅ |
+
+---
+
 ## Running the project
 
 ```sh
@@ -545,8 +577,12 @@ open http://localhost:8080/swagger/
 - **cmd/migrate/** — database migration runner using `golang-migrate` or similar.
 - **internal/services/services_events.go** — background job queue (async email, webhooks, reports).
 - **internal/test/** — shared test fixtures, factories, and helpers.
-- **AI integration** — replace simulated AI scoring/risk analysis/copilot with real ML service calls.
-- **CRM pipeline** — full deal pipeline with stages, activity tracking, and reporting.
-- **Telematics pipeline** — real-time stream processing for vehicle telemetry data.
-- **Workflow engine** — a real low-code automation engine (e.g., Temporal) replacing simulated workflow execution.
-- **IoT/device management** — real IoT device registry and telemetry ingestion for the `iot_devices` table.
+- ~~CRM pipeline~~ — DONE (full deal pipeline with field sales visits, campaigns, tickets).
+- ~~Telematics pipeline~~ — DONE (real-time stream processing for vehicle telemetry data).
+- ~~Workflow engine~~ — DONE (low-code automation engine with event-driven triggers).
+- ~~IoT/device management~~ — DONE (IoT device registry and telemetry ingestion).
+- **Real AI/ML integration** — replace simulated AI with real ML service calls.
+- **Real-time BI dashboards** — replace simulated dashboard data with real-time analytics.
+- **Vector RAG** — replace ILIKE search with pgvector embedding-based semantic search.
+- **Stripe integration** — replace simulated billing with real Stripe API calls.
+- **Webhook support** — add webhook delivery for workflow actions.

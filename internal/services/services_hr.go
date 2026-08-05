@@ -115,6 +115,84 @@ func (r *hrRepository) GetEmployeeByUserAndOrg(ctx context.Context, orgID, userI
 	return e, err
 }
 
+func (r *hrRepository) CreateEmployee(ctx context.Context, e *Employee) error {
+	e.ID = uuid.New()
+	if e.EmployeeCode == "" {
+		e.EmployeeCode = fmt.Sprintf("EMP-%s", uuid.New().String()[:8])
+	}
+	if e.HiredAt.IsZero() {
+		e.HiredAt = time.Now()
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO employees (id, org_id, user_id, employee_code, department, job_title, salary, hired_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, e.ID, e.OrgID, e.UserID, e.EmployeeCode, e.Department, e.JobTitle, e.Salary, e.HiredAt)
+	return err
+}
+
+func (r *hrRepository) GetEmployeeByID(ctx context.Context, id uuid.UUID) (*Employee, error) {
+	e := &Employee{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, user_id, employee_code, department, job_title, salary, hired_at
+		FROM employees WHERE id = $1
+	`, id).Scan(&e.ID, &e.OrgID, &e.UserID, &e.EmployeeCode, &e.Department, &e.JobTitle, &e.Salary, &e.HiredAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return e, err
+}
+
+func (r *hrRepository) ListEmployees(ctx context.Context, orgID uuid.UUID, department *string) ([]Employee, error) {
+	var rows pgx.Rows
+	var err error
+	if department != nil && *department != "" {
+		rows, err = r.pool.Query(ctx, `
+			SELECT id, org_id, user_id, employee_code, department, job_title, salary, hired_at
+			FROM employees WHERE org_id = $1 AND department = $2
+			ORDER BY hired_at DESC
+		`, orgID, *department)
+	} else {
+		rows, err = r.pool.Query(ctx, `
+			SELECT id, org_id, user_id, employee_code, department, job_title, salary, hired_at
+			FROM employees WHERE org_id = $1
+			ORDER BY hired_at DESC
+		`, orgID)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var employees []Employee
+	for rows.Next() {
+		var e Employee
+		if err := rows.Scan(&e.ID, &e.OrgID, &e.UserID, &e.EmployeeCode, &e.Department, &e.JobTitle, &e.Salary, &e.HiredAt); err != nil {
+			return nil, err
+		}
+		employees = append(employees, e)
+	}
+	if employees == nil {
+		employees = []Employee{}
+	}
+	return employees, rows.Err()
+}
+
+func (r *hrRepository) UpdateEmployee(ctx context.Context, id uuid.UUID, department, jobTitle *string, salary *float64) (*Employee, error) {
+	e := &Employee{}
+	err := r.pool.QueryRow(ctx, `
+		UPDATE employees SET
+			department = COALESCE($2, department),
+			job_title = COALESCE($3, job_title),
+			salary = COALESCE($4, salary)
+		WHERE id = $1
+		RETURNING id, org_id, user_id, employee_code, department, job_title, salary, hired_at
+	`, id, department, jobTitle, salary).Scan(&e.ID, &e.OrgID, &e.UserID, &e.EmployeeCode, &e.Department, &e.JobTitle, &e.Salary, &e.HiredAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return e, err
+}
+
 func (r *hrRepository) CreateAttendanceLog(ctx context.Context, al *AttendanceLog) error {
 	al.ID = uuid.New()
 	al.ClockIn = time.Now()
@@ -170,10 +248,67 @@ func (r *hrRepository) SearchKnowledgeBase(ctx context.Context, orgID uuid.UUID,
 	return docs, rows.Err()
 }
 
+func (r *hrRepository) CreatePayrollRun(ctx context.Context, pr *PayrollRun) error {
+	pr.ID = uuid.New()
+	pr.CreatedAt = time.Now()
+	if pr.Status == "" {
+		pr.Status = "completed"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO payroll_runs (id, org_id, pay_period_start, pay_period_end, total_disbursed, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, pr.ID, pr.OrgID, pr.PayPeriodStart, pr.PayPeriodEnd, pr.TotalDisbursed, pr.Status, pr.CreatedAt)
+	return err
+}
+
+func (r *hrRepository) GetPayrollRunByID(ctx context.Context, id uuid.UUID) (*PayrollRun, error) {
+	pr := &PayrollRun{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, pay_period_start, pay_period_end, total_disbursed, status, created_at
+		FROM payroll_runs WHERE id = $1
+	`, id).Scan(&pr.ID, &pr.OrgID, &pr.PayPeriodStart, &pr.PayPeriodEnd, &pr.TotalDisbursed, &pr.Status, &pr.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return pr, err
+}
+
+func (r *hrRepository) ListPayrollRuns(ctx context.Context, orgID uuid.UUID) ([]PayrollRun, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, pay_period_start, pay_period_end, total_disbursed, status, created_at
+		FROM payroll_runs WHERE org_id = $1
+		ORDER BY created_at DESC
+	`, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var runs []PayrollRun
+	for rows.Next() {
+		var pr PayrollRun
+		if err := rows.Scan(&pr.ID, &pr.OrgID, &pr.PayPeriodStart, &pr.PayPeriodEnd, &pr.TotalDisbursed, &pr.Status, &pr.CreatedAt); err != nil {
+			return nil, err
+		}
+		runs = append(runs, pr)
+	}
+	if runs == nil {
+		runs = []PayrollRun{}
+	}
+	return runs, rows.Err()
+}
+
 // ---- Error sentinel ----
 
+// PayrollRunInput is the input for running payroll.
+type PayrollRunInput struct {
+	PayPeriodStart time.Time `json:"pay_period_start"`
+	PayPeriodEnd   time.Time `json:"pay_period_end"`
+}
+
 var (
-	ErrEmployeeNotFound = errors.New("employee not found")
+	ErrEmployeeNotFound   = errors.New("employee not found")
+	ErrPayrollRunNotFound = errors.New("payroll run not found")
 )
 
 // ---- Service ----
@@ -184,6 +319,79 @@ type HRService struct {
 
 func NewHRService(pool *pgxpool.Pool) *HRService {
 	return &HRService{repo: newHRRepository(pool)}
+}
+
+// CreateEmployee creates a new employee record in the organization.
+func (s *HRService) CreateEmployee(ctx context.Context, orgID uuid.UUID, userID *uuid.UUID, employeeCode string, department, jobTitle *string, salary *float64, hiredAt time.Time) (*Employee, error) {
+	e := &Employee{
+		OrgID:        orgID,
+		UserID:       userID,
+		EmployeeCode: employeeCode,
+		Department:   department,
+		JobTitle:     jobTitle,
+		Salary:       salary,
+		HiredAt:      hiredAt,
+	}
+	if err := s.repo.CreateEmployee(ctx, e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+// GetEmployeeByID retrieves an employee by ID.
+func (s *HRService) GetEmployeeByID(ctx context.Context, id uuid.UUID) (*Employee, error) {
+	return s.repo.GetEmployeeByID(ctx, id)
+}
+
+// ListEmployees lists all employees in an org, optionally filtered by department.
+func (s *HRService) ListEmployees(ctx context.Context, orgID uuid.UUID, department *string) ([]Employee, error) {
+	return s.repo.ListEmployees(ctx, orgID, department)
+}
+
+// UpdateEmployee updates an employee's department, job title, or salary.
+func (s *HRService) UpdateEmployee(ctx context.Context, id uuid.UUID, department, jobTitle *string, salary *float64) (*Employee, error) {
+	return s.repo.UpdateEmployee(ctx, id, department, jobTitle, salary)
+}
+
+// RunPayroll creates a payroll run, simulating wage/deduction/tax calculations
+// for all active employees, and returns the payroll run with total disbursed.
+func (s *HRService) RunPayroll(ctx context.Context, orgID uuid.UUID, input PayrollRunInput) (*PayrollRun, error) {
+	// Fetch all employees in the org
+	employees, err := s.repo.ListEmployees(ctx, orgID, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Simulate payroll calculation: sum salaries and apply deductions/taxes
+	var totalDisbursed float64
+	for _, emp := range employees {
+		if emp.Salary != nil {
+			// Simulate: 70% net pay after deductions and tax withholdings
+			netPay := *emp.Salary * 0.70
+			totalDisbursed += netPay
+		}
+	}
+
+	pr := &PayrollRun{
+		OrgID:          orgID,
+		PayPeriodStart: input.PayPeriodStart,
+		PayPeriodEnd:   input.PayPeriodEnd,
+		TotalDisbursed: totalDisbursed,
+	}
+	if err := s.repo.CreatePayrollRun(ctx, pr); err != nil {
+		return nil, err
+	}
+	return pr, nil
+}
+
+// GetPayrollRun retrieves a payroll run by ID.
+func (s *HRService) GetPayrollRun(ctx context.Context, id uuid.UUID) (*PayrollRun, error) {
+	return s.repo.GetPayrollRunByID(ctx, id)
+}
+
+// ListPayrollRuns lists all payroll runs for an org.
+func (s *HRService) ListPayrollRuns(ctx context.Context, orgID uuid.UUID) ([]PayrollRun, error) {
+	return s.repo.ListPayrollRuns(ctx, orgID)
 }
 
 // ClockIn records an attendance clock-in event for the employee associated with the
@@ -414,7 +622,6 @@ func simulateAnswerFromContent(content string) string {
 	}
 	return content
 }
-
 
 // titleCase converts a lowercase string to title case (first letter of each word uppercase).
 func titleCase(s string) string {

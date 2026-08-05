@@ -90,6 +90,42 @@ type Expense struct {
 	CreatedAt    time.Time  `json:"created_at"`
 }
 
+type FixedAsset struct {
+	ID              uuid.UUID `json:"id"`
+	OrgID           uuid.UUID `json:"org_id"`
+	AssetName       string    `json:"asset_name"`
+	PurchaseDate    time.Time `json:"purchase_date"`
+	PurchaseCost    float64   `json:"purchase_cost"`
+	SalvageValue    float64   `json:"salvage_value"`
+	UsefulLifeYears int       `json:"useful_life_years"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// DepreciationResult holds the output of a depreciation calculation.
+type DepreciationResult struct {
+	AssetID                 uuid.UUID `json:"asset_id"`
+	AnnualDepreciation      float64   `json:"annual_depreciation"`
+	AccumulatedDepreciation float64   `json:"accumulated_depreciation"`
+	CurrentBookValue        float64   `json:"current_book_value"`
+}
+
+type TaxRate struct {
+	ID          uuid.UUID `json:"id"`
+	OrgID       uuid.UUID `json:"org_id"`
+	CountryCode string    `json:"country_code"`
+	TaxName     string    `json:"tax_name"`
+	TaxRate     float64   `json:"tax_rate"`
+	IsActive    bool      `json:"is_active"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+type TaxCalculation struct {
+	Subtotal     float64   `json:"subtotal"`
+	TaxAmount    float64   `json:"tax_amount"`
+	TotalAmount  float64   `json:"total_amount"`
+	AppliedRates []TaxRate `json:"applied_rates"`
+}
+
 // ---- Repository ----
 
 type accountingRepository struct {
@@ -155,6 +191,62 @@ func (r *accountingRepository) CreateExpense(ctx context.Context, exp *Expense) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`, exp.ID, exp.OrgID, exp.UserID, exp.Amount, exp.Category, exp.ReceiptURL, exp.AIFraudFlag, exp.AIAuditNotes, exp.Status, exp.CreatedAt)
 	return err
+}
+
+func (r *accountingRepository) CreateAsset(ctx context.Context, a *FixedAsset) error {
+	a.ID = uuid.New()
+	a.CreatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO fixed_assets (id, org_id, asset_name, purchase_date, purchase_cost, salvage_value, useful_life_years, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, a.ID, a.OrgID, a.AssetName, a.PurchaseDate, a.PurchaseCost, a.SalvageValue, a.UsefulLifeYears, a.CreatedAt)
+	return err
+}
+
+func (r *accountingRepository) GetAssetByID(ctx context.Context, id uuid.UUID) (*FixedAsset, error) {
+	a := &FixedAsset{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, asset_name, purchase_date, purchase_cost, salvage_value, useful_life_years, created_at
+		FROM fixed_assets WHERE id = $1
+	`, id).Scan(&a.ID, &a.OrgID, &a.AssetName, &a.PurchaseDate, &a.PurchaseCost, &a.SalvageValue, &a.UsefulLifeYears, &a.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return a, err
+}
+
+func (r *accountingRepository) CreateTaxRate(ctx context.Context, t *TaxRate) error {
+	t.ID = uuid.New()
+	t.CreatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO tax_rates (id, org_id, country_code, tax_name, tax_rate, is_active, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+	`, t.ID, t.OrgID, t.CountryCode, t.TaxName, t.TaxRate, t.IsActive, t.CreatedAt)
+	return err
+}
+
+func (r *accountingRepository) GetTaxRatesByCountry(ctx context.Context, orgID uuid.UUID, countryCode string) ([]TaxRate, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, country_code, tax_name, tax_rate, is_active, created_at
+		FROM tax_rates WHERE org_id = $1 AND country_code = $2 AND is_active = TRUE
+	`, orgID, countryCode)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rates []TaxRate
+	for rows.Next() {
+		var t TaxRate
+		if err := rows.Scan(&t.ID, &t.OrgID, &t.CountryCode, &t.TaxName, &t.TaxRate, &t.IsActive, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		rates = append(rates, t)
+	}
+	if rates == nil {
+		rates = []TaxRate{}
+	}
+	return rates, rows.Err()
 }
 
 // ---- Service ----
@@ -279,6 +371,94 @@ func (s *AccountingService) SubmitExpense(ctx context.Context, orgID uuid.UUID, 
 	return exp, nil
 }
 
+// RegisterAsset creates a new fixed asset record.
+func (s *AccountingService) RegisterAsset(ctx context.Context, orgID uuid.UUID, assetName string, purchaseDate time.Time, purchaseCost, salvageValue float64, usefulLifeYears int) (*FixedAsset, error) {
+	asset := &FixedAsset{
+		OrgID:           orgID,
+		AssetName:       assetName,
+		PurchaseDate:    purchaseDate,
+		PurchaseCost:    purchaseCost,
+		SalvageValue:    salvageValue,
+		UsefulLifeYears: usefulLifeYears,
+	}
+	if err := s.repo.CreateAsset(ctx, asset); err != nil {
+		return nil, err
+	}
+	return asset, nil
+}
+
+// CalculateDepreciation computes straight-line depreciation for a fixed asset over a given period.
+func (s *AccountingService) CalculateDepreciation(ctx context.Context, assetID uuid.UUID, fromDate, toDate time.Time) (*DepreciationResult, error) {
+	asset, err := s.repo.GetAssetByID(ctx, assetID)
+	if err != nil {
+		return nil, err
+	}
+	if asset == nil {
+		return nil, ErrAssetNotFound
+	}
+
+	// Straight-line annual depreciation
+	depreciableBase := asset.PurchaseCost - asset.SalvageValue
+	annualDepreciation := depreciableBase / float64(asset.UsefulLifeYears)
+
+	// Calculate accumulated depreciation up to toDate
+	yearsElapsed := toDate.Sub(asset.PurchaseDate).Hours() / (365.25 * 24)
+	if yearsElapsed < 0 {
+		yearsElapsed = 0
+	}
+	if yearsElapsed > float64(asset.UsefulLifeYears) {
+		yearsElapsed = float64(asset.UsefulLifeYears)
+	}
+	accumulatedDepreciation := annualDepreciation * yearsElapsed
+
+	currentBookValue := asset.PurchaseCost - accumulatedDepreciation
+	if currentBookValue < asset.SalvageValue {
+		currentBookValue = asset.SalvageValue
+	}
+
+	return &DepreciationResult{
+		AssetID:                 assetID,
+		AnnualDepreciation:      annualDepreciation,
+		AccumulatedDepreciation: accumulatedDepreciation,
+		CurrentBookValue:        currentBookValue,
+	}, nil
+}
+
+// CreateTaxRate creates a new tax rate for an organization.
+func (s *AccountingService) CreateTaxRate(ctx context.Context, orgID uuid.UUID, countryCode, taxName string, taxRate float64) (*TaxRate, error) {
+	tr := &TaxRate{
+		OrgID:       orgID,
+		CountryCode: countryCode,
+		TaxName:     taxName,
+		TaxRate:     taxRate,
+		IsActive:    true,
+	}
+	if err := s.repo.CreateTaxRate(ctx, tr); err != nil {
+		return nil, err
+	}
+	return tr, nil
+}
+
+// CalculateTax looks up active tax rates for a country and computes tax on a subtotal.
+func (s *AccountingService) CalculateTax(ctx context.Context, orgID uuid.UUID, countryCode string, subtotal float64) (*TaxCalculation, error) {
+	rates, err := s.repo.GetTaxRatesByCountry(ctx, orgID, countryCode)
+	if err != nil {
+		return nil, err
+	}
+
+	var totalTax float64
+	for _, r := range rates {
+		totalTax += subtotal * r.TaxRate
+	}
+
+	return &TaxCalculation{
+		Subtotal:     subtotal,
+		TaxAmount:    totalTax,
+		TotalAmount:  subtotal + totalTax,
+		AppliedRates: rates,
+	}, nil
+}
+
 // ---- AI Simulation Helpers ----
 
 // aiSimulateOCR simulates AI-powered OCR extraction from an invoice file.
@@ -361,4 +541,5 @@ var (
 	ErrUnbalancedEntry = errors.New("total debits must equal total credits")
 	ErrAccountNotFound = errors.New("account not found")
 	ErrAccountNotInOrg = errors.New("account does not belong to this organization")
+	ErrAssetNotFound   = errors.New("fixed asset not found")
 )

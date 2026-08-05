@@ -260,6 +260,26 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "add_campaign_status",
+			sql:  "ALTER TABLE crm_campaigns ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'draft'",
+		},
+		{
+			name: "create_field_sales_visits",
+			sql: `
+				CREATE TABLE IF NOT EXISTS field_sales_visits (
+					id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+					org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+					contact_id UUID REFERENCES crm_contacts(id),
+					sales_rep_id UUID REFERENCES users(id),
+					scheduled_at TIMESTAMPTZ NOT NULL,
+					location_lat DECIMAL(10,8),
+					location_long DECIMAL(11,8),
+					status VARCHAR(50) DEFAULT 'scheduled',
+					notes TEXT,
+					created_at TIMESTAMPTZ DEFAULT NOW()
+				)`,
+		},
+		{
 			name: "create_subscription_plans",
 			sql: `
 				CREATE TABLE IF NOT EXISTS subscription_plans (
@@ -361,6 +381,20 @@ func (db *DB) Migrate(ctx context.Context) error {
 					useful_life_years INT NOT NULL,
 					created_at TIMESTAMPTZ DEFAULT NOW()
 				)`,
+		},
+		{
+			name: "create_tax_rates",
+			sql: `
+					CREATE TABLE IF NOT EXISTS tax_rates (
+						id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+						org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+						country_code VARCHAR(2) NOT NULL,
+						tax_name VARCHAR(50) NOT NULL,
+						tax_rate DECIMAL(5,4) NOT NULL,
+						is_active BOOLEAN DEFAULT TRUE,
+						created_at TIMESTAMPTZ DEFAULT NOW(),
+						UNIQUE(org_id, country_code, tax_name)
+					)`,
 		},
 		{
 			name: "create_warehouses",
@@ -473,6 +507,21 @@ func (db *DB) Migrate(ctx context.Context) error {
 					status VARCHAR(50) DEFAULT 'draft',
 					created_at TIMESTAMPTZ DEFAULT NOW()
 				)`,
+		},
+		{
+			name: "create_work_orders",
+			sql: `
+					CREATE TABLE IF NOT EXISTS work_orders (
+						id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+						org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+						bom_id UUID NOT NULL REFERENCES bill_of_materials(id),
+						quantity INT NOT NULL DEFAULT 1,
+						status VARCHAR(50) DEFAULT 'planned',
+						scheduled_start DATE,
+						scheduled_end DATE,
+						ai_bottleneck_risk VARCHAR(50) DEFAULT 'Low',
+						created_at TIMESTAMPTZ DEFAULT NOW()
+					)`,
 		},
 		{
 			name: "create_employees",
@@ -607,6 +656,19 @@ func (db *DB) Migrate(ctx context.Context) error {
 				)`,
 		},
 		{
+			name: "create_bi_dashboards",
+			sql: `
+					CREATE TABLE IF NOT EXISTS bi_dashboards (
+						id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+						org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+						name VARCHAR(255) NOT NULL,
+						config JSONB NOT NULL DEFAULT '{}',
+						is_active BOOLEAN DEFAULT TRUE,
+						created_at TIMESTAMPTZ DEFAULT NOW(),
+						updated_at TIMESTAMPTZ DEFAULT NOW()
+					)`,
+		},
+		{
 			name: "create_indexes_category5",
 			sql: `
 				CREATE INDEX IF NOT EXISTS idx_telematics_vehicle_time ON fleet_telematics_logs(vehicle_id, recorded_at DESC);
@@ -641,7 +703,25 @@ func (db *DB) Migrate(ctx context.Context) error {
 					('knowledge.read',            'knowledge', 'Search and read knowledge base documents'),
 					('copilot.use',               'platform',  'Use the AI text-to-SQL copilot query feature'),
 					('workflows.execute',         'platform',  'Trigger and execute low-code automated workflows'),
-					('security.audit.read',       'platform',  'Read security audit anomaly logs')
+					('security.audit.read',       'platform',  'Read security audit anomaly logs'),
+					('crm.fieldvisits.write',     'crm',       'Schedule and manage field sales visits'),
+					('crm.campaigns.write',       'crm',       'Create and manage marketing campaigns'),
+					('accounting.assets.write',    'accounting', 'Register and manage fixed assets'),
+					('accounting.assets.read',     'accounting', 'View fixed assets and depreciation'),
+					('accounting.tax.manage',      'accounting', 'Create and manage tax rates'),
+					('accounting.tax.read',        'accounting', 'Calculate and view tax computations'),
+					('hr.employees.write',         'hr',        'Create and update employee records'),
+					('hr.employees.read',          'hr',        'View employee records'),
+					('hr.payroll.write',           'hr',        'Run payroll and manage payroll records'),
+					('hr.payroll.read',            'hr',        'View payroll runs and history'),
+					('bi.dashboards.write',        'platform',  'Create and manage BI executive dashboards'),
+					('bi.dashboards.read',         'platform',  'View BI executive dashboards'),
+					('iot.devices.write',          'platform',  'Register and manage IoT devices'),
+					('iot.readings.ingest',        'platform',  'Ingest IoT device readings'),
+					('manufacturing.boms.write',   'manufacturing', 'Create and manage bills of materials'),
+					('manufacturing.workorders.write', 'manufacturing', 'Create and manage work orders'),
+					('procurement.po.write',       'procurement', 'Create and manage purchase orders'),
+					('procurement.supplier.read',  'procurement', 'View supplier risk reports')
 				ON CONFLICT (permission_key) DO NOTHING`,
 		},
 	}

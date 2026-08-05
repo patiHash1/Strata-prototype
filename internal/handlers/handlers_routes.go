@@ -100,6 +100,30 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	mux.Handle("POST /api/v1/crm/field-visits",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCRMFieldVisitsWrite)(
+				http.HandlerFunc(a.scheduleFieldVisitHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/crm/campaigns",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCRMCampaignsWrite)(
+				http.HandlerFunc(a.createCampaignHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/crm/campaigns/{campaign_id}/launch",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermCRMCampaignsWrite)(
+				http.HandlerFunc(a.launchCampaignHandler),
+			),
+		),
+	)
+
 	// ── Accounting ──
 	mux.Handle("POST /api/v1/accounting/journal-entries",
 		utils.RequireAuth(a.Auth)(
@@ -121,6 +145,38 @@ func (a *App) routes() http.Handler {
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermExpensesSubmit)(
 				http.HandlerFunc(a.createExpenseHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/assets",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingAssetsWrite)(
+				http.HandlerFunc(a.createAssetHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/accounting/assets/{asset_id}/depreciation",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingAssetsRead)(
+				http.HandlerFunc(a.getDepreciationHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/tax-rates",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingTaxManage)(
+				http.HandlerFunc(a.createTaxRateHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/tax/calculate",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingTaxRead)(
+				http.HandlerFunc(a.calculateTaxHandler),
 			),
 		),
 	)
@@ -149,6 +205,40 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Manufacturing ──
+	mux.Handle("POST /api/v1/manufacturing/boms",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermManufacturingBOMsWrite)(
+				http.HandlerFunc(a.createBOMHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/manufacturing/work-orders",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermManufacturingWorkOrdersWrite)(
+				http.HandlerFunc(a.createWorkOrderHandler),
+			),
+		),
+	)
+
+	// ── Procurement ──
+	mux.Handle("POST /api/v1/procurement/purchase-orders",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermProcurementPOWrite)(
+				http.HandlerFunc(a.createPurchaseOrderHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/procurement/supplier-risk",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermProcurementSupplierRead)(
+				http.HandlerFunc(a.getSupplierRiskHandler),
+			),
+		),
+	)
+
 	// ── HR, Workforce & Collaboration ──
 	mux.Handle("POST /api/v1/hr/attendance/clock-in",
 		utils.RequireAuth(a.Auth)(
@@ -170,6 +260,114 @@ func (a *App) routes() http.Handler {
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermKnowledgeRead)(
 				http.HandlerFunc(a.knowledgeSearchHandler),
+			),
+		),
+	)
+
+	// ── HR Employees ──
+	mux.Handle("POST /api/v1/hr/employees",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHREmployeesWrite)(
+				http.HandlerFunc(a.createEmployeeHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/hr/employees",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHREmployeesRead)(
+				http.HandlerFunc(a.listEmployeesHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/hr/employees/{employee_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHREmployeesRead)(
+				http.HandlerFunc(a.getEmployeeHandler),
+			),
+		),
+	)
+
+	mux.Handle("PATCH /api/v1/hr/employees/{employee_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHREmployeesWrite)(
+				http.HandlerFunc(a.updateEmployeeHandler),
+			),
+		),
+	)
+
+	// ── HR Payroll ──
+	mux.Handle("POST /api/v1/hr/payroll/runs",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRPayrollWrite)(
+				http.HandlerFunc(a.runPayrollHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/hr/payroll/runs",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRPayrollRead)(
+				http.HandlerFunc(a.listPayrollRunsHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/hr/payroll/runs/{run_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRPayrollRead)(
+				http.HandlerFunc(a.getPayrollRunHandler),
+			),
+		),
+	)
+
+	// ── BI & Executive Dashboards ──
+	mux.Handle("POST /api/v1/bi/dashboards",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermBIDashboardsWrite)(
+				http.HandlerFunc(a.createDashboardHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/bi/dashboards",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermBIDashboardsRead)(
+				http.HandlerFunc(a.listDashboardsHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/bi/dashboards/{dashboard_id}/data",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermBIDashboardsRead)(
+				http.HandlerFunc(a.getDashboardDataHandler),
+			),
+		),
+	)
+
+	// ── IoT Gateway ──
+	mux.Handle("POST /api/v1/iot/devices",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermIoTDevicesWrite)(
+				http.HandlerFunc(a.registerDeviceHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/iot/devices",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermIoTDevicesWrite)(
+				http.HandlerFunc(a.listDevicesHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/iot/readings",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermIoTReadingsIngest)(
+				http.HandlerFunc(a.ingestReadingHandler),
 			),
 		),
 	)

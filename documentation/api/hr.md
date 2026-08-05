@@ -196,6 +196,364 @@ Performs a RAG-powered semantic search over the organization's knowledge base do
 
 ---
 
+### 4. Create Employee
+
+```
+POST /api/v1/hr/employees
+```
+
+Creates a new employee record linked to an existing user. Records department, job title, salary, and hire date.
+
+**Required permission:** `hr.employees.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `user_id` | UUID | **Yes** | ID of the user to link as an employee |
+| `employee_code` | string | **Yes** | Unique employee code (e.g., `EMP001`) |
+| `department` | string | **Yes** | Department name (e.g., `Engineering`) |
+| `job_title` | string | **Yes** | Job title (e.g., `Software Engineer`) |
+| `salary` | decimal | **Yes** | Annual salary (must be > 0) |
+| `hired_at` | string | **Yes** | Hire date in `YYYY-MM-DD` format |
+
+**Example request:**
+
+```json
+{
+    "user_id": "550e8400-e29b-41d4-a716-446655440000",
+    "employee_code": "EMP001",
+    "department": "Engineering",
+    "job_title": "Software Engineer",
+    "salary": 120000.00,
+    "hired_at": "2025-03-15"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+    "employee_code": "EMP001",
+    "department": "Engineering",
+    "job_title": "Software Engineer",
+    "salary": 120000.00,
+    "hired_at": "2025-03-15"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `employee_id` | UUID | ID of the created employee record |
+| `employee_code` | string | Unique employee code |
+| `department` | string | Department name |
+| `job_title` | string | Job title |
+| `salary` | decimal | Annual salary |
+| `hired_at` | string | Hire date |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, salary ≤ 0, invalid date, duplicate employee_code |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.employees.write` permission |
+| `404 Not Found` | User not found |
+
+---
+
+### 5. List Employees
+
+```
+GET /api/v1/hr/employees?department=Engineering
+```
+
+Lists all employees in the organization, optionally filtered by department.
+
+**Required permission:** `hr.employees.read`
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `department` | string | No | Filter employees by department name |
+
+**Response (200 OK):**
+
+```json
+{
+    "employees": [
+        {
+            "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+            "employee_code": "EMP001",
+            "department": "Engineering",
+            "job_title": "Software Engineer",
+            "salary": 120000.00,
+            "hired_at": "2025-03-15"
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `employees` | array | Array of employee objects |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.employees.read` permission |
+
+---
+
+### 6. Get Employee
+
+```
+GET /api/v1/hr/employees/{employee_id}
+```
+
+Retrieves a single employee record by ID.
+
+**Required permission:** `hr.employees.read`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `employee_id` | UUID | **Yes** | ID of the employee to retrieve |
+
+**Response (200 OK):**
+
+```json
+{
+    "employee": {
+        "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+        "employee_code": "EMP001",
+        "department": "Engineering",
+        "job_title": "Software Engineer",
+        "salary": 120000.00,
+        "hired_at": "2025-03-15"
+    }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `employee` | object | Full employee record |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.employees.read` permission |
+| `404 Not Found` | Employee not found |
+
+---
+
+### 7. Update Employee
+
+```
+PATCH /api/v1/hr/employees/{employee_id}
+```
+
+Partially updates an employee record. Only the fields provided in the request body are updated.
+
+**Required permission:** `hr.employees.write`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `employee_id` | UUID | **Yes** | ID of the employee to update |
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `department` | string | No | Updated department name |
+| `job_title` | string | No | Updated job title |
+| `salary` | decimal | No | Updated annual salary (must be > 0 if provided) |
+
+**Example request:**
+
+```json
+{
+    "department": "Engineering",
+    "job_title": "Senior Engineer",
+    "salary": 140000.00
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+    "message": "employee updated",
+    "employee_id": "880e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `message` | string | Confirmation message |
+| `employee_id` | UUID | ID of the updated employee |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | No fields provided, salary ≤ 0 |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.employees.write` permission |
+| `404 Not Found` | Employee not found |
+
+---
+
+### 8. Run Payroll
+
+```
+POST /api/v1/hr/payroll/runs
+```
+
+Executes a payroll run for all active employees within the specified pay period. Calculates disbursements and returns a summary.
+
+**Required permission:** `hr.payroll.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `pay_period_start` | string | **Yes** | Pay period start date in `YYYY-MM-DD` format |
+| `pay_period_end` | string | **Yes** | Pay period end date in `YYYY-MM-DD` format |
+
+**Example request:**
+
+```json
+{
+    "pay_period_start": "2026-01-01",
+    "pay_period_end": "2026-01-15"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "payroll_run_id": "990e8400-e29b-41d4-a716-446655440000",
+    "total_disbursed": 250000.00,
+    "status": "completed"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `payroll_run_id` | UUID | ID of the payroll run |
+| `total_disbursed` | decimal | Total amount disbursed across all employees |
+| `status` | string | Payroll run status — `"completed"` on success |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid date format, pay_period_start > pay_period_end |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.payroll.write` permission |
+
+---
+
+### 9. List Payroll Runs
+
+```
+GET /api/v1/hr/payroll/runs
+```
+
+Lists all payroll runs for the organization, ordered by most recent first.
+
+**Required permission:** `hr.payroll.read`
+
+**Response (200 OK):**
+
+```json
+{
+    "payroll_runs": [
+        {
+            "payroll_run_id": "990e8400-e29b-41d4-a716-446655440000",
+            "pay_period_start": "2026-01-01",
+            "pay_period_end": "2026-01-15",
+            "total_disbursed": 250000.00,
+            "status": "completed"
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `payroll_runs` | array | Array of payroll run objects |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.payroll.read` permission |
+
+---
+
+### 10. Get Payroll Run
+
+```
+GET /api/v1/hr/payroll/runs/{run_id}
+```
+
+Retrieves a single payroll run by ID, including per-employee disbursement details.
+
+**Required permission:** `hr.payroll.read`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `run_id` | UUID | **Yes** | ID of the payroll run to retrieve |
+
+**Response (200 OK):**
+
+```json
+{
+    "payroll_run": {
+        "payroll_run_id": "990e8400-e29b-41d4-a716-446655440000",
+        "pay_period_start": "2026-01-01",
+        "pay_period_end": "2026-01-15",
+        "total_disbursed": 250000.00,
+        "status": "completed",
+        "disbursements": [
+            {
+                "employee_id": "880e8400-e29b-41d4-a716-446655440000",
+                "amount": 5000.00
+            }
+        ]
+    }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `payroll_run` | object | Full payroll run record with disbursements |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `hr.payroll.read` permission |
+| `404 Not Found` | Payroll run not found |
+
+---
+
 ## AI engine (simulated)
 
 The current implementation uses simulated AI for all three endpoints. In production, these would be replaced with external AI/ML service calls.
@@ -246,10 +604,14 @@ See [Database Schema](../architecture/database.md) for full table definitions.
 
 ## Permissions
 
-The HR module introduces three new permissions:
+The HR module introduces seven new permissions:
 
 | Permission Key | Module | Description |
 |---|---|---|
 | `hr.attendance.write` | hr | Clock in/out and manage attendance records |
 | `hr.recruitment.write` | hr | Parse resumes and manage job applications |
+| `hr.employees.write` | hr | Create and update employee records |
+| `hr.employees.read` | hr | View employee records and details |
+| `hr.payroll.write` | hr | Execute payroll runs |
+| `hr.payroll.read` | hr | View payroll run history and details |
 | `knowledge.read` | knowledge | Search and read knowledge base documents |

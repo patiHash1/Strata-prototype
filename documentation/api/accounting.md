@@ -220,6 +220,241 @@ Creates an expense submission and runs AI fraud detection. Flags high-value expe
 
 ---
 
+### 4. Register Fixed Asset
+
+```
+POST /api/v1/accounting/assets
+```
+
+Registers a new fixed asset for depreciation tracking. The asset is recorded with its purchase cost, salvage value, and useful life.
+
+**Required permission:** `accounting.assets.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `asset_name` | string | **Yes** | Name/description of the asset |
+| `purchase_date` | string | **Yes** | Purchase date in `YYYY-MM-DD` format |
+| `purchase_cost` | decimal | **Yes** | Original purchase cost (must be > 0) |
+| `salvage_value` | decimal | **Yes** | Estimated salvage value at end of life (must be ≥ 0) |
+| `useful_life_years` | integer | **Yes** | Useful life in years (must be > 0) |
+
+**Example request:**
+
+```json
+{
+    "asset_name": "CNC Milling Machine",
+    "purchase_date": "2025-06-01",
+    "purchase_cost": 50000.00,
+    "salvage_value": 5000.00,
+    "useful_life_years": 10
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "asset_id": "880e8400-e29b-41d4-a716-446655440000",
+    "asset_name": "CNC Milling Machine",
+    "purchase_cost": 50000.00,
+    "salvage_value": 5000.00,
+    "useful_life_years": 10
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `asset_id` | UUID | ID of the registered asset |
+| `asset_name` | string | Name of the asset |
+| `purchase_cost` | decimal | Original purchase cost |
+| `salvage_value` | decimal | Estimated salvage value |
+| `useful_life_years` | integer | Useful life in years |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, purchase_cost ≤ 0, salvage_value < 0, useful_life_years ≤ 0, invalid date |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.assets.write` permission |
+
+---
+
+### 5. Calculate Asset Depreciation
+
+```
+GET /api/v1/accounting/assets/{asset_id}/depreciation?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD
+```
+
+Calculates straight-line depreciation for a fixed asset over a specified date range. Returns annual depreciation, accumulated depreciation, and current book value.
+
+**Required permission:** `accounting.assets.read`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `asset_id` | UUID | **Yes** | ID of the asset to calculate depreciation for |
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `from_date` | string | **Yes** | Start date in `YYYY-MM-DD` format |
+| `to_date` | string | **Yes** | End date in `YYYY-MM-DD` format |
+
+**Response (200 OK):**
+
+```json
+{
+    "asset_id": "880e8400-e29b-41d4-a716-446655440000",
+    "annual_depreciation": 4500.00,
+    "accumulated_depreciation": 9000.00,
+    "current_book_value": 41000.00
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `asset_id` | UUID | ID of the asset |
+| `annual_depreciation` | decimal | Annual depreciation amount (straight-line: (cost - salvage) / useful life) |
+| `accumulated_depreciation` | decimal | Total depreciation accumulated over the specified period |
+| `current_book_value` | decimal | Current book value (purchase cost - accumulated depreciation) |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing query parameters, invalid date format, from_date > to_date |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.assets.read` permission |
+| `404 Not Found` | Asset not found |
+
+---
+
+### 6. Create Tax Rate
+
+```
+POST /api/v1/accounting/tax-rates
+```
+
+Creates a new tax rate configuration for a specific country. Supports VAT, GST, sales tax, and other tax types.
+
+**Required permission:** `accounting.tax.manage`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `country_code` | string | **Yes** | ISO 3166-1 alpha-2 country code (e.g., `US`, `GB`, `AU`) |
+| `tax_name` | string | **Yes** | Tax name (e.g., `VAT`, `GST`, `Sales Tax`) |
+| `tax_rate` | decimal | **Yes** | Tax rate as a decimal (e.g., `0.08` for 8%) |
+
+**Example request:**
+
+```json
+{
+    "country_code": "US",
+    "tax_name": "VAT",
+    "tax_rate": 0.08
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "tax_rate_id": "990e8400-e29b-41d4-a716-446655440000",
+    "country_code": "US",
+    "tax_name": "VAT",
+    "tax_rate": 0.08
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `tax_rate_id` | UUID | ID of the created tax rate |
+| `country_code` | string | ISO 3166-1 alpha-2 country code |
+| `tax_name` | string | Tax name |
+| `tax_rate` | decimal | Tax rate as a decimal |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid country code, tax_rate < 0 or > 1 |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.tax.manage` permission |
+| `409 Conflict` | Tax rate already exists for this country and tax name |
+
+---
+
+### 7. Calculate Tax
+
+```
+POST /api/v1/accounting/tax/calculate
+```
+
+Calculates tax for a given subtotal based on the configured tax rates for the specified country. Returns the tax amount, total, and a breakdown of applied rates.
+
+**Required permission:** `accounting.tax.read`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `country_code` | string | **Yes** | ISO 3166-1 alpha-2 country code (e.g., `US`) |
+| `subtotal` | decimal | **Yes** | Pre-tax subtotal amount (must be ≥ 0) |
+
+**Example request:**
+
+```json
+{
+    "country_code": "US",
+    "subtotal": 1000.00
+}
+```
+
+**Response (200 OK):**
+
+```json
+{
+    "subtotal": 1000.00,
+    "tax_amount": 80.00,
+    "total_amount": 1080.00,
+    "applied_rates": [
+        {
+            "tax_name": "VAT",
+            "tax_rate": 0.08,
+            "tax_amount": 80.00
+        }
+    ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `subtotal` | decimal | Original pre-tax subtotal |
+| `tax_amount` | decimal | Total tax amount across all applied rates |
+| `total_amount` | decimal | Subtotal + tax amount |
+| `applied_rates` | array | Breakdown of each applied tax rate |
+| `applied_rates[].tax_name` | string | Name of the tax |
+| `applied_rates[].tax_rate` | decimal | Applied tax rate as a decimal |
+| `applied_rates[].tax_amount` | decimal | Tax amount for this rate |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid country code, subtotal < 0 |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `accounting.tax.read` permission |
+| `404 Not Found` | No tax rates configured for the specified country |
+
+---
+
 ## AI engine (simulated)
 
 The current implementation uses heuristic-based simulation. In production, these would be replaced with external AI/ML service calls.

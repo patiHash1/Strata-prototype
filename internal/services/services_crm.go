@@ -69,6 +69,32 @@ type CRMHelpdeskTicket struct {
 	CreatedAt           time.Time  `json:"created_at"`
 }
 
+// FieldSalesVisit represents a scheduled field sales visit.
+type FieldSalesVisit struct {
+	ID           uuid.UUID  `json:"id"`
+	OrgID        uuid.UUID  `json:"org_id"`
+	ContactID    *uuid.UUID `json:"contact_id,omitempty"`
+	SalesRepID   *uuid.UUID `json:"sales_rep_id,omitempty"`
+	ScheduledAt  time.Time  `json:"scheduled_at"`
+	LocationLat  *float64   `json:"location_lat,omitempty"`
+	LocationLong *float64   `json:"location_long,omitempty"`
+	Status       string     `json:"status"`
+	Notes        *string    `json:"notes,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+// CRMCampaign represents a marketing campaign.
+type CRMCampaign struct {
+	ID                      uuid.UUID `json:"id"`
+	OrgID                   uuid.UUID `json:"org_id"`
+	Name                    string    `json:"name"`
+	Channel                 string    `json:"channel"`
+	AITargetSegmentCriteria *string   `json:"ai_target_segment_criteria,omitempty"`
+	Budget                  *float64  `json:"budget,omitempty"`
+	Status                  string    `json:"status"`
+	CreatedAt               time.Time `json:"created_at"`
+}
+
 // ---- Repository ----
 
 type crmRepository struct {
@@ -143,6 +169,51 @@ func (r *crmRepository) CreateTicket(ctx context.Context, t *CRMHelpdeskTicket) 
 		INSERT INTO crm_helpdesk_tickets (id, org_id, contact_id, subject, description, priority, status, ai_sentiment_score, ai_suggested_response, assigned_to, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`, t.ID, t.OrgID, t.ContactID, t.Subject, t.Description, t.Priority, t.Status, t.AISentimentScore, t.AISuggestedResponse, t.AssignedTo, t.CreatedAt)
+	return err
+}
+
+func (r *crmRepository) CreateFieldSalesVisit(ctx context.Context, v *FieldSalesVisit) error {
+	v.ID = uuid.New()
+	v.CreatedAt = time.Now()
+	if v.Status == "" {
+		v.Status = "scheduled"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO field_sales_visits (id, org_id, contact_id, sales_rep_id, scheduled_at, location_lat, location_long, status, notes, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+	`, v.ID, v.OrgID, v.ContactID, v.SalesRepID, v.ScheduledAt, v.LocationLat, v.LocationLong, v.Status, v.Notes, v.CreatedAt)
+	return err
+}
+
+func (r *crmRepository) CreateCampaign(ctx context.Context, c *CRMCampaign) error {
+	c.ID = uuid.New()
+	c.CreatedAt = time.Now()
+	if c.Status == "" {
+		c.Status = "draft"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO crm_campaigns (id, org_id, name, channel, ai_target_segment_criteria, budget, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, c.ID, c.OrgID, c.Name, c.Channel, c.AITargetSegmentCriteria, c.Budget, c.Status, c.CreatedAt)
+	return err
+}
+
+func (r *crmRepository) GetCampaignByID(ctx context.Context, id uuid.UUID) (*CRMCampaign, error) {
+	c := &CRMCampaign{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, name, channel, ai_target_segment_criteria, budget, status, created_at
+		FROM crm_campaigns WHERE id = $1
+	`, id).Scan(&c.ID, &c.OrgID, &c.Name, &c.Channel, &c.AITargetSegmentCriteria, &c.Budget, &c.Status, &c.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return c, err
+}
+
+func (r *crmRepository) UpdateCampaignStatus(ctx context.Context, id uuid.UUID, status string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE crm_campaigns SET status = $1 WHERE id = $2
+	`, status, id)
 	return err
 }
 
@@ -268,6 +339,73 @@ func (s *CRMService) CreateTicket(ctx context.Context, orgID uuid.UUID, contactI
 	}
 
 	return ticket, nil
+}
+
+// ScheduleFieldVisit creates a field sales visit and simulates AI route optimization.
+func (s *CRMService) ScheduleFieldVisit(ctx context.Context, orgID uuid.UUID, contactID *uuid.UUID, salesRepID *uuid.UUID, scheduledAt time.Time, locationLat *float64, locationLong *float64, notes *string) (*FieldSalesVisit, int, error) {
+	visit := &FieldSalesVisit{
+		OrgID:        orgID,
+		ContactID:    contactID,
+		SalesRepID:   salesRepID,
+		ScheduledAt:  scheduledAt,
+		LocationLat:  locationLat,
+		LocationLong: locationLong,
+		Status:       "scheduled",
+		Notes:        notes,
+	}
+	if err := s.repo.CreateFieldSalesVisit(ctx, visit); err != nil {
+		return nil, 0, err
+	}
+
+	// Simulate AI route optimization: estimated travel time in minutes
+	estimatedTravelTime := 15 + rand.Intn(46) // 15–60 minutes
+
+	return visit, estimatedTravelTime, nil
+}
+
+// CreateCampaign creates a marketing campaign with simulated AI audience segmentation.
+func (s *CRMService) CreateCampaign(ctx context.Context, orgID uuid.UUID, name, channel string, budget *float64) (*CRMCampaign, string, error) {
+	// Simulate AI audience segmentation
+	segmentCriteria := aiSegmentAudience(channel)
+
+	campaign := &CRMCampaign{
+		OrgID:                   orgID,
+		Name:                    name,
+		Channel:                 channel,
+		AITargetSegmentCriteria: &segmentCriteria,
+		Budget:                  budget,
+		Status:                  "draft",
+	}
+	if err := s.repo.CreateCampaign(ctx, campaign); err != nil {
+		return nil, "", err
+	}
+
+	return campaign, segmentCriteria, nil
+}
+
+// LaunchCampaign simulates launching a campaign and returns estimated reach.
+func (s *CRMService) LaunchCampaign(ctx context.Context, orgID uuid.UUID, campaignID uuid.UUID) (*CRMCampaign, int, error) {
+	campaign, err := s.repo.GetCampaignByID(ctx, campaignID)
+	if err != nil {
+		return nil, 0, err
+	}
+	if campaign == nil {
+		return nil, 0, ErrCampaignNotFound
+	}
+	if campaign.OrgID != orgID {
+		return nil, 0, ErrCampaignNotInOrg
+	}
+
+	// Simulate launch: update status to active
+	if err := s.repo.UpdateCampaignStatus(ctx, campaignID, "active"); err != nil {
+		return nil, 0, err
+	}
+	campaign.Status = "active"
+
+	// Simulate estimated reach based on channel
+	estimatedReach := aiEstimateReach(campaign.Channel)
+
+	return campaign, estimatedReach, nil
 }
 
 // aiAnalyzeSentiment simulates AI sentiment analysis on ticket text.
@@ -438,10 +576,45 @@ func aiAnalyzeContract(contractText string) (float64, []FlaggedClause) {
 	return riskScore, clauses
 }
 
+// aiSegmentAudience simulates AI-based audience segmentation for a campaign.
+func aiSegmentAudience(channel string) string {
+	segments := map[string]string{
+		"email":  `{"criteria": "contacts with open rate > 30% in last 90 days", "estimated_size": 1250}`,
+		"sms":    `{"criteria": "contacts with mobile phone and opted-in for SMS", "estimated_size": 840}`,
+		"social": `{"criteria": "contacts who engaged with brand posts in last 60 days", "estimated_size": 2100}`,
+		"push":   `{"criteria": "contacts with app installed and notifications enabled", "estimated_size": 670}`,
+		"in_app": `{"criteria": "active users with at least 3 sessions in last 30 days", "estimated_size": 980}`,
+	}
+	if s, ok := segments[channel]; ok {
+		return s
+	}
+	return `{"criteria": "all contacts", "estimated_size": 500}`
+}
+
+// aiEstimateReach simulates AI estimation of campaign reach.
+func aiEstimateReach(channel string) int {
+	baseReach := map[string]int{
+		"email":  5000,
+		"sms":    3000,
+		"social": 15000,
+		"push":   2000,
+		"in_app": 4000,
+	}
+	reach, ok := baseReach[channel]
+	if !ok {
+		reach = 1000
+	}
+	// Add some randomness (±20%)
+	reach += int(float64(reach) * (rand.Float64()*0.4 - 0.2))
+	return reach
+}
+
 // Domain errors
 var (
-	ErrQuoteNotFound   = errors.New("quote not found")
-	ErrQuoteNotInOrg   = errors.New("quote does not belong to this organization")
-	ErrContactNotFound = errors.New("contact not found")
-	ErrContactNotInOrg = errors.New("contact does not belong to this organization")
+	ErrQuoteNotFound    = errors.New("quote not found")
+	ErrQuoteNotInOrg    = errors.New("quote does not belong to this organization")
+	ErrContactNotFound  = errors.New("contact not found")
+	ErrContactNotInOrg  = errors.New("contact does not belong to this organization")
+	ErrCampaignNotFound = errors.New("campaign not found")
+	ErrCampaignNotInOrg = errors.New("campaign does not belong to this organization")
 )

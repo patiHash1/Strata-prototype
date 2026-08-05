@@ -198,6 +198,317 @@ The AI system classifies anomalies into these categories based on the action typ
 
 ---
 
+## BI Dashboards
+
+### POST /api/v1/bi/dashboards
+
+Creates a new BI dashboard with configurable widgets and data sources.
+
+**Permission:** `bi.dashboards.write`
+
+#### Request
+
+```json
+{
+  "name": "Q2 Revenue Overview",
+  "widgets": [
+    {
+      "type": "bar_chart",
+      "data_source": "crm_deals",
+      "title": "Revenue by Rep"
+    }
+  ]
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | `string` | ✅ | Dashboard name |
+| `widgets` | `array` | — | Array of widget configurations |
+| `widgets[].type` | `string` | ✅ | Widget type (`bar_chart`, `line_chart`, `table`, `kpi`) |
+| `widgets[].data_source` | `string` | ✅ | Data source table name |
+| `widgets[].title` | `string` | ✅ | Widget display title |
+
+#### Response `201 Created`
+
+```json
+{
+  "dashboard_id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "Q2 Revenue Overview",
+  "created_at": "2026-01-15T10:00:00Z"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `dashboard_id` | `string` (UUID) | ID of the created dashboard |
+| `name` | `string` | Dashboard name |
+| `created_at` | `string` (ISO 8601) | Creation timestamp |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `400` | Invalid request body or missing `name` |
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `bi.dashboards.write` permission |
+| `500` | Internal server error |
+
+---
+
+### GET /api/v1/bi/dashboards
+
+Lists all BI dashboards for the organization.
+
+**Permission:** `bi.dashboards.read`
+
+#### Response `200 OK`
+
+```json
+{
+  "dashboards": [
+    {
+      "dashboard_id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Q2 Revenue Overview",
+      "widget_count": 3,
+      "created_at": "2026-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `dashboards` | `array` | Array of dashboard summary objects |
+| `dashboards[].dashboard_id` | `string` (UUID) | Dashboard ID |
+| `dashboards[].name` | `string` | Dashboard name |
+| `dashboards[].widget_count` | `integer` | Number of widgets on the dashboard |
+| `dashboards[].created_at` | `string` (ISO 8601) | Creation timestamp |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `bi.dashboards.read` permission |
+| `500` | Internal server error |
+
+---
+
+### GET /api/v1/bi/dashboards/{dashboard_id}/data
+
+Retrieves dashboard data with AI-powered anomaly detection. Each widget's data is analyzed for statistical anomalies and trends.
+
+**Permission:** `bi.dashboards.read`
+
+#### Path parameters
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `dashboard_id` | `string` (UUID) | ✅ | ID of the dashboard to retrieve data for |
+
+#### Response `200 OK`
+
+```json
+{
+  "dashboard_id": "550e8400-e29b-41d4-a716-446655440000",
+  "widgets": [
+    {
+      "widget_id": "660e8400-e29b-41d4-a716-446655440000",
+      "title": "Revenue by Rep",
+      "data": [
+        {"sales_rep": "Alice Johnson", "total_revenue": 245000.50}
+      ],
+      "ai_anomalies": [
+        {
+          "description": "Revenue spike detected for Alice Johnson (+35% vs avg)",
+          "severity": "medium"
+        }
+      ]
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `dashboard_id` | `string` (UUID) | Dashboard ID |
+| `widgets` | `array` | Array of widget data objects |
+| `widgets[].widget_id` | `string` (UUID) | Widget ID |
+| `widgets[].title` | `string` | Widget title |
+| `widgets[].data` | `array` | Widget data rows |
+| `widgets[].ai_anomalies` | `array` | AI-detected anomalies in the widget data |
+| `widgets[].ai_anomalies[].description` | `string` | Anomaly description |
+| `widgets[].ai_anomalies[].severity` | `string` | Severity: `low`, `medium`, `high`, `critical` |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `bi.dashboards.read` permission |
+| `404` | Dashboard not found |
+| `500` | Internal server error |
+
+---
+
+## IoT Gateway
+
+### POST /api/v1/iot/devices
+
+Registers a new IoT device in the organization's device fleet. Devices are identified by a unique serial number and can be associated with a location.
+
+**Permission:** `iot.devices.write`
+
+#### Request
+
+```json
+{
+  "serial_number": "IOT-2026-0042",
+  "device_type": "temperature_sensor",
+  "location": "Warehouse A - Zone 3"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `serial_number` | `string` | ✅ | Unique device serial number |
+| `device_type` | `string` | ✅ | Device type (e.g., `temperature_sensor`, `humidity_sensor`, `vibration_sensor`) |
+| `location` | `string` | — | Physical location description |
+
+#### Response `201 Created`
+
+```json
+{
+  "device_id": "550e8400-e29b-41d4-a716-446655440000",
+  "serial_number": "IOT-2026-0042",
+  "status": "registered"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `device_id` | `string` (UUID) | ID of the registered device |
+| `serial_number` | `string` | Device serial number |
+| `status` | `string` | Device status — `"registered"` on creation |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `400` | Invalid request body, missing `serial_number`, or duplicate serial number |
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `iot.devices.write` permission |
+| `409` | Device with this serial number already exists |
+| `500` | Internal server error |
+
+---
+
+### GET /api/v1/iot/devices
+
+Lists all registered IoT devices for the organization.
+
+**Permission:** `iot.devices.write`
+
+#### Response `200 OK`
+
+```json
+{
+  "devices": [
+    {
+      "device_id": "550e8400-e29b-41d4-a716-446655440000",
+      "serial_number": "IOT-2026-0042",
+      "device_type": "temperature_sensor",
+      "location": "Warehouse A - Zone 3",
+      "status": "active",
+      "last_reading_at": "2026-01-15T14:30:00Z"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `devices` | `array` | Array of IoT device objects |
+| `devices[].device_id` | `string` (UUID) | Device ID |
+| `devices[].serial_number` | `string` | Device serial number |
+| `devices[].device_type` | `string` | Device type |
+| `devices[].location` | `string` | Physical location |
+| `devices[].status` | `string` | Current device status |
+| `devices[].last_reading_at` | `string` (ISO 8601 or null) | Timestamp of the last reading |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `iot.devices.write` permission |
+| `500` | Internal server error |
+
+---
+
+### POST /api/v1/iot/readings
+
+Ingests a sensor reading from an IoT device. The AI engine analyzes the reading for anomalies and triggers alerts when values exceed expected thresholds.
+
+**Permission:** `iot.readings.ingest`
+
+#### Request
+
+```json
+{
+  "device_id": "550e8400-e29b-41d4-a716-446655440000",
+  "metric": "temperature_c",
+  "value": 42.5,
+  "recorded_at": "2026-01-15T14:30:00Z"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `device_id` | `string` (UUID) | ✅ | ID of the registered IoT device |
+| `metric` | `string` | ✅ | Metric name (e.g., `temperature_c`, `humidity_pct`, `vibration_hz`) |
+| `value` | `float` | ✅ | Numeric reading value |
+| `recorded_at` | `string` (ISO 8601) | — | Timestamp of the reading (defaults to server time) |
+
+#### Response `202 Accepted`
+
+```json
+{
+  "reading_id": "770e8400-e29b-41d4-a716-446655440000",
+  "ai_anomaly_detected": false,
+  "ai_anomaly_detail": null
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `reading_id` | `string` (UUID) | ID of the ingested reading |
+| `ai_anomaly_detected` | `boolean` | Whether the AI engine flagged this reading as anomalous |
+| `ai_anomaly_detail` | `string` (or null) | Description of the anomaly if detected, otherwise `null` |
+
+#### AI anomaly detection
+
+The AI engine checks readings against expected ranges:
+
+| Metric | Expected range | Anomaly if |
+|---|---|---|
+| `temperature_c` | 15–35°C | Outside range |
+| `humidity_pct` | 30–70% | Outside range |
+| `vibration_hz` | 0–50 Hz | > 50 Hz |
+
+#### Errors
+
+| Status | Description |
+|---|---|
+| `400` | Invalid request body, missing required fields |
+| `401` | Missing or invalid bearer token |
+| `403` | Token lacks `iot.readings.ingest` permission |
+| `404` | Device not found |
+| `500` | Internal server error |
+
+---
+
 ## AI simulation notes
 
 All AI features in Category 5 are simulated with heuristic logic:

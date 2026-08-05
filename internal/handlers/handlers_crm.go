@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
@@ -258,5 +259,245 @@ func (a *App) createTicketHandler(w http.ResponseWriter, r *http.Request) {
 		"ai_sentiment_score":    sentimentScore,
 		"priority":              ticket.Priority,
 		"ai_suggested_response": suggestedResponse,
+	})
+}
+
+// ---- POST /api/v1/crm/field-visits ----
+
+type scheduleFieldVisitRequest struct {
+	ContactID    *string  `json:"contact_id,omitempty"`
+	SalesRepID   *string  `json:"sales_rep_id,omitempty"`
+	ScheduledAt  string   `json:"scheduled_at"`
+	LocationLat  *float64 `json:"location_lat,omitempty"`
+	LocationLong *float64 `json:"location_long,omitempty"`
+	Notes        *string  `json:"notes,omitempty"`
+}
+
+// ScheduleFieldVisitResponse represents the payload returned when a field visit is scheduled.
+type ScheduleFieldVisitResponse struct {
+	VisitID             string `json:"visit_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	EstimatedTravelTime int    `json:"estimated_travel_time_minutes" example:"25"`
+}
+
+// scheduleFieldVisitHandler schedules a field sales visit with AI route optimization.
+//
+//	@Summary		Schedule field sales visit
+//	@Description	Creates a field sales visit and simulates AI route optimization, returning estimated travel time. Requires `crm.fieldvisits.write` permission.
+//	@Tags			CRM
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	scheduleFieldVisitRequest	true	"Field visit payload"
+//	@Success		201	{object}	ScheduleFieldVisitResponse
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/crm/field-visits [post]
+func (a *App) scheduleFieldVisitHandler(w http.ResponseWriter, r *http.Request) {
+	var req scheduleFieldVisitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.ScheduledAt) {
+		utils.WriteErr(w, http.StatusBadRequest, "scheduled_at is required")
+		return
+	}
+
+	scheduledAt, err := time.Parse(time.RFC3339, req.ScheduledAt)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid scheduled_at format, use RFC3339")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	var contactID *uuid.UUID
+	if req.ContactID != nil && *req.ContactID != "" {
+		id, err := uuid.Parse(*req.ContactID)
+		if err != nil {
+			utils.WriteErr(w, http.StatusBadRequest, "invalid contact_id")
+			return
+		}
+		contactID = &id
+	}
+
+	var salesRepID *uuid.UUID
+	if req.SalesRepID != nil && *req.SalesRepID != "" {
+		id, err := uuid.Parse(*req.SalesRepID)
+		if err != nil {
+			utils.WriteErr(w, http.StatusBadRequest, "invalid sales_rep_id")
+			return
+		}
+		salesRepID = &id
+	}
+
+	visit, estimatedTravelTime, err := a.CRM.ScheduleFieldVisit(
+		r.Context(),
+		orgID,
+		contactID,
+		salesRepID,
+		scheduledAt,
+		req.LocationLat,
+		req.LocationLong,
+		req.Notes,
+	)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not schedule field visit")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"visit_id":                      visit.ID.String(),
+		"estimated_travel_time_minutes": estimatedTravelTime,
+	})
+}
+
+// ---- POST /api/v1/crm/campaigns ----
+
+type createCampaignRequest struct {
+	Name    string   `json:"name"`
+	Channel string   `json:"channel"`
+	Budget  *float64 `json:"budget,omitempty"`
+}
+
+// CreateCampaignResponse represents the payload returned when a campaign is created.
+type CreateCampaignResponse struct {
+	CampaignID              string `json:"campaign_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	AITargetSegmentCriteria string `json:"ai_target_segment_criteria" example:"{\"criteria\": \"contacts with open rate > 30%\"}"`
+}
+
+// createCampaignHandler creates a marketing campaign with AI audience segmentation.
+//
+//	@Summary		Create marketing campaign
+//	@Description	Creates a new marketing campaign with AI-powered audience segmentation. Requires `crm.campaigns.write` permission.
+//	@Tags			CRM
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createCampaignRequest	true	"Campaign payload"
+//	@Success		201	{object}	CreateCampaignResponse
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/crm/campaigns [post]
+func (a *App) createCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	var req createCampaignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.Name) {
+		utils.WriteErr(w, http.StatusBadRequest, "name is required")
+		return
+	}
+	if !utils.NotBlank(req.Channel) {
+		utils.WriteErr(w, http.StatusBadRequest, "channel is required")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	campaign, segmentCriteria, err := a.CRM.CreateCampaign(
+		r.Context(),
+		orgID,
+		req.Name,
+		req.Channel,
+		req.Budget,
+	)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create campaign")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"campaign_id":                campaign.ID.String(),
+		"ai_target_segment_criteria": segmentCriteria,
+	})
+}
+
+// ---- POST /api/v1/crm/campaigns/{campaign_id}/launch ----
+
+type launchCampaignResponse struct {
+	CampaignID     string `json:"campaign_id" example:"550e8400-e29b-41d4-a716-446655440000"`
+	Status         string `json:"status" example:"active"`
+	EstimatedReach int    `json:"estimated_reach" example:"12500"`
+}
+
+// launchCampaignHandler launches a marketing campaign and returns estimated reach.
+//
+//	@Summary		Launch marketing campaign
+//	@Description	Launches a draft campaign, activating it and returning AI-estimated reach. Requires `crm.campaigns.write` permission.
+//	@Tags			CRM
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			campaign_id	path	string	true	"Campaign ID"
+//	@Success		200	{object}	launchCampaignResponse
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/crm/campaigns/{campaign_id}/launch [post]
+func (a *App) launchCampaignHandler(w http.ResponseWriter, r *http.Request) {
+	campaignIDStr := r.PathValue("campaign_id")
+	campaignID, err := uuid.Parse(campaignIDStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid campaign_id")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	campaign, estimatedReach, err := a.CRM.LaunchCampaign(r.Context(), orgID, campaignID)
+	if err != nil {
+		if err == services.ErrCampaignNotFound {
+			utils.WriteErr(w, http.StatusNotFound, "campaign not found")
+			return
+		}
+		if err == services.ErrCampaignNotInOrg {
+			utils.WriteErr(w, http.StatusNotFound, "campaign not found in this organization")
+			return
+		}
+		utils.WriteErr(w, http.StatusInternalServerError, "could not launch campaign")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"campaign_id":     campaign.ID.String(),
+		"status":          campaign.Status,
+		"estimated_reach": estimatedReach,
 	})
 }

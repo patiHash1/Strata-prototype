@@ -274,3 +274,283 @@ func (a *App) createExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		"ai_audit_notes": auditNotes,
 	})
 }
+
+// ---- POST /api/v1/accounting/assets ----
+
+type createAssetRequest struct {
+	AssetName       string  `json:"asset_name"`
+	PurchaseDate    string  `json:"purchase_date"`
+	PurchaseCost    float64 `json:"purchase_cost"`
+	SalvageValue    float64 `json:"salvage_value"`
+	UsefulLifeYears int     `json:"useful_life_years"`
+}
+
+// createAssetHandler registers a new fixed asset.
+//
+//	@Summary		Register fixed asset
+//	@Description	Registers a new fixed asset for depreciation tracking. Requires `accounting.assets.write` permission.
+//	@Tags			Accounting
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createAssetRequest	true	"Asset payload"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/accounting/assets [post]
+func (a *App) createAssetHandler(w http.ResponseWriter, r *http.Request) {
+	var req createAssetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.AssetName) {
+		utils.WriteErr(w, http.StatusBadRequest, "asset_name is required")
+		return
+	}
+	if !utils.NotBlank(req.PurchaseDate) {
+		utils.WriteErr(w, http.StatusBadRequest, "purchase_date is required")
+		return
+	}
+	if req.PurchaseCost <= 0 {
+		utils.WriteErr(w, http.StatusBadRequest, "purchase_cost must be greater than zero")
+		return
+	}
+	if req.UsefulLifeYears <= 0 {
+		utils.WriteErr(w, http.StatusBadRequest, "useful_life_years must be greater than zero")
+		return
+	}
+
+	purchaseDate, err := time.Parse("2006-01-02", req.PurchaseDate)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid purchase_date format, expected YYYY-MM-DD")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	asset, err := a.Accounting.RegisterAsset(r.Context(), orgID, req.AssetName, purchaseDate, req.PurchaseCost, req.SalvageValue, req.UsefulLifeYears)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not register asset")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"asset_id":          asset.ID.String(),
+		"asset_name":        asset.AssetName,
+		"purchase_cost":     asset.PurchaseCost,
+		"salvage_value":     asset.SalvageValue,
+		"useful_life_years": asset.UsefulLifeYears,
+	})
+}
+
+// ---- GET /api/v1/accounting/assets/{asset_id}/depreciation ----
+
+// getDepreciationHandler calculates straight-line depreciation for a fixed asset.
+//
+//	@Summary		Calculate asset depreciation
+//	@Description	Calculates straight-line depreciation for a fixed asset over a given date range. Returns annual depreciation, accumulated depreciation, and current book value. Requires `accounting.assets.read` permission.
+//	@Tags			Accounting
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			asset_id	path	string	true	"Asset ID"
+//	@Param			from_date	query	string	true	"Start date (YYYY-MM-DD)"
+//	@Param			to_date		query	string	true	"End date (YYYY-MM-DD)"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/accounting/assets/{asset_id}/depreciation [get]
+func (a *App) getDepreciationHandler(w http.ResponseWriter, r *http.Request) {
+	assetIDStr := r.PathValue("asset_id")
+	assetID, err := uuid.Parse(assetIDStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid asset_id")
+		return
+	}
+
+	fromDateStr := r.URL.Query().Get("from_date")
+	toDateStr := r.URL.Query().Get("to_date")
+	if !utils.NotBlank(fromDateStr) || !utils.NotBlank(toDateStr) {
+		utils.WriteErr(w, http.StatusBadRequest, "from_date and to_date query parameters are required")
+		return
+	}
+
+	fromDate, err := time.Parse("2006-01-02", fromDateStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid from_date format, expected YYYY-MM-DD")
+		return
+	}
+	toDate, err := time.Parse("2006-01-02", toDateStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid to_date format, expected YYYY-MM-DD")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	result, err := a.Accounting.CalculateDepreciation(r.Context(), assetID, fromDate, toDate)
+	if err != nil {
+		if err == services.ErrAssetNotFound {
+			utils.WriteErr(w, http.StatusNotFound, err.Error())
+			return
+		}
+		utils.WriteErr(w, http.StatusInternalServerError, "could not calculate depreciation")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"asset_id":                 result.AssetID.String(),
+		"annual_depreciation":      result.AnnualDepreciation,
+		"accumulated_depreciation": result.AccumulatedDepreciation,
+		"current_book_value":       result.CurrentBookValue,
+	})
+}
+
+// ---- POST /api/v1/accounting/tax-rates ----
+
+type createTaxRateRequest struct {
+	CountryCode string  `json:"country_code"`
+	TaxName     string  `json:"tax_name"`
+	TaxRate     float64 `json:"tax_rate"`
+}
+
+// createTaxRateHandler creates a new tax rate.
+//
+//	@Summary		Create tax rate
+//	@Description	Creates a new tax rate for a specific country (e.g., VAT, GST). Requires `accounting.tax.manage` permission.
+//	@Tags			Accounting
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createTaxRateRequest	true	"Tax rate payload"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/accounting/tax-rates [post]
+func (a *App) createTaxRateHandler(w http.ResponseWriter, r *http.Request) {
+	var req createTaxRateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.CountryCode) {
+		utils.WriteErr(w, http.StatusBadRequest, "country_code is required")
+		return
+	}
+	if !utils.NotBlank(req.TaxName) {
+		utils.WriteErr(w, http.StatusBadRequest, "tax_name is required")
+		return
+	}
+	if req.TaxRate <= 0 || req.TaxRate > 1 {
+		utils.WriteErr(w, http.StatusBadRequest, "tax_rate must be between 0 and 1")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	taxRate, err := a.Accounting.CreateTaxRate(r.Context(), orgID, req.CountryCode, req.TaxName, req.TaxRate)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create tax rate")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"tax_rate_id":  taxRate.ID.String(),
+		"country_code": taxRate.CountryCode,
+		"tax_name":     taxRate.TaxName,
+		"tax_rate":     taxRate.TaxRate,
+	})
+}
+
+// ---- POST /api/v1/accounting/tax/calculate ----
+
+type calculateTaxRequest struct {
+	CountryCode string  `json:"country_code"`
+	Subtotal    float64 `json:"subtotal"`
+}
+
+// calculateTaxHandler computes tax for a given country and subtotal.
+//
+//	@Summary		Calculate tax
+//	@Description	Computes tax for a given country code and subtotal amount using the organization's active tax rates. Requires `accounting.tax.read` permission.
+//	@Tags			Accounting
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	calculateTaxRequest	true	"Tax calculation payload"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/accounting/tax/calculate [post]
+func (a *App) calculateTaxHandler(w http.ResponseWriter, r *http.Request) {
+	var req calculateTaxRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.CountryCode) {
+		utils.WriteErr(w, http.StatusBadRequest, "country_code is required")
+		return
+	}
+	if req.Subtotal <= 0 {
+		utils.WriteErr(w, http.StatusBadRequest, "subtotal must be greater than zero")
+		return
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	calc, err := a.Accounting.CalculateTax(r.Context(), orgID, req.CountryCode, req.Subtotal)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not calculate tax")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"subtotal":      calc.Subtotal,
+		"tax_amount":    calc.TaxAmount,
+		"total_amount":  calc.TotalAmount,
+		"applied_rates": calc.AppliedRates,
+	})
+}

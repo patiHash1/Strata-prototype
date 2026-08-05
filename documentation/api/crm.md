@@ -211,6 +211,166 @@ Creates a helpdesk ticket with AI sentiment analysis, auto-assigned priority, an
 
 ---
 
+### 4. Schedule Field Sales Visit
+
+```
+POST /api/v1/crm/field-visits
+```
+
+Schedules an in-person field sales visit for a contact, assigned to a specific sales representative. Returns the estimated travel time based on the provided coordinates.
+
+**Required permission:** `crm.fieldvisits.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `contact_id` | UUID | **Yes** | ID of the CRM contact to visit |
+| `sales_rep_id` | UUID | **Yes** | ID of the sales representative assigned to the visit |
+| `scheduled_at` | string | **Yes** | Scheduled visit time in RFC 3339 format |
+| `location_lat` | decimal | **Yes** | GPS latitude of the visit location |
+| `location_long` | decimal | **Yes** | GPS longitude of the visit location |
+| `notes` | string | No | Optional notes about the visit |
+
+**Example request:**
+
+```json
+{
+    "contact_id": "550e8400-e29b-41d4-a716-446655440000",
+    "sales_rep_id": "550e8400-e29b-41d4-a716-446655440001",
+    "scheduled_at": "2026-01-20T14:00:00Z",
+    "location_lat": 37.7749,
+    "location_long": -122.4194,
+    "notes": "Quarterly business review"
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "visit_id": "880e8400-e29b-41d4-a716-446655440000",
+    "estimated_travel_time_minutes": 25,
+    "status": "scheduled"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `visit_id` | UUID | ID of the created field visit |
+| `estimated_travel_time_minutes` | integer | AI-estimated travel time in minutes |
+| `status` | string | Visit status — always `"scheduled"` on creation |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid UUIDs, invalid coordinates |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `crm.fieldvisits.write` permission |
+| `404 Not Found` | Contact or sales rep not found |
+
+---
+
+### 5. Create Marketing Campaign
+
+```
+POST /api/v1/crm/campaigns
+```
+
+Creates a new marketing campaign with a specified channel and budget. The AI engine automatically generates a target segment criteria based on the campaign parameters.
+
+**Required permission:** `crm.campaigns.write`
+
+**Request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | **Yes** | Campaign name |
+| `channel` | string | **Yes** | Marketing channel: `email`, `social`, `sms`, or `display` |
+| `budget` | decimal | **Yes** | Campaign budget in the organization's currency |
+
+**Example request:**
+
+```json
+{
+    "name": "Q1 Product Launch",
+    "channel": "email",
+    "budget": 10000.00
+}
+```
+
+**Response (201 Created):**
+
+```json
+{
+    "campaign_id": "990e8400-e29b-41d4-a716-446655440000",
+    "ai_target_segment_criteria": {
+        "industry": ["Technology", "Finance"],
+        "company_size": "50-500",
+        "estimated_audience": 12500
+    }
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `campaign_id` | UUID | ID of the created campaign |
+| `ai_target_segment_criteria` | object | AI-generated target audience segment criteria |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Missing required fields, invalid channel, budget ≤ 0 |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `crm.campaigns.write` permission |
+
+---
+
+### 6. Launch Marketing Campaign
+
+```
+POST /api/v1/crm/campaigns/{campaign_id}/launch
+```
+
+Launches a previously created marketing campaign, transitioning it to active status. Returns the estimated reach based on the campaign's target segment and channel.
+
+**Required permission:** `crm.campaigns.write`
+
+**Path parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `campaign_id` | UUID | **Yes** | ID of the campaign to launch |
+
+**Response (200 OK):**
+
+```json
+{
+    "campaign_id": "990e8400-e29b-41d4-a716-446655440000",
+    "status": "active",
+    "estimated_reach": 12500
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `campaign_id` | UUID | ID of the launched campaign |
+| `status` | string | Campaign status — `"active"` on successful launch |
+| `estimated_reach` | integer | AI-estimated number of contacts the campaign will reach |
+
+**Error responses:**
+
+| Status | Condition |
+|---|---|
+| `400 Bad Request` | Campaign already launched or in a non-launchable state |
+| `401 Unauthorized` | Missing or invalid JWT |
+| `403 Forbidden` | Token lacks `crm.campaigns.write` permission |
+| `404 Not Found` | Campaign not found |
+
+---
+
 ## AI engine (simulated)
 
 The current implementation uses a keyword-based heuristic analysis engine. In production, this would be replaced with an external AI/ML service call. The simulation provides realistic output to verify request/response contracts during development.

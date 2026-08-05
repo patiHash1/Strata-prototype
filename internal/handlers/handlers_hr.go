@@ -261,3 +261,404 @@ func (a *App) knowledgeSearchHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ---- POST /api/v1/hr/employees ----
+
+type createEmployeeRequest struct {
+	UserID       *string  `json:"user_id,omitempty"`
+	EmployeeCode string   `json:"employee_code"`
+	Department   *string  `json:"department,omitempty"`
+	JobTitle     *string  `json:"job_title,omitempty"`
+	Salary       *float64 `json:"salary,omitempty"`
+	HiredAt      string   `json:"hired_at"`
+}
+
+// createEmployeeHandler creates a new employee record.
+//
+//	@Summary		Create employee
+//	@Description	Creates a new employee record in the organization. Requires `hr.employees.write` permission.
+//	@Tags			HR
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createEmployeeRequest	true	"Employee details"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/hr/employees [post]
+func (a *App) createEmployeeHandler(w http.ResponseWriter, r *http.Request) {
+	var req createEmployeeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.EmployeeCode) {
+		utils.WriteErr(w, http.StatusBadRequest, "employee_code is required")
+		return
+	}
+
+	var hiredAt time.Time
+	if req.HiredAt != "" {
+		var err error
+		hiredAt, err = time.Parse(time.RFC3339, req.HiredAt)
+		if err != nil {
+			hiredAt, err = time.Parse("2006-01-02", req.HiredAt)
+			if err != nil {
+				utils.WriteErr(w, http.StatusBadRequest, "invalid hired_at format, use RFC3339 or YYYY-MM-DD")
+				return
+			}
+		}
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	var userID *uuid.UUID
+	if req.UserID != nil && *req.UserID != "" {
+		parsed, err := uuid.Parse(*req.UserID)
+		if err != nil {
+			utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+			return
+		}
+		userID = &parsed
+	}
+
+	employee, err := a.HR.CreateEmployee(r.Context(), orgID, userID, req.EmployeeCode, req.Department, req.JobTitle, req.Salary, hiredAt)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create employee")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"id":            employee.ID.String(),
+		"org_id":        employee.OrgID.String(),
+		"user_id":       employee.UserID,
+		"employee_code": employee.EmployeeCode,
+		"department":    employee.Department,
+		"job_title":     employee.JobTitle,
+		"salary":        employee.Salary,
+		"hired_at":      employee.HiredAt.Format(time.RFC3339),
+	})
+}
+
+// ---- GET /api/v1/hr/employees ----
+
+// listEmployeesHandler lists all employees in the org, with optional department filter.
+//
+//	@Summary		List employees
+//	@Description	Lists all employees in the organization. Optionally filter by department via query parameter. Requires `hr.employees.read` permission.
+//	@Tags			HR
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			department	query	string	false	"Filter by department name"
+//	@Success		200	{array}		services.Employee
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/hr/employees [get]
+func (a *App) listEmployeesHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	var department *string
+	if dep := r.URL.Query().Get("department"); dep != "" {
+		department = &dep
+	}
+
+	employees, err := a.HR.ListEmployees(r.Context(), orgID, department)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not list employees")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"employees": employees,
+	})
+}
+
+// ---- GET /api/v1/hr/employees/{employee_id} ----
+
+// getEmployeeHandler retrieves a single employee by ID.
+//
+//	@Summary		Get employee
+//	@Description	Retrieves an employee record by ID. Requires `hr.employees.read` permission.
+//	@Tags			HR
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			employee_id	path	string	true	"Employee UUID"
+//	@Success		200	{object}	services.Employee
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/hr/employees/{employee_id} [get]
+func (a *App) getEmployeeHandler(w http.ResponseWriter, r *http.Request) {
+	employeeIDStr := r.PathValue("employee_id")
+	employeeID, err := uuid.Parse(employeeIDStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid employee_id")
+		return
+	}
+
+	employee, err := a.HR.GetEmployeeByID(r.Context(), employeeID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not get employee")
+		return
+	}
+	if employee == nil {
+		utils.WriteErr(w, http.StatusNotFound, "employee not found")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"id":            employee.ID.String(),
+		"org_id":        employee.OrgID.String(),
+		"user_id":       employee.UserID,
+		"employee_code": employee.EmployeeCode,
+		"department":    employee.Department,
+		"job_title":     employee.JobTitle,
+		"salary":        employee.Salary,
+		"hired_at":      employee.HiredAt.Format(time.RFC3339),
+	})
+}
+
+// ---- PATCH /api/v1/hr/employees/{employee_id} ----
+
+type updateEmployeeRequest struct {
+	Department *string  `json:"department,omitempty"`
+	JobTitle   *string  `json:"job_title,omitempty"`
+	Salary     *float64 `json:"salary,omitempty"`
+}
+
+// updateEmployeeHandler updates an employee's department, job title, or salary.
+//
+//	@Summary		Update employee
+//	@Description	Updates an employee's department, job title, or salary. Requires `hr.employees.write` permission.
+//	@Tags			HR
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			employee_id	path	string					true	"Employee UUID"
+//	@Param			body		body	updateEmployeeRequest	true	"Fields to update"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/hr/employees/{employee_id} [patch]
+func (a *App) updateEmployeeHandler(w http.ResponseWriter, r *http.Request) {
+	employeeIDStr := r.PathValue("employee_id")
+	employeeID, err := uuid.Parse(employeeIDStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid employee_id")
+		return
+	}
+
+	var req updateEmployeeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	employee, err := a.HR.UpdateEmployee(r.Context(), employeeID, req.Department, req.JobTitle, req.Salary)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not update employee")
+		return
+	}
+	if employee == nil {
+		utils.WriteErr(w, http.StatusNotFound, "employee not found")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"id":            employee.ID.String(),
+		"org_id":        employee.OrgID.String(),
+		"user_id":       employee.UserID,
+		"employee_code": employee.EmployeeCode,
+		"department":    employee.Department,
+		"job_title":     employee.JobTitle,
+		"salary":        employee.Salary,
+		"hired_at":      employee.HiredAt.Format(time.RFC3339),
+	})
+}
+
+// ---- POST /api/v1/hr/payroll/runs ----
+
+type runPayrollRequest struct {
+	PayPeriodStart string `json:"pay_period_start"`
+	PayPeriodEnd   string `json:"pay_period_end"`
+}
+
+// runPayrollHandler creates a payroll run for the organization.
+//
+//	@Summary		Run payroll
+//	@Description	Creates a payroll run, simulating wage calculations, deductions, and tax withholdings for all active employees. Requires `hr.payroll.write` permission.
+//	@Tags			HR
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	runPayrollRequest	true	"Payroll period"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/hr/payroll/runs [post]
+func (a *App) runPayrollHandler(w http.ResponseWriter, r *http.Request) {
+	var req runPayrollRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.PayPeriodStart) || !utils.NotBlank(req.PayPeriodEnd) {
+		utils.WriteErr(w, http.StatusBadRequest, "pay_period_start and pay_period_end are required")
+		return
+	}
+
+	payPeriodStart, err := time.Parse(time.RFC3339, req.PayPeriodStart)
+	if err != nil {
+		payPeriodStart, err = time.Parse("2006-01-02", req.PayPeriodStart)
+		if err != nil {
+			utils.WriteErr(w, http.StatusBadRequest, "invalid pay_period_start format, use RFC3339 or YYYY-MM-DD")
+			return
+		}
+	}
+
+	payPeriodEnd, err := time.Parse(time.RFC3339, req.PayPeriodEnd)
+	if err != nil {
+		payPeriodEnd, err = time.Parse("2006-01-02", req.PayPeriodEnd)
+		if err != nil {
+			utils.WriteErr(w, http.StatusBadRequest, "invalid pay_period_end format, use RFC3339 or YYYY-MM-DD")
+			return
+		}
+	}
+
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	run, err := a.HR.RunPayroll(r.Context(), orgID, services.PayrollRunInput{
+		PayPeriodStart: payPeriodStart,
+		PayPeriodEnd:   payPeriodEnd,
+	})
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not run payroll")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"id":               run.ID.String(),
+		"org_id":           run.OrgID.String(),
+		"pay_period_start": run.PayPeriodStart.Format(time.RFC3339),
+		"pay_period_end":   run.PayPeriodEnd.Format(time.RFC3339),
+		"total_disbursed":  run.TotalDisbursed,
+		"status":           run.Status,
+		"created_at":       run.CreatedAt.Format(time.RFC3339),
+	})
+}
+
+// ---- GET /api/v1/hr/payroll/runs ----
+
+// listPayrollRunsHandler lists all payroll runs for the organization.
+//
+//	@Summary		List payroll runs
+//	@Description	Lists all payroll runs for the organization. Requires `hr.payroll.read` permission.
+//	@Tags			HR
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Success		200	{array}		services.PayrollRun
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/hr/payroll/runs [get]
+func (a *App) listPayrollRunsHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	runs, err := a.HR.ListPayrollRuns(r.Context(), orgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not list payroll runs")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"payroll_runs": runs,
+	})
+}
+
+// ---- GET /api/v1/hr/payroll/runs/{run_id} ----
+
+// getPayrollRunHandler retrieves a single payroll run by ID.
+//
+//	@Summary		Get payroll run
+//	@Description	Retrieves a payroll run by ID. Requires `hr.payroll.read` permission.
+//	@Tags			HR
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			run_id	path	string	true	"Payroll Run UUID"
+//	@Success		200	{object}	services.PayrollRun
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/hr/payroll/runs/{run_id} [get]
+func (a *App) getPayrollRunHandler(w http.ResponseWriter, r *http.Request) {
+	runIDStr := r.PathValue("run_id")
+	runID, err := uuid.Parse(runIDStr)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid run_id")
+		return
+	}
+
+	run, err := a.HR.GetPayrollRun(r.Context(), runID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not get payroll run")
+		return
+	}
+	if run == nil {
+		utils.WriteErr(w, http.StatusNotFound, "payroll run not found")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"id":               run.ID.String(),
+		"org_id":           run.OrgID.String(),
+		"pay_period_start": run.PayPeriodStart.Format(time.RFC3339),
+		"pay_period_end":   run.PayPeriodEnd.Format(time.RFC3339),
+		"total_disbursed":  run.TotalDisbursed,
+		"status":           run.Status,
+		"created_at":       run.CreatedAt.Format(time.RFC3339),
+	})
+}

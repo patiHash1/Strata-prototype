@@ -248,3 +248,296 @@ func (a *App) getReorderPredictionsHandler(w http.ResponseWriter, r *http.Reques
 		"predictions": predictions,
 	})
 }
+
+// ---- POST /api/v1/manufacturing/boms ----
+
+type createBOMRequest struct {
+	ParentProductID string                    `json:"parent_product_id"`
+	BOMCode         string                    `json:"bom_code"`
+	Components      []createBOMComponentEntry `json:"components"`
+}
+
+type createBOMComponentEntry struct {
+	ComponentProductID string  `json:"component_product_id"`
+	QuantityRequired   float64 `json:"quantity_required"`
+}
+
+// createBOMHandler creates a bill of materials with components.
+//
+//	@Summary		Create a bill of materials
+//	@Description	Creates a bill of materials (BOM) with its component products. Requires `manufacturing.boms.write` permission.
+//	@Tags			Manufacturing
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createBOMRequest	true	"BOM creation payload"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/manufacturing/boms [post]
+func (a *App) createBOMHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	var req createBOMRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.BOMCode) {
+		utils.WriteErr(w, http.StatusBadRequest, "bom_code is required")
+		return
+	}
+
+	parentProductID, err := uuid.Parse(req.ParentProductID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid parent_product_id")
+		return
+	}
+
+	var components []services.CreateBOMComponentInput
+	for _, c := range req.Components {
+		compID, err := uuid.Parse(c.ComponentProductID)
+		if err != nil {
+			utils.WriteErr(w, http.StatusBadRequest, "invalid component_product_id: "+c.ComponentProductID)
+			return
+		}
+		components = append(components, services.CreateBOMComponentInput{
+			ComponentProductID: compID,
+			QuantityRequired:   c.QuantityRequired,
+		})
+	}
+
+	input := services.CreateBOMInput{
+		ParentProductID: parentProductID,
+		BOMCode:         req.BOMCode,
+		Components:      components,
+	}
+
+	bom, err := a.SupplyChain.CreateBOM(r.Context(), orgID, input)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create BOM")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"id":                bom.ID.String(),
+		"org_id":            bom.OrgID.String(),
+		"parent_product_id": bom.ParentProductID.String(),
+		"bom_code":          bom.BOMCode,
+	})
+}
+
+// ---- POST /api/v1/manufacturing/work-orders ----
+
+type createWorkOrderRequest struct {
+	BOMID          string  `json:"bom_id"`
+	Quantity       int     `json:"quantity"`
+	ScheduledStart *string `json:"scheduled_start,omitempty"`
+	ScheduledEnd   *string `json:"scheduled_end,omitempty"`
+}
+
+// createWorkOrderHandler creates a manufacturing work order.
+//
+//	@Summary		Create a work order
+//	@Description	Creates a manufacturing work order with AI bottleneck risk prediction. Requires `manufacturing.workorders.write` permission.
+//	@Tags			Manufacturing
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createWorkOrderRequest	true	"Work order creation payload"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/manufacturing/work-orders [post]
+func (a *App) createWorkOrderHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	var req createWorkOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	bomID, err := uuid.Parse(req.BOMID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid bom_id")
+		return
+	}
+
+	input := services.CreateWorkOrderInput{
+		BOMID:          bomID,
+		Quantity:       req.Quantity,
+		ScheduledStart: req.ScheduledStart,
+		ScheduledEnd:   req.ScheduledEnd,
+	}
+
+	wo, err := a.SupplyChain.CreateWorkOrder(r.Context(), orgID, input)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create work order")
+		return
+	}
+
+	resp := utils.Envelope{
+		"id":                 wo.ID.String(),
+		"org_id":             wo.OrgID.String(),
+		"bom_id":             wo.BOMID.String(),
+		"quantity":           wo.Quantity,
+		"status":             wo.Status,
+		"ai_bottleneck_risk": wo.AIBottleneckRisk,
+		"created_at":         wo.CreatedAt.Format(time.RFC3339),
+	}
+	if wo.ScheduledStart != nil {
+		resp["scheduled_start"] = *wo.ScheduledStart
+	}
+	if wo.ScheduledEnd != nil {
+		resp["scheduled_end"] = *wo.ScheduledEnd
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, resp)
+}
+
+// ---- POST /api/v1/procurement/purchase-orders ----
+
+type createPurchaseOrderRequest struct {
+	PONumber     string  `json:"po_number"`
+	SupplierName string  `json:"supplier_name"`
+	TotalCost    float64 `json:"total_cost"`
+}
+
+// createPurchaseOrderHandler creates a procurement purchase order.
+//
+//	@Summary		Create a purchase order
+//	@Description	Creates a purchase order with AI supplier risk rating. Requires `procurement.po.write` permission.
+//	@Tags			Procurement
+//	@Accept			json
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			body	body	createPurchaseOrderRequest	true	"Purchase order creation payload"
+//	@Success		201	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/procurement/purchase-orders [post]
+func (a *App) createPurchaseOrderHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	var req createPurchaseOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if !utils.NotBlank(req.PONumber) {
+		utils.WriteErr(w, http.StatusBadRequest, "po_number is required")
+		return
+	}
+	if !utils.NotBlank(req.SupplierName) {
+		utils.WriteErr(w, http.StatusBadRequest, "supplier_name is required")
+		return
+	}
+
+	input := services.CreatePurchaseOrderInput{
+		PONumber:     req.PONumber,
+		SupplierName: req.SupplierName,
+		TotalCost:    req.TotalCost,
+	}
+
+	po, err := a.SupplyChain.CreatePurchaseOrder(r.Context(), orgID, input)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not create purchase order")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
+		"id":                      po.ID.String(),
+		"org_id":                  po.OrgID.String(),
+		"po_number":               po.PONumber,
+		"supplier_name":           po.SupplierName,
+		"total_cost":              po.TotalCost,
+		"ai_supplier_risk_rating": po.AISupplierRiskRating,
+		"status":                  po.Status,
+		"created_at":              po.CreatedAt.Format(time.RFC3339),
+	})
+}
+
+// ---- GET /api/v1/procurement/supplier-risk ----
+
+// getSupplierRiskHandler returns an AI-generated supplier risk report.
+//
+//	@Summary		Get supplier risk report
+//	@Description	Returns an AI-generated risk report for a supplier including risk score, open POs, and total spend. Requires `procurement.supplier.read` permission.
+//	@Tags			Procurement
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			supplier_name	query	string	true	"Supplier name to assess"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/procurement/supplier-risk [get]
+func (a *App) getSupplierRiskHandler(w http.ResponseWriter, r *http.Request) {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	supplierName := r.URL.Query().Get("supplier_name")
+	if !utils.NotBlank(supplierName) {
+		utils.WriteErr(w, http.StatusBadRequest, "supplier_name query parameter is required")
+		return
+	}
+
+	report, err := a.SupplyChain.GetSupplierRiskReport(r.Context(), orgID, supplierName)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "could not get supplier risk report")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"supplier_name": report.SupplierName,
+		"risk_rating":   report.RiskRating,
+		"risk_score":    report.RiskScore,
+		"open_pos":      report.OpenPOs,
+		"total_spend":   report.TotalSpend,
+	})
+}

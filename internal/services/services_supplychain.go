@@ -41,6 +41,56 @@ type StockoutPrediction struct {
 	RecommendedReorderQty int       `json:"recommended_reorder_qty"`
 }
 
+// BOM represents a bill of materials.
+type BOM struct {
+	ID              uuid.UUID `json:"id"`
+	OrgID           uuid.UUID `json:"org_id"`
+	ParentProductID uuid.UUID `json:"parent_product_id"`
+	BOMCode         string    `json:"bom_code"`
+}
+
+// BOMComponent represents a component within a bill of materials.
+type BOMComponent struct {
+	ID                 uuid.UUID `json:"id"`
+	BOMID              uuid.UUID `json:"bom_id"`
+	ComponentProductID uuid.UUID `json:"component_product_id"`
+	QuantityRequired   float64   `json:"quantity_required"`
+}
+
+// WorkOrder represents a manufacturing work order.
+type WorkOrder struct {
+	ID               uuid.UUID `json:"id"`
+	OrgID            uuid.UUID `json:"org_id"`
+	BOMID            uuid.UUID `json:"bom_id"`
+	Quantity         int       `json:"quantity"`
+	Status           string    `json:"status"`
+	ScheduledStart   *string   `json:"scheduled_start,omitempty"`
+	ScheduledEnd     *string   `json:"scheduled_end,omitempty"`
+	AIBottleneckRisk string    `json:"ai_bottleneck_risk"`
+	CreatedAt        time.Time `json:"created_at"`
+}
+
+// PurchaseOrder represents a procurement purchase order.
+type PurchaseOrder struct {
+	ID                   uuid.UUID `json:"id"`
+	OrgID                uuid.UUID `json:"org_id"`
+	PONumber             string    `json:"po_number"`
+	SupplierName         string    `json:"supplier_name"`
+	TotalCost            float64   `json:"total_cost"`
+	AISupplierRiskRating string    `json:"ai_supplier_risk_rating"`
+	Status               string    `json:"status"`
+	CreatedAt            time.Time `json:"created_at"`
+}
+
+// SupplierRiskReport is an AI-generated supplier risk assessment.
+type SupplierRiskReport struct {
+	SupplierName string  `json:"supplier_name"`
+	RiskRating   string  `json:"risk_rating"`
+	RiskScore    float64 `json:"risk_score"`
+	OpenPOs      int     `json:"open_pos"`
+	TotalSpend   float64 `json:"total_spend"`
+}
+
 // FleetVehicle represents a vehicle in the fleet.
 type FleetVehicle struct {
 	ID           uuid.UUID `json:"id"`
@@ -250,6 +300,80 @@ func (r *supplyChainRepository) GetProductsByOrg(ctx context.Context, orgID uuid
 	return products, rows.Err()
 }
 
+func (r *supplyChainRepository) CreateBOM(ctx context.Context, bom *BOM) error {
+	bom.ID = uuid.New()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO bill_of_materials (id, org_id, parent_product_id, bom_code)
+		VALUES ($1, $2, $3, $4)
+	`, bom.ID, bom.OrgID, bom.ParentProductID, bom.BOMCode)
+	return err
+}
+
+func (r *supplyChainRepository) CreateBOMComponent(ctx context.Context, comp *BOMComponent) error {
+	comp.ID = uuid.New()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO bom_components (id, bom_id, component_product_id, quantity_required)
+		VALUES ($1, $2, $3, $4)
+	`, comp.ID, comp.BOMID, comp.ComponentProductID, comp.QuantityRequired)
+	return err
+}
+
+func (r *supplyChainRepository) GetBOMByID(ctx context.Context, id uuid.UUID) (*BOM, error) {
+	bom := &BOM{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, parent_product_id, bom_code
+		FROM bill_of_materials WHERE id = $1
+	`, id).Scan(&bom.ID, &bom.OrgID, &bom.ParentProductID, &bom.BOMCode)
+	if err != nil {
+		return nil, err
+	}
+	return bom, nil
+}
+
+func (r *supplyChainRepository) CreateWorkOrder(ctx context.Context, wo *WorkOrder) error {
+	wo.ID = uuid.New()
+	wo.CreatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO work_orders (id, org_id, bom_id, quantity, status, scheduled_start, scheduled_end, ai_bottleneck_risk, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, wo.ID, wo.OrgID, wo.BOMID, wo.Quantity, wo.Status, wo.ScheduledStart, wo.ScheduledEnd, wo.AIBottleneckRisk, wo.CreatedAt)
+	return err
+}
+
+func (r *supplyChainRepository) CreatePurchaseOrder(ctx context.Context, po *PurchaseOrder) error {
+	po.ID = uuid.New()
+	po.CreatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO purchase_orders (id, org_id, po_number, supplier_name, total_cost, ai_supplier_risk_rating, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, po.ID, po.OrgID, po.PONumber, po.SupplierName, po.TotalCost, po.AISupplierRiskRating, po.Status, po.CreatedAt)
+	return err
+}
+
+func (r *supplyChainRepository) GetPurchaseOrdersBySupplier(ctx context.Context, orgID uuid.UUID, supplierName string) ([]PurchaseOrder, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, po_number, supplier_name, total_cost, ai_supplier_risk_rating, status, created_at
+		FROM purchase_orders WHERE org_id = $1 AND supplier_name = $2 ORDER BY created_at DESC
+	`, orgID, supplierName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var pos []PurchaseOrder
+	for rows.Next() {
+		var po PurchaseOrder
+		if err := rows.Scan(&po.ID, &po.OrgID, &po.PONumber, &po.SupplierName, &po.TotalCost, &po.AISupplierRiskRating, &po.Status, &po.CreatedAt); err != nil {
+			return nil, err
+		}
+		pos = append(pos, po)
+	}
+	if pos == nil {
+		pos = []PurchaseOrder{}
+	}
+	return pos, rows.Err()
+}
+
 // ---- Service ----
 
 // SupplyChainService handles supply chain, manufacturing, fleet, and inventory operations.
@@ -410,6 +534,135 @@ func (s *SupplyChainService) ValidateAPIKey(ctx context.Context, rawKey string) 
 	return uuid.Nil, nil, ErrAPIKeyInvalid
 }
 
+// ---- BOM & Work Orders ----
+
+// CreateBOMInput is the request payload for creating a BOM.
+type CreateBOMInput struct {
+	ParentProductID uuid.UUID                 `json:"parent_product_id"`
+	BOMCode         string                    `json:"bom_code"`
+	Components      []CreateBOMComponentInput `json:"components"`
+}
+
+// CreateBOMComponentInput is a component entry within a BOM creation request.
+type CreateBOMComponentInput struct {
+	ComponentProductID uuid.UUID `json:"component_product_id"`
+	QuantityRequired   float64   `json:"quantity_required"`
+}
+
+// CreateBOM creates a bill of materials with its components.
+func (s *SupplyChainService) CreateBOM(ctx context.Context, orgID uuid.UUID, input CreateBOMInput) (*BOM, error) {
+	bom := &BOM{
+		OrgID:           orgID,
+		ParentProductID: input.ParentProductID,
+		BOMCode:         input.BOMCode,
+	}
+	if err := s.repo.CreateBOM(ctx, bom); err != nil {
+		return nil, err
+	}
+
+	for _, c := range input.Components {
+		comp := &BOMComponent{
+			BOMID:              bom.ID,
+			ComponentProductID: c.ComponentProductID,
+			QuantityRequired:   c.QuantityRequired,
+		}
+		if err := s.repo.CreateBOMComponent(ctx, comp); err != nil {
+			return nil, err
+		}
+	}
+
+	return bom, nil
+}
+
+// CreateWorkOrderInput is the request payload for creating a work order.
+type CreateWorkOrderInput struct {
+	BOMID          uuid.UUID `json:"bom_id"`
+	Quantity       int       `json:"quantity"`
+	ScheduledStart *string   `json:"scheduled_start,omitempty"`
+	ScheduledEnd   *string   `json:"scheduled_end,omitempty"`
+}
+
+// CreateWorkOrder creates a work order with simulated AI bottleneck risk prediction.
+func (s *SupplyChainService) CreateWorkOrder(ctx context.Context, orgID uuid.UUID, input CreateWorkOrderInput) (*WorkOrder, error) {
+	if input.Quantity <= 0 {
+		input.Quantity = 1
+	}
+
+	// Simulate AI bottleneck risk prediction
+	riskRating := aiPredictBottleneckRisk(input.Quantity)
+
+	wo := &WorkOrder{
+		OrgID:            orgID,
+		BOMID:            input.BOMID,
+		Quantity:         input.Quantity,
+		Status:           "planned",
+		ScheduledStart:   input.ScheduledStart,
+		ScheduledEnd:     input.ScheduledEnd,
+		AIBottleneckRisk: riskRating,
+	}
+	if err := s.repo.CreateWorkOrder(ctx, wo); err != nil {
+		return nil, err
+	}
+
+	return wo, nil
+}
+
+// ---- Procurement ----
+
+// CreatePurchaseOrderInput is the request payload for creating a purchase order.
+type CreatePurchaseOrderInput struct {
+	PONumber     string  `json:"po_number"`
+	SupplierName string  `json:"supplier_name"`
+	TotalCost    float64 `json:"total_cost"`
+}
+
+// CreatePurchaseOrder creates a purchase order with simulated AI supplier risk rating.
+func (s *SupplyChainService) CreatePurchaseOrder(ctx context.Context, orgID uuid.UUID, input CreatePurchaseOrderInput) (*PurchaseOrder, error) {
+	riskRating := aiPredictSupplierRisk(input.SupplierName)
+
+	po := &PurchaseOrder{
+		OrgID:                orgID,
+		PONumber:             input.PONumber,
+		SupplierName:         input.SupplierName,
+		TotalCost:            input.TotalCost,
+		AISupplierRiskRating: riskRating,
+		Status:               "draft",
+	}
+	if err := s.repo.CreatePurchaseOrder(ctx, po); err != nil {
+		return nil, err
+	}
+
+	return po, nil
+}
+
+// GetSupplierRiskReport returns a simulated AI risk report for a supplier.
+func (s *SupplyChainService) GetSupplierRiskReport(ctx context.Context, orgID uuid.UUID, supplierName string) (*SupplierRiskReport, error) {
+	pos, err := s.repo.GetPurchaseOrdersBySupplier(ctx, orgID, supplierName)
+	if err != nil {
+		return nil, err
+	}
+
+	var totalSpend float64
+	openPOs := 0
+	for _, po := range pos {
+		totalSpend += po.TotalCost
+		if po.Status != "cancelled" && po.Status != "delivered" {
+			openPOs++
+		}
+	}
+
+	riskScore := aiCalculateSupplierRiskScore(supplierName, openPOs, totalSpend)
+	riskRating := aiSupplierRiskRating(riskScore)
+
+	return &SupplierRiskReport{
+		SupplierName: supplierName,
+		RiskRating:   riskRating,
+		RiskScore:    riskScore,
+		OpenPOs:      openPOs,
+		TotalSpend:   totalSpend,
+	}, nil
+}
+
 // ---- AI Simulation Helpers ----
 
 func aiOptimizeRoute(shipments []Shipment, vehicles []FleetVehicle) []Waypoint {
@@ -464,6 +717,45 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func aiPredictBottleneckRisk(quantity int) string {
+	if quantity > 100 {
+		return "High"
+	} else if quantity > 50 {
+		return "Medium"
+	}
+	return "Low"
+}
+
+func aiPredictSupplierRisk(supplierName string) string {
+	_ = supplierName
+	riskLevels := []string{"Low Risk", "Medium Risk", "High Risk"}
+	return riskLevels[rand.Intn(len(riskLevels))]
+}
+
+func aiCalculateSupplierRiskScore(supplierName string, openPOs int, totalSpend float64) float64 {
+	_ = supplierName
+	baseScore := 30.0 + rand.Float64()*40.0
+	if openPOs > 5 {
+		baseScore += 10.0
+	}
+	if totalSpend > 100000 {
+		baseScore += 10.0
+	}
+	if baseScore > 100 {
+		baseScore = 100
+	}
+	return baseScore
+}
+
+func aiSupplierRiskRating(score float64) string {
+	if score >= 70 {
+		return "High Risk"
+	} else if score >= 40 {
+		return "Medium Risk"
+	}
+	return "Low Risk"
 }
 
 // Domain errors
