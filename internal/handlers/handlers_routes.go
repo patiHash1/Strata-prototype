@@ -13,6 +13,9 @@ func (a *App) routes() http.Handler {
 	mux := http.NewServeMux()
 
 	// ── Public routes ──
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/swagger/index.html", http.StatusFound)
+	})
 	mux.HandleFunc("GET /health", a.healthHandler)
 	mux.HandleFunc("POST /api/v1/auth/register", a.registerHandler)
 	mux.HandleFunc("POST /api/v1/auth/login", a.loginHandler)
