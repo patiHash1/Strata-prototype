@@ -30,12 +30,23 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 		return nil, fmt.Errorf("create connection pool: %w", err)
 	}
 
-	if err := pool.Ping(ctx); err != nil {
-		pool.Close()
-		return nil, fmt.Errorf("ping database: %w", err)
+	const maxRetries = 5
+	const retryDelay = 2 * time.Second
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		if err := pool.Ping(ctx); err != nil {
+			if attempt == maxRetries {
+				pool.Close()
+				return nil, fmt.Errorf("ping database after %d attempts: %w", maxRetries, err)
+			}
+			time.Sleep(retryDelay)
+			continue
+		}
+		return &DB{Pool: pool}, nil
 	}
 
-	return &DB{Pool: pool}, nil
+	pool.Close()
+	return nil, fmt.Errorf("ping database: unreachable after %d attempts", maxRetries)
 }
 
 // Ping checks database connectivity.
