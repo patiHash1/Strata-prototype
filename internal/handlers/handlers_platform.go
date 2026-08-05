@@ -635,17 +635,27 @@ func (a *App) ingestReadingHandler(w http.ResponseWriter, r *http.Request) {
 		RecordedAt:  time.Now(),
 	}
 
-	if err := a.Platform.IngestDeviceReading(r.Context(), reading); err != nil {
+	claims := utils.GetClaims(r)
+	if claims == nil {
+		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+		return
+	}
+
+	orgID, err := uuid.Parse(claims.OrgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+		return
+	}
+
+	result, err := a.Platform.IngestDeviceReading(r.Context(), orgID, reading)
+	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "could not ingest device reading")
 		return
 	}
 
-	// Run anomaly detection for the response
-	anomalyDetected, anomalyDesc := services.DetectReadingAnomaly(reading)
-
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
-		"status":              "processed",
-		"anomaly_detected":    anomalyDetected,
-		"anomaly_description": anomalyDesc,
+		"status":              result.Status,
+		"anomaly_detected":    result.AnomalyDetected,
+		"anomaly_description": result.AnomalyDescription,
 	})
 }

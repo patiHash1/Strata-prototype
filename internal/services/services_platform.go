@@ -314,6 +314,31 @@ func (r *platformRepository) GetDeviceByMAC(ctx context.Context, macAddress stri
 	return d, nil
 }
 
+func (r *platformRepository) GetDeviceByID(ctx context.Context, id uuid.UUID) (*IoTDevice, error) {
+	d := &IoTDevice{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, device_name, device_type, mac_address, status, last_ping
+		FROM iot_devices WHERE id = $1
+	`, id).Scan(&d.ID, &d.OrgID, &d.DeviceName, &d.DeviceType, &d.MACAddress, &d.Status, &d.LastPing)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
+}
+
+func (r *platformRepository) InsertDeviceReading(ctx context.Context, orgID uuid.UUID, reading *IoTDeviceReading) error {
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO iot_device_readings (org_id, device_id, metric_name, metric_value, unit, recorded_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, orgID, reading.DeviceID, reading.MetricName, reading.MetricValue, reading.Unit, reading.RecordedAt)
+	return err
+}
+
+func (r *platformRepository) UpdateDeviceLastPing(ctx context.Context, deviceID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE iot_devices SET last_ping = NOW() WHERE id = $1`, deviceID)
+	return err
+}
+
 func (r *platformRepository) ListDevices(ctx context.Context, orgID uuid.UUID) ([]IoTDevice, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, org_id, device_name, device_type, mac_address, status, last_ping
@@ -724,28 +749,71 @@ func (s *PlatformService) RegisterDevice(ctx context.Context, orgID uuid.UUID, d
 	return d, nil
 }
 
-// IngestDeviceReading processes a device reading and checks for anomalies.
-func (s *PlatformService) IngestDeviceReading(ctx context.Context, reading *IoTDeviceReading) error {
+// IngestDeviceReading processes a device reading, persists it, and checks for anomalies.
+func (s *PlatformService) IngestDeviceReading(ctx context.Context, orgID uuid.UUID, reading *IoTDeviceReading) (*IngestReadingResult, error) {
 	// Validate the device exists
-	_, err := s.repo.GetDashboardByID(ctx, reading.DeviceID) // placeholder: validate device exists via repo
-	_ = err                                                  // In production, validate device existence
+	device, err := s.repo.GetDeviceByID(ctx, reading.DeviceID)
+	if err != nil {
+		return nil, fmt.Errorf("device lookup: %w", err)
+	}
+	if device == nil {
+		return nil, fmt.Errorf("device not found")
+	}
+
+	// Persist the reading
+	reading.RecordedAt = time.Now()
+	if err := s.repo.InsertDeviceReading(ctx, orgID, reading); err != nil {
+		return nil, fmt.Errorf("insert reading: %w", err)
+	}
+
+	// Update device last_ping
+	if err := s.repo.UpdateDeviceLastPing(ctx, reading.DeviceID); err != nil {
+		return nil, fmt.Errorf("update last ping: %w", err)
+	}
 
 	// Simulate anomaly detection on the reading
 	anomalyDetected, anomalyDesc := DetectReadingAnomaly(reading)
 
 	// Log AI usage for anomaly detection
 	usage := &AIUsageLog{
-		OrgID:           uuid.Nil, // Will be set from device lookup in production
+		OrgID:           orgID,
 		FeatureUsed:     "iot.anomaly.detection",
 		CreditsConsumed: 1,
 	}
 	if anomalyDetected {
 		usage.CreditsConsumed = 2
-		_ = anomalyDesc // In production, store anomaly alert
 	}
-	_ = usage
+	_ = s.repo.LogAIUsage(ctx, usage)
 
-	return nil
+	return &IngestReadingResult{
+		Status:             "processed",
+		AnomalyDetected:    anomalyDetected,
+		AnomalyDescription: anomalyDesc,
+	}, nil
+}
+
+// IngestDeviceReadingBatch processes multiple device readings in batch for high-frequency ingestion.
+func (s *PlatformService) IngestDeviceReadingBatch(ctx context.Context, orgID uuid.UUID, readings []IoTDeviceReading) (int, int, error) {
+	accepted := 0
+	rejected := 0
+
+	for i := range readings {
+		readings[i].RecordedAt = time.Now()
+		if err := s.repo.InsertDeviceReading(ctx, orgID, &readings[i]); err != nil {
+			rejected++
+			continue
+		}
+		accepted++
+	}
+
+	return accepted, rejected, nil
+}
+
+// IngestReadingResult is the response from a device reading ingestion.
+type IngestReadingResult struct {
+	Status             string `json:"status"`
+	AnomalyDetected    bool   `json:"anomaly_detected"`
+	AnomalyDescription string `json:"anomaly_description,omitempty"`
 }
 
 // ListDevices returns all IoT devices for an organization.

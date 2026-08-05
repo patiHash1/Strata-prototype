@@ -181,6 +181,40 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// Accounting - Bank Reconciliation
+	mux.Handle("POST /api/v1/accounting/bank-statements",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingBankRec)(
+				http.HandlerFunc(a.importBankStatementHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/bank-statements/{statement_id}/reconcile",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingBankRec)(
+				http.HandlerFunc(a.reconcileBankStatementHandler),
+			),
+		),
+	)
+
+	// Accounting - Multi-Currency
+	mux.Handle("POST /api/v1/accounting/exchange-rates",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingExchangeRates)(
+				http.HandlerFunc(a.createExchangeRateHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/accounting/convert",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermAccountingCurrencyConvert)(
+				http.HandlerFunc(a.convertCurrencyHandler),
+			),
+		),
+	)
+
 	// ── Fleet & Supply Chain ──
 	// Telemetry ingestion uses API key auth
 	mux.Handle("POST /api/v1/fleet/telematics/ingest",
@@ -201,6 +235,39 @@ func (a *App) routes() http.Handler {
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermInventoryRead)(
 				http.HandlerFunc(a.getReorderPredictionsHandler),
+			),
+		),
+	)
+
+	// Supply Chain - Inventory
+	mux.Handle("POST /api/v1/inventory/receive",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermInventoryReceive)(
+				http.HandlerFunc(a.receiveStockHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/inventory/issue",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermInventoryIssue)(
+				http.HandlerFunc(a.issueStockHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/inventory/transfer",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermInventoryTransfer)(
+				http.HandlerFunc(a.transferStockHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/inventory/snapshot",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermInventorySnapshot)(
+				http.HandlerFunc(a.getInventorySnapshotHandler),
 			),
 		),
 	)
@@ -244,6 +311,47 @@ func (a *App) routes() http.Handler {
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermHRAttendanceWrite)(
 				http.HandlerFunc(a.clockInHandler),
+			),
+		),
+	)
+
+	// HR - Shift Management
+	mux.Handle("POST /api/v1/hr/shifts/templates",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRAIShiftsWrite)(
+				http.HandlerFunc(a.createShiftTemplateHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/hr/shifts/assignments",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRAIShiftsWrite)(
+				http.HandlerFunc(a.assignShiftHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/hr/shifts/predictions",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRAIShiftsWrite)(
+				http.HandlerFunc(a.predictShiftNeedsHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/hr/shifts/schedule",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRAIShiftsWrite)(
+				http.HandlerFunc(a.getEmployeeScheduleHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/hr/attendance/clock-out",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRAIClockOut)(
+				http.HandlerFunc(a.clockOutHandler),
 			),
 		),
 	)
@@ -322,6 +430,23 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// HR - Payroll Tax
+	mux.Handle("GET /api/v1/hr/payroll/runs/{run_id}/detail",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRPayrollRead)(
+				http.HandlerFunc(a.getPayrollRunDetailHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/hr/payroll/tax-profiles",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermHRPayrollWrite)(
+				http.HandlerFunc(a.setEmployeeTaxProfileHandler),
+			),
+		),
+	)
+
 	// ── BI & Executive Dashboards ──
 	mux.Handle("POST /api/v1/bi/dashboards",
 		utils.RequireAuth(a.Auth)(
@@ -368,6 +493,15 @@ func (a *App) routes() http.Handler {
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermIoTReadingsIngest)(
 				http.HandlerFunc(a.ingestReadingHandler),
+			),
+		),
+	)
+
+	// Platform - IoT Batch
+	mux.Handle("POST /api/v1/iot/readings/batch",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermIoTReadingsIngest)(
+				http.HandlerFunc(a.ingestReadingBatchHandler),
 			),
 		),
 	)

@@ -63,10 +63,7 @@ func (a *App) createSubscriptionHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	periodEnd := ""
-	if sub.CurrentPeriodEnd != nil {
-		periodEnd = sub.CurrentPeriodEnd.Format("2006-01-02T15:04:05Z07:00")
-	}
+	periodEnd := sub.CurrentPeriodEnd.Format("2006-01-02T15:04:05Z07:00")
 
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
 		"subscription_id":    sub.ID.String(),

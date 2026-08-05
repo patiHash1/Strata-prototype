@@ -41,6 +41,38 @@ type StockoutPrediction struct {
 	RecommendedReorderQty int       `json:"recommended_reorder_qty"`
 }
 
+// InventoryLevel represents the current stock level of a product at a warehouse.
+type InventoryLevel struct {
+	ID                uuid.UUID `json:"id"`
+	OrgID             uuid.UUID `json:"org_id"`
+	WarehouseID       uuid.UUID `json:"warehouse_id"`
+	ProductID         uuid.UUID `json:"product_id"`
+	QuantityAvailable float64   `json:"quantity_available"`
+	QuantityReserved  float64   `json:"quantity_reserved"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+// StockMovement records a change in inventory (receipt, issue, transfer, etc.).
+type StockMovement struct {
+	ID                 uuid.UUID  `json:"id"`
+	OrgID              uuid.UUID  `json:"org_id"`
+	WarehouseID        uuid.UUID  `json:"warehouse_id"`
+	ProductID          uuid.UUID  `json:"product_id"`
+	MovementType       string     `json:"movement_type"`
+	Quantity           float64    `json:"quantity"`
+	Reference          *string    `json:"reference,omitempty"`
+	RelatedWarehouseID *uuid.UUID `json:"related_warehouse_id,omitempty"`
+	CreatedAt          time.Time  `json:"created_at"`
+}
+
+// StockMovementInput is the payload for recording a stock movement.
+type StockMovementInput struct {
+	MovementType       string     `json:"movement_type"`
+	Quantity           float64    `json:"quantity"`
+	Reference          *string    `json:"reference,omitempty"`
+	RelatedWarehouseID *uuid.UUID `json:"related_warehouse_id,omitempty"`
+}
+
 // BOM represents a bill of materials.
 type BOM struct {
 	ID              uuid.UUID `json:"id"`
@@ -300,6 +332,69 @@ func (r *supplyChainRepository) GetProductsByOrg(ctx context.Context, orgID uuid
 	return products, rows.Err()
 }
 
+func (r *supplyChainRepository) GetInventoryLevel(ctx context.Context, warehouseID, productID uuid.UUID) (*InventoryLevel, error) {
+	level := &InventoryLevel{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, warehouse_id, product_id, quantity_available, quantity_reserved, updated_at
+		FROM inventory_levels WHERE warehouse_id = $1 AND product_id = $2
+	`, warehouseID, productID).Scan(&level.ID, &level.OrgID, &level.WarehouseID, &level.ProductID,
+		&level.QuantityAvailable, &level.QuantityReserved, &level.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return level, nil
+}
+
+func (r *supplyChainRepository) UpsertInventoryLevel(ctx context.Context, level *InventoryLevel) error {
+	level.UpdatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO inventory_levels (id, org_id, warehouse_id, product_id, quantity_available, quantity_reserved, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		ON CONFLICT (warehouse_id, product_id) DO UPDATE SET
+			quantity_available = EXCLUDED.quantity_available,
+			quantity_reserved  = EXCLUDED.quantity_reserved,
+			updated_at         = EXCLUDED.updated_at
+	`, level.ID, level.OrgID, level.WarehouseID, level.ProductID,
+		level.QuantityAvailable, level.QuantityReserved, level.UpdatedAt)
+	return err
+}
+
+func (r *supplyChainRepository) GetInventoryLevelsByWarehouse(ctx context.Context, orgID, warehouseID uuid.UUID) ([]InventoryLevel, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, warehouse_id, product_id, quantity_available, quantity_reserved, updated_at
+		FROM inventory_levels WHERE org_id = $1 AND warehouse_id = $2 ORDER BY product_id
+	`, orgID, warehouseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var levels []InventoryLevel
+	for rows.Next() {
+		var l InventoryLevel
+		if err := rows.Scan(&l.ID, &l.OrgID, &l.WarehouseID, &l.ProductID,
+			&l.QuantityAvailable, &l.QuantityReserved, &l.UpdatedAt); err != nil {
+			return nil, err
+		}
+		levels = append(levels, l)
+	}
+	if levels == nil {
+		levels = []InventoryLevel{}
+	}
+	return levels, rows.Err()
+}
+
+func (r *supplyChainRepository) CreateStockMovement(ctx context.Context, movement *StockMovement) error {
+	movement.ID = uuid.New()
+	movement.CreatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO stock_movements (id, org_id, warehouse_id, product_id, movement_type, quantity, reference, related_warehouse_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, movement.ID, movement.OrgID, movement.WarehouseID, movement.ProductID,
+		movement.MovementType, movement.Quantity, movement.Reference, movement.RelatedWarehouseID, movement.CreatedAt)
+	return err
+}
+
 func (r *supplyChainRepository) CreateBOM(ctx context.Context, bom *BOM) error {
 	bom.ID = uuid.New()
 	_, err := r.pool.Exec(ctx, `
@@ -486,8 +581,33 @@ func (s *SupplyChainService) GetReorderPredictions(ctx context.Context, orgID uu
 		return nil, err
 	}
 
+	// Build a map of productID -> total quantity available from inventory_levels.
+	stockMap := make(map[uuid.UUID]float64)
+	if warehouseID != nil {
+		levels, err := s.repo.GetInventoryLevelsByWarehouse(ctx, orgID, *warehouseID)
+		if err != nil {
+			return nil, err
+		}
+		for _, l := range levels {
+			stockMap[l.ProductID] = l.QuantityAvailable
+		}
+	} else {
+		// Sum across all warehouses by querying each product individually.
+		// We iterate products and query inventory per product across all warehouses.
+		for _, p := range products {
+			var total float64
+			err := s.repo.pool.QueryRow(ctx, `
+				SELECT COALESCE(SUM(quantity_available), 0)
+				FROM inventory_levels WHERE org_id = $1 AND product_id = $2
+			`, orgID, p.ID).Scan(&total)
+			if err != nil {
+				return nil, err
+			}
+			stockMap[p.ID] = total
+		}
+	}
+
 	var predictions []StockoutPrediction
-	_ = warehouseID // reserved for warehouse-level filtering in the future
 
 	for _, p := range products {
 		reorderPoint := 15
@@ -495,7 +615,7 @@ func (s *SupplyChainService) GetReorderPredictions(ctx context.Context, orgID uu
 			reorderPoint = *p.AIReorderPoint
 		}
 
-		currentStock := reorderPoint/2 + rand.Intn(reorderPoint)
+		currentStock := int(stockMap[p.ID])
 		stockoutDays := aiPredictStockout(currentStock, reorderPoint)
 		recommendedQty := aiRecommendReorderQty(currentStock, reorderPoint)
 
@@ -758,6 +878,176 @@ func aiSupplierRiskRating(score float64) string {
 	return "Low Risk"
 }
 
+// ---- Inventory Management ----
+
+// ReceiveStock adds stock to a warehouse and records a receipt movement.
+func (s *SupplyChainService) ReceiveStock(ctx context.Context, orgID, warehouseID, productID uuid.UUID, quantity float64, reference string) (*InventoryLevel, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("quantity must be positive")
+	}
+
+	level, err := s.repo.GetInventoryLevel(ctx, warehouseID, productID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			level = &InventoryLevel{
+				ID:                uuid.New(),
+				OrgID:             orgID,
+				WarehouseID:       warehouseID,
+				ProductID:         productID,
+				QuantityAvailable: 0,
+				QuantityReserved:  0,
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	level.QuantityAvailable += quantity
+	if err := s.repo.UpsertInventoryLevel(ctx, level); err != nil {
+		return nil, err
+	}
+
+	var ref *string
+	if reference != "" {
+		ref = &reference
+	}
+	movement := &StockMovement{
+		OrgID:        orgID,
+		WarehouseID:  warehouseID,
+		ProductID:    productID,
+		MovementType: "receipt",
+		Quantity:     quantity,
+		Reference:    ref,
+	}
+	if err := s.repo.CreateStockMovement(ctx, movement); err != nil {
+		return nil, err
+	}
+
+	return level, nil
+}
+
+// IssueStock removes stock from a warehouse and records an issue movement.
+func (s *SupplyChainService) IssueStock(ctx context.Context, orgID, warehouseID, productID uuid.UUID, quantity float64, reference string) (*InventoryLevel, error) {
+	if quantity <= 0 {
+		return nil, fmt.Errorf("quantity must be positive")
+	}
+
+	level, err := s.repo.GetInventoryLevel(ctx, warehouseID, productID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, ErrInsufficientStock
+		}
+		return nil, err
+	}
+
+	if level.QuantityAvailable < quantity {
+		return nil, ErrInsufficientStock
+	}
+
+	level.QuantityAvailable -= quantity
+	if err := s.repo.UpsertInventoryLevel(ctx, level); err != nil {
+		return nil, err
+	}
+
+	var ref *string
+	if reference != "" {
+		ref = &reference
+	}
+	movement := &StockMovement{
+		OrgID:        orgID,
+		WarehouseID:  warehouseID,
+		ProductID:    productID,
+		MovementType: "issue",
+		Quantity:     quantity,
+		Reference:    ref,
+	}
+	if err := s.repo.CreateStockMovement(ctx, movement); err != nil {
+		return nil, err
+	}
+
+	return level, nil
+}
+
+// TransferStock moves stock between two warehouses and records transfer movements.
+func (s *SupplyChainService) TransferStock(ctx context.Context, orgID, fromWarehouseID, toWarehouseID, productID uuid.UUID, quantity float64) (*InventoryLevel, *InventoryLevel, error) {
+	if quantity <= 0 {
+		return nil, nil, fmt.Errorf("quantity must be positive")
+	}
+	if fromWarehouseID == toWarehouseID {
+		return nil, nil, fmt.Errorf("source and destination warehouses must differ")
+	}
+
+	// Deduct from source.
+	fromLevel, err := s.repo.GetInventoryLevel(ctx, fromWarehouseID, productID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil, ErrInsufficientStock
+		}
+		return nil, nil, err
+	}
+	if fromLevel.QuantityAvailable < quantity {
+		return nil, nil, ErrInsufficientStock
+	}
+	fromLevel.QuantityAvailable -= quantity
+	if err := s.repo.UpsertInventoryLevel(ctx, fromLevel); err != nil {
+		return nil, nil, err
+	}
+
+	// Record issue movement at source.
+	issueMovement := &StockMovement{
+		OrgID:              orgID,
+		WarehouseID:        fromWarehouseID,
+		ProductID:          productID,
+		MovementType:       "transfer_out",
+		Quantity:           quantity,
+		RelatedWarehouseID: &toWarehouseID,
+	}
+	if err := s.repo.CreateStockMovement(ctx, issueMovement); err != nil {
+		return nil, nil, err
+	}
+
+	// Add to destination.
+	toLevel, err := s.repo.GetInventoryLevel(ctx, toWarehouseID, productID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			toLevel = &InventoryLevel{
+				ID:                uuid.New(),
+				OrgID:             orgID,
+				WarehouseID:       toWarehouseID,
+				ProductID:         productID,
+				QuantityAvailable: 0,
+				QuantityReserved:  0,
+			}
+		} else {
+			return nil, nil, err
+		}
+	}
+	toLevel.QuantityAvailable += quantity
+	if err := s.repo.UpsertInventoryLevel(ctx, toLevel); err != nil {
+		return nil, nil, err
+	}
+
+	// Record receipt movement at destination.
+	receiptMovement := &StockMovement{
+		OrgID:              orgID,
+		WarehouseID:        toWarehouseID,
+		ProductID:          productID,
+		MovementType:       "transfer_in",
+		Quantity:           quantity,
+		RelatedWarehouseID: &fromWarehouseID,
+	}
+	if err := s.repo.CreateStockMovement(ctx, receiptMovement); err != nil {
+		return nil, nil, err
+	}
+
+	return fromLevel, toLevel, nil
+}
+
+// GetInventorySnapshot returns all inventory levels for a given warehouse.
+func (s *SupplyChainService) GetInventorySnapshot(ctx context.Context, orgID, warehouseID uuid.UUID) ([]InventoryLevel, error) {
+	return s.repo.GetInventoryLevelsByWarehouse(ctx, orgID, warehouseID)
+}
+
 // Domain errors
 var (
 	ErrVehicleNotFound     = fmt.Errorf("vehicle not found")
@@ -766,4 +1056,5 @@ var (
 	ErrShipmentsNotFound   = fmt.Errorf("shipments not found")
 	ErrVehiclesNotFound    = fmt.Errorf("vehicles not found")
 	ErrAPIKeyInvalid       = fmt.Errorf("invalid or expired API key")
+	ErrInsufficientStock   = fmt.Errorf("insufficient stock available")
 )

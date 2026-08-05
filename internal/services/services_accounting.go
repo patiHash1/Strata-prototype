@@ -543,3 +543,371 @@ var (
 	ErrAccountNotInOrg = errors.New("account does not belong to this organization")
 	ErrAssetNotFound   = errors.New("fixed asset not found")
 )
+
+// ── Module 2.1: Bank Reconciliation ──
+
+// BankStatement represents an imported bank statement.
+type BankStatement struct {
+	ID             uuid.UUID `json:"id"`
+	OrgID          uuid.UUID `json:"org_id"`
+	BankName       string    `json:"bank_name"`
+	AccountNumber  string    `json:"account_number"`
+	StatementDate  string    `json:"statement_date"`
+	OpeningBalance float64   `json:"opening_balance"`
+	ClosingBalance float64   `json:"closing_balance"`
+	Status         string    `json:"status"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// BankTransaction is a single line from a bank statement.
+type BankTransaction struct {
+	ID              uuid.UUID `json:"id"`
+	OrgID           uuid.UUID `json:"org_id"`
+	StatementID     uuid.UUID `json:"statement_id"`
+	TransactionDate string    `json:"transaction_date"`
+	Description     string    `json:"description"`
+	Reference       *string   `json:"reference,omitempty"`
+	Debit           float64   `json:"debit"`
+	Credit          float64   `json:"credit"`
+	Amount          float64   `json:"amount"`
+	IsMatched       bool      `json:"is_matched"`
+	CreatedAt       time.Time `json:"created_at"`
+}
+
+// ReconciliationMatch links a bank transaction to a journal entry.
+type ReconciliationMatch struct {
+	ID                uuid.UUID `json:"id"`
+	OrgID             uuid.UUID `json:"org_id"`
+	BankTransactionID uuid.UUID `json:"bank_transaction_id"`
+	JournalEntryID    uuid.UUID `json:"journal_entry_id"`
+	MatchType         string    `json:"match_type"`
+	MatchDate         time.Time `json:"match_date"`
+}
+
+// BankStatementInput is the payload for importing a bank statement.
+type BankStatementInput struct {
+	BankName       string                 `json:"bank_name"`
+	AccountNumber  string                 `json:"account_number"`
+	StatementDate  string                 `json:"statement_date"`
+	OpeningBalance float64                `json:"opening_balance"`
+	ClosingBalance float64                `json:"closing_balance"`
+	Transactions   []BankTransactionInput `json:"transactions"`
+}
+
+// BankTransactionInput is a single transaction in a bank statement import.
+type BankTransactionInput struct {
+	TransactionDate string  `json:"transaction_date"`
+	Description     string  `json:"description"`
+	Reference       *string `json:"reference,omitempty"`
+	Debit           float64 `json:"debit"`
+	Credit          float64 `json:"credit"`
+	Amount          float64 `json:"amount"`
+}
+
+// ReconciliationReport is the output of a reconciliation run.
+type ReconciliationReport struct {
+	StatementID       uuid.UUID             `json:"statement_id"`
+	TotalMatched      int                   `json:"total_matched"`
+	TotalUnmatched    int                   `json:"total_unmatched"`
+	OutstandingDebit  float64               `json:"outstanding_debit"`
+	OutstandingCredit float64               `json:"outstanding_credit"`
+	ReconciledBalance float64               `json:"reconciled_balance"`
+	Matches           []ReconciliationMatch `json:"matches"`
+}
+
+func (r *accountingRepository) CreateBankStatement(ctx context.Context, stmt *BankStatement) error {
+	stmt.ID = uuid.New()
+	stmt.CreatedAt = time.Now()
+	if stmt.Status == "" {
+		stmt.Status = "imported"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO bank_statements (id, org_id, bank_name, account_number, statement_date, opening_balance, closing_balance, status, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, stmt.ID, stmt.OrgID, stmt.BankName, stmt.AccountNumber, stmt.StatementDate, stmt.OpeningBalance, stmt.ClosingBalance, stmt.Status, stmt.CreatedAt)
+	return err
+}
+
+func (r *accountingRepository) CreateBankTransaction(ctx context.Context, txn *BankTransaction) error {
+	txn.ID = uuid.New()
+	txn.CreatedAt = time.Now()
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO bank_transactions (id, org_id, statement_id, transaction_date, description, reference, debit, credit, amount, is_matched, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+	`, txn.ID, txn.OrgID, txn.StatementID, txn.TransactionDate, txn.Description, txn.Reference, txn.Debit, txn.Credit, txn.Amount, txn.IsMatched, txn.CreatedAt)
+	return err
+}
+
+func (r *accountingRepository) GetUnmatchedBankTransactions(ctx context.Context, orgID, statementID uuid.UUID) ([]BankTransaction, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, statement_id, transaction_date, description, reference, debit, credit, amount, is_matched, created_at
+		FROM bank_transactions WHERE org_id = $1 AND statement_id = $2 AND is_matched = FALSE
+	`, orgID, statementID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return scanBankTransactions(rows)
+}
+
+func (r *accountingRepository) GetJournalEntriesByAmountRange(ctx context.Context, orgID uuid.UUID, minAmount, maxAmount float64) ([]JournalEntry, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT DISTINCT je.id, je.org_id, je.entry_number, je.entry_date, je.memo, je.created_at
+		FROM journal_entries je
+		JOIN journal_items ji ON ji.journal_entry_id = je.id
+		WHERE je.org_id = $1 AND (ji.debit BETWEEN $2 AND $3 OR ji.credit BETWEEN $2 AND $3)
+	`, orgID, minAmount, maxAmount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var entries []JournalEntry
+	for rows.Next() {
+		var e JournalEntry
+		if err := rows.Scan(&e.ID, &e.OrgID, &e.EntryNumber, &e.EntryDate, &e.Memo, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	if entries == nil {
+		entries = []JournalEntry{}
+	}
+	return entries, rows.Err()
+}
+
+func scanBankTransactions(rows pgx.Rows) ([]BankTransaction, error) {
+	var txns []BankTransaction
+	for rows.Next() {
+		var t BankTransaction
+		if err := rows.Scan(&t.ID, &t.OrgID, &t.StatementID, &t.TransactionDate, &t.Description, &t.Reference, &t.Debit, &t.Credit, &t.Amount, &t.IsMatched, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		txns = append(txns, t)
+	}
+	if txns == nil {
+		txns = []BankTransaction{}
+	}
+	return txns, rows.Err()
+}
+
+func (r *accountingRepository) CreateReconciliationMatch(ctx context.Context, match *ReconciliationMatch) error {
+	match.ID = uuid.New()
+	match.MatchDate = time.Now()
+	if match.MatchType == "" {
+		match.MatchType = "auto"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO reconciliation_matches (id, org_id, bank_transaction_id, journal_entry_id, match_type, match_date)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (bank_transaction_id, journal_entry_id) DO NOTHING
+	`, match.ID, match.OrgID, match.BankTransactionID, match.JournalEntryID, match.MatchType, match.MatchDate)
+	return err
+}
+
+func (r *accountingRepository) MarkBankTransactionMatched(ctx context.Context, txnID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE bank_transactions SET is_matched = TRUE WHERE id = $1`, txnID)
+	return err
+}
+
+func (r *accountingRepository) GetReconciliationMatchesByStatement(ctx context.Context, orgID, statementID uuid.UUID) ([]ReconciliationMatch, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, org_id, bank_transaction_id, journal_entry_id, match_type, match_date
+		FROM reconciliation_matches WHERE org_id = $1 AND bank_transaction_id IN (
+			SELECT id FROM bank_transactions WHERE statement_id = $2
+		)
+	`, orgID, statementID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var matches []ReconciliationMatch
+	for rows.Next() {
+		var m ReconciliationMatch
+		if err := rows.Scan(&m.ID, &m.OrgID, &m.BankTransactionID, &m.JournalEntryID, &m.MatchType, &m.MatchDate); err != nil {
+			return nil, err
+		}
+		matches = append(matches, m)
+	}
+	if matches == nil {
+		matches = []ReconciliationMatch{}
+	}
+	return matches, rows.Err()
+}
+
+// ImportBankStatement imports a bank statement with its transaction lines.
+func (s *AccountingService) ImportBankStatement(ctx context.Context, orgID uuid.UUID, input BankStatementInput) (*BankStatement, error) {
+	stmt := &BankStatement{
+		OrgID:          orgID,
+		BankName:       input.BankName,
+		AccountNumber:  input.AccountNumber,
+		StatementDate:  input.StatementDate,
+		OpeningBalance: input.OpeningBalance,
+		ClosingBalance: input.ClosingBalance,
+	}
+	if err := s.repo.CreateBankStatement(ctx, stmt); err != nil {
+		return nil, err
+	}
+
+	for _, t := range input.Transactions {
+		txn := &BankTransaction{
+			OrgID:           orgID,
+			StatementID:     stmt.ID,
+			TransactionDate: t.TransactionDate,
+			Description:     t.Description,
+			Reference:       t.Reference,
+			Debit:           t.Debit,
+			Credit:          t.Credit,
+			Amount:          t.Amount,
+		}
+		if err := s.repo.CreateBankTransaction(ctx, txn); err != nil {
+			return nil, err
+		}
+	}
+
+	return stmt, nil
+}
+
+// ReconcileBankStatement auto-matches bank transactions to journal entries by amount proximity.
+func (s *AccountingService) ReconcileBankStatement(ctx context.Context, orgID, statementID uuid.UUID) (*ReconciliationReport, error) {
+	txns, err := s.repo.GetUnmatchedBankTransactions(ctx, orgID, statementID)
+	if err != nil {
+		return nil, err
+	}
+
+	matchedCount := 0
+	var matches []ReconciliationMatch
+	var outstandingDebit, outstandingCredit float64
+
+	for _, txn := range txns {
+		tolerance := txn.Amount * 0.01
+		entries, err := s.repo.GetJournalEntriesByAmountRange(ctx, orgID, txn.Amount-tolerance, txn.Amount+tolerance)
+		if err != nil {
+			continue
+		}
+		if len(entries) > 0 {
+			match := &ReconciliationMatch{
+				OrgID:             orgID,
+				BankTransactionID: txn.ID,
+				JournalEntryID:    entries[0].ID,
+				MatchType:         "auto",
+			}
+			if err := s.repo.CreateReconciliationMatch(ctx, match); err != nil {
+				continue
+			}
+			if err := s.repo.MarkBankTransactionMatched(ctx, txn.ID); err != nil {
+				continue
+			}
+			matches = append(matches, *match)
+			matchedCount++
+		} else {
+			outstandingDebit += txn.Debit
+			outstandingCredit += txn.Credit
+		}
+	}
+
+	allMatches, _ := s.repo.GetReconciliationMatchesByStatement(ctx, orgID, statementID)
+
+	return &ReconciliationReport{
+		StatementID:       statementID,
+		TotalMatched:      matchedCount,
+		TotalUnmatched:    len(txns) - matchedCount,
+		OutstandingDebit:  outstandingDebit,
+		OutstandingCredit: outstandingCredit,
+		ReconciledBalance: outstandingCredit - outstandingDebit,
+		Matches:           allMatches,
+	}, nil
+}
+
+// ── Module 2.5: Multi-Currency Exchange Rates ──
+
+// Currency represents a currency definition.
+type Currency struct {
+	Code          string `json:"code"`
+	Name          string `json:"name"`
+	Symbol        string `json:"symbol"`
+	DecimalPlaces int    `json:"decimal_places"`
+	IsActive      bool   `json:"is_active"`
+}
+
+// ExchangeRate represents a conversion rate between two currencies.
+type ExchangeRate struct {
+	ID            uuid.UUID `json:"id"`
+	OrgID         uuid.UUID `json:"org_id"`
+	FromCurrency  string    `json:"from_currency"`
+	ToCurrency    string    `json:"to_currency"`
+	Rate          float64   `json:"rate"`
+	EffectiveDate string    `json:"effective_date"`
+	Source        string    `json:"source"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+func (r *accountingRepository) GetCurrencyByCode(ctx context.Context, code string) (*Currency, error) {
+	c := &Currency{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT code, name, symbol, decimal_places, is_active FROM currencies WHERE code = $1
+	`, code).Scan(&c.Code, &c.Name, &c.Symbol, &c.DecimalPlaces, &c.IsActive)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return c, err
+}
+
+func (r *accountingRepository) CreateExchangeRate(ctx context.Context, rate *ExchangeRate) error {
+	rate.ID = uuid.New()
+	rate.CreatedAt = time.Now()
+	if rate.Source == "" {
+		rate.Source = "manual"
+	}
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO exchange_rates (id, org_id, from_currency, to_currency, rate, effective_date, source, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		ON CONFLICT (org_id, from_currency, to_currency, effective_date) DO UPDATE SET rate = $5, source = $7
+	`, rate.ID, rate.OrgID, rate.FromCurrency, rate.ToCurrency, rate.Rate, rate.EffectiveDate, rate.Source, rate.CreatedAt)
+	return err
+}
+
+func (r *accountingRepository) GetExchangeRate(ctx context.Context, orgID uuid.UUID, fromCurrency, toCurrency string) (*ExchangeRate, error) {
+	rate := &ExchangeRate{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, org_id, from_currency, to_currency, rate, effective_date, source, created_at
+		FROM exchange_rates
+		WHERE org_id = $1 AND from_currency = $2 AND to_currency = $3
+		ORDER BY effective_date DESC LIMIT 1
+	`, orgID, fromCurrency, toCurrency).Scan(&rate.ID, &rate.OrgID, &rate.FromCurrency, &rate.ToCurrency, &rate.Rate, &rate.EffectiveDate, &rate.Source, &rate.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return rate, err
+}
+
+// SetExchangeRate creates or updates an exchange rate between two currencies.
+func (s *AccountingService) SetExchangeRate(ctx context.Context, orgID uuid.UUID, fromCurrency, toCurrency string, rate float64, effectiveDate string) (*ExchangeRate, error) {
+	er := &ExchangeRate{
+		OrgID:         orgID,
+		FromCurrency:  fromCurrency,
+		ToCurrency:    toCurrency,
+		Rate:          rate,
+		EffectiveDate: effectiveDate,
+	}
+	if err := s.repo.CreateExchangeRate(ctx, er); err != nil {
+		return nil, err
+	}
+	return er, nil
+}
+
+// ConvertAmount converts a monetary amount between currencies using the effective rate.
+func (s *AccountingService) ConvertAmount(ctx context.Context, orgID uuid.UUID, amount float64, fromCurrency, toCurrency string) (float64, error) {
+	if fromCurrency == toCurrency {
+		return amount, nil
+	}
+	rate, err := s.repo.GetExchangeRate(ctx, orgID, fromCurrency, toCurrency)
+	if err != nil {
+		return 0, err
+	}
+	if rate == nil {
+		return 0, fmt.Errorf("no exchange rate found for %s -> %s", fromCurrency, toCurrency)
+	}
+	return amount * rate.Rate, nil
+}
