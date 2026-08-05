@@ -28,7 +28,7 @@ go.work.sum
 .env
 
 # Swagger generated docs
-docs/
+# docs/
 
 # Local data (compose volume mount target)
 pgdata/
