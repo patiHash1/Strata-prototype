@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/patiHash1/Strata-prototype/main/.github/strata-logo.svg" alt="Strata Logo" width="120" onerror="this.style.display='none'">
+<img src="https://avatars.githubusercontent.com/u/233108473?s=200&v=4" alt="Strata Logo" width="120" onerror="this.style.display='none'">
 
 # ⛰️ Strata
 
