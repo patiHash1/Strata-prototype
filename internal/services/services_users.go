@@ -3,6 +3,8 @@ package services
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -210,6 +212,63 @@ func (s *UserService) GetMemberByID(ctx context.Context, memberID uuid.UUID) (*O
 
 func (s *UserService) ListMembersByUser(ctx context.Context, userID uuid.UUID) ([]OrganizationMember, error) {
 	return s.repo.ListMembersByUser(ctx, userID)
+}
+
+// UpdateProfile allows a user to modify their own profile fields.
+func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, fullName, email, phone *string) error {
+	// Validate email uniqueness if changing.
+	if email != nil {
+		existing, err := s.repo.GetByEmail(ctx, *email)
+		if err != nil {
+			return err
+		}
+		if existing != nil && existing.ID != id {
+			return ErrEmailAlreadyExists
+		}
+	}
+
+	return s.repo.Update(ctx, id, fullName, email, phone)
+}
+
+// DeleteAccount removes the user record for the given ID.
+func (s *UserService) DeleteAccount(ctx context.Context, id uuid.UUID) error {
+	return s.repo.Delete(ctx, id)
+}
+
+func (r *userRepository) Update(ctx context.Context, id uuid.UUID, fullName *string, email *string, phone *string) error {
+	var setClauses []string
+	var args []any
+	argIdx := 1
+
+	if fullName != nil {
+		setClauses = append(setClauses, fmt.Sprintf("full_name = $%d", argIdx))
+		args = append(args, *fullName)
+		argIdx++
+	}
+	if email != nil {
+		setClauses = append(setClauses, fmt.Sprintf("email = $%d", argIdx))
+		args = append(args, *email)
+		argIdx++
+	}
+	if phone != nil {
+		setClauses = append(setClauses, fmt.Sprintf("phone_number = $%d", argIdx))
+		args = append(args, *phone)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil
+	}
+
+	args = append(args, id)
+	query := fmt.Sprintf("UPDATE users SET %s WHERE id = $%d", strings.Join(setClauses, ", "), argIdx)
+	_, err := r.pool.Exec(ctx, query, args...)
+	return err
+}
+
+func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
+	return err
 }
 
 // Domain errors

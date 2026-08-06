@@ -15,6 +15,7 @@ The project is in early prototype stage. The API is under active development and
 
 ### Core Platform
 - [API Authentication](api/authentication.md)
+- [Account Management](api/account.md)
 - [Organization Management](api/organizations.md)
 - [Member Management](api/members.md)
 - [Billing](api/billing.md)

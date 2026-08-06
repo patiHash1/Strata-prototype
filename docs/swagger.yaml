@@ -1,6 +1,864 @@
 basePath: /
 definitions:
-  github_com_patiHash1_Strata-prototype_internal_services.BankTransactionInput:
+  handlers.AccountOrgResponse:
+    properties:
+      is_active:
+        example: true
+        type: boolean
+      joined_at:
+        example: "2025-01-15T10:30:00Z"
+        type: string
+      org_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      role_id:
+        example: 660e8400-e29b-41d4-a716-446655440001
+        type: string
+    type: object
+  handlers.AccountProfileResponse:
+    properties:
+      created_at:
+        example: "2025-01-15T10:30:00Z"
+        type: string
+      email:
+        example: alice@example.com
+        type: string
+      full_name:
+        example: Alice Johnson
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      mfa_enabled:
+        example: false
+        type: boolean
+      phone_number:
+        example: +1-555-0100
+        type: string
+    type: object
+  handlers.AnalyzeRiskResponse:
+    properties:
+      ai_risk_score:
+        example: 35.5
+        type: number
+      flagged_clauses:
+        items:
+          $ref: '#/definitions/services.FlaggedClause'
+        type: array
+    type: object
+  handlers.AuditAnomaliesResponse:
+    properties:
+      anomalies:
+        items:
+          $ref: '#/definitions/handlers.SecurityAnomalyItem'
+        type: array
+    type: object
+  handlers.ClockInResponse:
+    properties:
+      attendance_log_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      clock_in:
+        example: "2025-01-15T09:00:00Z"
+        type: string
+      is_within_geofence:
+        example: true
+        type: boolean
+    type: object
+  handlers.CopilotQueryResponse:
+    properties:
+      chart_recommendation:
+        example: bar_chart
+        type: string
+      data_table:
+        items:
+          $ref: '#/definitions/handlers.DataTableRow'
+        type: array
+      generated_sql:
+        example: SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue FROM
+          crm_deals d JOIN users u ON d.assigned_to = u.id WHERE d.stage = 'closed_won'
+          AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30' GROUP BY u.full_name
+          ORDER BY total_revenue DESC LIMIT 5
+        type: string
+    type: object
+  handlers.CreateCampaignResponse:
+    properties:
+      ai_target_segment_criteria:
+        example: '{"criteria": "contacts with open rate > 30%"}'
+        type: string
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.CreateExpenseResponse:
+    properties:
+      ai_audit_notes:
+        example: No policy violations detected.
+        type: string
+      ai_fraud_flag:
+        example: false
+        type: boolean
+      expense_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.CreateJournalEntryResponse:
+    properties:
+      entry_number:
+        example: JE-20260102-0042
+        type: string
+      journal_entry_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.CreateLeadResponse:
+    properties:
+      ai_win_probability:
+        example: 65
+        type: integer
+      assigned_to:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+      contact_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.CreateTicketResponse:
+    properties:
+      ai_sentiment_score:
+        example: -0.45
+        type: number
+      ai_suggested_response:
+        example: Thank you for reaching out...
+        type: string
+      priority:
+        example: high
+        type: string
+      ticket_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.DashboardDataResponse:
+    properties:
+      dashboard_id:
+        type: string
+      widgets:
+        items:
+          $ref: '#/definitions/handlers.WidgetDataItem'
+        type: array
+    type: object
+  handlers.DashboardResponse:
+    properties:
+      config:
+        items:
+          type: integer
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      org_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  handlers.DataTableRow:
+    additionalProperties: {}
+    type: object
+  handlers.HealthResponse:
+    properties:
+      database:
+        example: connected
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  handlers.IngestReadingBatchResponse:
+    properties:
+      accepted:
+        type: integer
+      rejected:
+        type: integer
+    type: object
+  handlers.IngestReadingResponse:
+    properties:
+      anomaly_description:
+        type: string
+      anomaly_detected:
+        type: boolean
+      status:
+        example: processed
+        type: string
+    type: object
+  handlers.IoTDeviceResponse:
+    properties:
+      device_name:
+        type: string
+      device_type:
+        type: string
+      id:
+        type: string
+      last_ping:
+        type: string
+      mac_address:
+        type: string
+      org_id:
+        type: string
+      status:
+        type: string
+    type: object
+  handlers.KnowledgeSearchResponse:
+    properties:
+      ai_answer:
+        example: Based on our knowledge base, parental leave in Australia...
+        type: string
+      source_documents:
+        items:
+          $ref: '#/definitions/services.SourceDocument'
+        type: array
+    type: object
+  handlers.ListDashboardsResponse:
+    properties:
+      dashboards:
+        items:
+          $ref: '#/definitions/handlers.DashboardResponse'
+        type: array
+    type: object
+  handlers.ListIoTDevicesResponse:
+    properties:
+      devices:
+        items:
+          $ref: '#/definitions/handlers.IoTDeviceResponse'
+        type: array
+    type: object
+  handlers.LoginResponse:
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIs...
+        type: string
+      refresh_token:
+        type: string
+      user_profile: {}
+    type: object
+  handlers.OCRResponse:
+    properties:
+      invoice_number:
+        example: INV-4521
+        type: string
+      line_items:
+        items:
+          $ref: '#/definitions/services.OCRLineItem'
+        type: array
+      tax_amount:
+        example: 45.6
+        type: number
+      total_amount:
+        example: 570
+        type: number
+      vendor_name:
+        example: Acme Supplies Inc.
+        type: string
+    type: object
+  handlers.ParseResumeResponse:
+    properties:
+      ai_match_score:
+        example: 85
+        type: integer
+      candidate_name:
+        example: Jane Smith
+        type: string
+      email:
+        example: jane.smith@email.com
+        type: string
+      extracted_skills:
+        example:
+        - Python
+        - Go
+        - Docker
+        - Kubernetes
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.RegisterResponse:
+    properties:
+      access_token:
+        example: eyJhbGciOiJIUzI1NiIs...
+        type: string
+      org_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440001
+        type: string
+    type: object
+  handlers.ReorderPredictionsResponse:
+    properties:
+      predictions:
+        items:
+          $ref: '#/definitions/services.StockoutPrediction'
+        type: array
+    type: object
+  handlers.RouteOptimizeResponse:
+    properties:
+      carbon_offset_kg:
+        example: 12.45
+        type: number
+      optimized_waypoints:
+        items:
+          $ref: '#/definitions/services.Waypoint'
+        type: array
+      predicted_eta:
+        example: "2025-01-15T16:45:00Z"
+        type: string
+      route_plan_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.ScheduleFieldVisitResponse:
+    properties:
+      estimated_travel_time_minutes:
+        example: 25
+        type: integer
+      visit_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.SecurityAnomalyItem:
+    properties:
+      action:
+        example: user.login
+        type: string
+      ai_risk_score:
+        example: 0.87
+        type: number
+      anomaly_type:
+        example: suspicious_login
+        type: string
+      ip_address:
+        example: 192.168.1.100
+        type: string
+      log_id:
+        example: 10042
+        type: integer
+      user_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.TelemetryIngestResponse:
+    properties:
+      ai_predictive_alert_triggered:
+        example: false
+        type: boolean
+      processed_at:
+        example: "2025-01-15T14:30:00Z"
+        type: string
+      status:
+        example: queued
+        type: string
+    type: object
+  handlers.TriggerWorkflowResponse:
+    properties:
+      status:
+        example: success
+        type: string
+      steps_executed:
+        example: 4
+        type: integer
+      workflow_execution_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  handlers.WidgetDataItem:
+    properties:
+      anomaly_description:
+        type: string
+      anomaly_detected:
+        type: boolean
+      data:
+        items:
+          items: {}
+          type: array
+        type: array
+      title:
+        type: string
+      widget_type:
+        type: string
+    type: object
+  handlers.analyzeRiskRequest:
+    properties:
+      contract_text:
+        type: string
+      quote_id:
+        type: string
+    type: object
+  handlers.assignShiftRequest:
+    properties:
+      employee_id:
+        type: string
+      shift_date:
+        type: string
+      shift_template_id:
+        type: string
+    type: object
+  handlers.calculateTaxRequest:
+    properties:
+      country_code:
+        type: string
+      subtotal:
+        type: number
+    type: object
+  handlers.clockInRequest:
+    properties:
+      latitude:
+        type: number
+      longitude:
+        type: number
+    type: object
+  handlers.convertCurrencyRequest:
+    properties:
+      amount:
+        type: number
+      from_currency:
+        type: string
+      to_currency:
+        type: string
+    type: object
+  handlers.copilotQueryRequest:
+    properties:
+      prompt:
+        example: Show top 5 sales reps by revenue in Q2
+        type: string
+    type: object
+  handlers.createAPIKeyRequest:
+    properties:
+      expires_in_days:
+        type: integer
+      name:
+        type: string
+      scopes:
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.createAssetRequest:
+    properties:
+      asset_name:
+        type: string
+      purchase_cost:
+        type: number
+      purchase_date:
+        type: string
+      salvage_value:
+        type: number
+      useful_life_years:
+        type: integer
+    type: object
+  handlers.createBOMComponentEntry:
+    properties:
+      component_product_id:
+        type: string
+      quantity_required:
+        type: number
+    type: object
+  handlers.createBOMRequest:
+    properties:
+      bom_code:
+        type: string
+      components:
+        items:
+          $ref: '#/definitions/handlers.createBOMComponentEntry'
+        type: array
+      parent_product_id:
+        type: string
+    type: object
+  handlers.createCampaignRequest:
+    properties:
+      budget:
+        type: number
+      channel:
+        type: string
+      name:
+        type: string
+    type: object
+  handlers.createDashboardRequest:
+    properties:
+      config:
+        items:
+          type: integer
+        type: array
+      name:
+        example: Executive Overview
+        type: string
+    type: object
+  handlers.createEmployeeRequest:
+    properties:
+      department:
+        type: string
+      employee_code:
+        type: string
+      hired_at:
+        type: string
+      job_title:
+        type: string
+      salary:
+        type: number
+      user_id:
+        type: string
+    type: object
+  handlers.createExchangeRateRequest:
+    properties:
+      effective_date:
+        type: string
+      from_currency:
+        type: string
+      rate:
+        type: number
+      to_currency:
+        type: string
+    type: object
+  handlers.createExpenseRequest:
+    properties:
+      amount:
+        type: number
+      category:
+        type: string
+      receipt_file:
+        type: string
+    type: object
+  handlers.createJournalEntryRequest:
+    properties:
+      entry_date:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/handlers.journalItemRequest'
+        type: array
+      memo:
+        type: string
+    type: object
+  handlers.createLeadRequest:
+    properties:
+      company_name:
+        type: string
+      email:
+        type: string
+      estimated_deal_size:
+        type: number
+      first_name:
+        type: string
+      last_name:
+        type: string
+    type: object
+  handlers.createPurchaseOrderRequest:
+    properties:
+      po_number:
+        type: string
+      supplier_name:
+        type: string
+      total_cost:
+        type: number
+    type: object
+  handlers.createRoleRequest:
+    properties:
+      description:
+        type: string
+      name:
+        type: string
+      permission_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.createShiftTemplateRequest:
+    properties:
+      day_of_week:
+        type: integer
+      department:
+        type: string
+      end_time:
+        type: string
+      name:
+        type: string
+      required_headcount:
+        type: integer
+      start_time:
+        type: string
+    type: object
+  handlers.createSubscriptionRequest:
+    properties:
+      payment_method_id:
+        type: string
+      plan_code:
+        type: string
+    type: object
+  handlers.createTaxRateRequest:
+    properties:
+      country_code:
+        type: string
+      tax_name:
+        type: string
+      tax_rate:
+        type: number
+    type: object
+  handlers.createTicketRequest:
+    properties:
+      contact_id:
+        type: string
+      description:
+        type: string
+      subject:
+        type: string
+    type: object
+  handlers.createWorkOrderRequest:
+    properties:
+      bom_id:
+        type: string
+      quantity:
+        type: integer
+      scheduled_end:
+        type: string
+      scheduled_start:
+        type: string
+    type: object
+  handlers.importBankStatementRequest:
+    properties:
+      account_number:
+        type: string
+      bank_name:
+        type: string
+      closing_balance:
+        type: number
+      opening_balance:
+        type: number
+      statement_date:
+        type: string
+      transactions:
+        items:
+          $ref: '#/definitions/services.BankTransactionInput'
+        type: array
+    type: object
+  handlers.ingestReadingBatchRequest:
+    properties:
+      readings:
+        items:
+          $ref: '#/definitions/handlers.ingestReadingRequest'
+        type: array
+    type: object
+  handlers.ingestReadingRequest:
+    properties:
+      device_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      metric_name:
+        example: temperature
+        type: string
+      metric_value:
+        example: 72.5
+        type: number
+      unit:
+        example: celsius
+        type: string
+    type: object
+  handlers.inviteRequest:
+    properties:
+      email:
+        type: string
+      role_id:
+        type: string
+    type: object
+  handlers.issueStockRequest:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        type: number
+      reference:
+        type: string
+      warehouse_id:
+        type: string
+    type: object
+  handlers.journalItemRequest:
+    properties:
+      account_id:
+        type: string
+      credit:
+        type: number
+      debit:
+        type: number
+    type: object
+  handlers.knowledgeSearchRequest:
+    properties:
+      query:
+        type: string
+    type: object
+  handlers.launchCampaignResponse:
+    properties:
+      campaign_id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      estimated_reach:
+        example: 12500
+        type: integer
+      status:
+        example: active
+        type: string
+    type: object
+  handlers.loginRequest:
+    properties:
+      email:
+        type: string
+      mfa_code:
+        type: string
+      password:
+        type: string
+    type: object
+  handlers.receiveStockRequest:
+    properties:
+      product_id:
+        type: string
+      quantity:
+        type: number
+      reference:
+        type: string
+      warehouse_id:
+        type: string
+    type: object
+  handlers.registerDeviceRequest:
+    properties:
+      device_name:
+        example: Temperature Sensor A1
+        type: string
+      device_type:
+        example: temperature_sensor
+        type: string
+      mac_address:
+        example: AA:BB:CC:DD:EE:01
+        type: string
+    type: object
+  handlers.registerRequest:
+    properties:
+      company_name:
+        type: string
+      domain_slug:
+        type: string
+      owner_email:
+        type: string
+      owner_full_name:
+        type: string
+      owner_password:
+        type: string
+    type: object
+  handlers.routeOptimizeRequest:
+    properties:
+      available_vehicle_ids:
+        items:
+          type: string
+        type: array
+      shipment_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  handlers.runPayrollRequest:
+    properties:
+      pay_period_end:
+        type: string
+      pay_period_start:
+        type: string
+    type: object
+  handlers.scheduleFieldVisitRequest:
+    properties:
+      contact_id:
+        type: string
+      location_lat:
+        type: number
+      location_long:
+        type: number
+      notes:
+        type: string
+      sales_rep_id:
+        type: string
+      scheduled_at:
+        type: string
+    type: object
+  handlers.setEmployeeTaxProfileRequest:
+    properties:
+      additional_withholding:
+        type: number
+      allowances:
+        type: integer
+      employee_id:
+        type: string
+      filing_status:
+        type: string
+      tax_country:
+        type: string
+      tax_id:
+        type: string
+    type: object
+  handlers.telemetryIngestRequest:
+    properties:
+      engine_temp_c:
+        type: number
+      latitude:
+        type: number
+      longitude:
+        type: number
+      speed_kmh:
+        type: number
+      vehicle_vin:
+        type: string
+    type: object
+  handlers.transferStockRequest:
+    properties:
+      from_warehouse_id:
+        type: string
+      product_id:
+        type: string
+      quantity:
+        type: number
+      to_warehouse_id:
+        type: string
+    type: object
+  handlers.triggerWorkflowRequest:
+    properties:
+      event_type:
+        example: invoice.paid
+        type: string
+      payload:
+        additionalProperties: true
+        type: object
+    type: object
+  handlers.updateAccountRequest:
+    properties:
+      email:
+        type: string
+      full_name:
+        type: string
+      phone_number:
+        type: string
+    type: object
+  handlers.updateEmployeeRequest:
+    properties:
+      department:
+        type: string
+      job_title:
+        type: string
+      salary:
+        type: number
+    type: object
+  handlers.updateMemberRequest:
+    properties:
+      role_id:
+        type: string
+    type: object
+  services.BankTransactionInput:
     properties:
       amount:
         type: number
@@ -15,7 +873,7 @@ definitions:
       transaction_date:
         type: string
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.Employee:
+  services.Employee:
     properties:
       department:
         type: string
@@ -42,7 +900,7 @@ definitions:
       withholding_allowances:
         type: integer
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.FlaggedClause:
+  services.FlaggedClause:
     properties:
       clause:
         type: string
@@ -52,7 +910,7 @@ definitions:
       suggested_fix:
         type: string
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.OCRLineItem:
+  services.OCRLineItem:
     properties:
       description:
         type: string
@@ -63,7 +921,7 @@ definitions:
       unit_price:
         type: number
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.PayrollRun:
+  services.PayrollRun:
     properties:
       created_at:
         type: string
@@ -80,14 +938,14 @@ definitions:
       total_disbursed:
         type: number
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.SourceDocument:
+  services.SourceDocument:
     properties:
       relevance_score:
         type: number
       title:
         type: string
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.StockoutPrediction:
+  services.StockoutPrediction:
     properties:
       current_stock:
         type: integer
@@ -100,7 +958,7 @@ definitions:
       sku:
         type: string
     type: object
-  github_com_patiHash1_Strata-prototype_internal_services.Waypoint:
+  services.Waypoint:
     properties:
       coordinates:
         items:
@@ -109,821 +967,8 @@ definitions:
       type:
         type: string
     type: object
-  github_com_patiHash1_Strata-prototype_internal_utils.Envelope:
+  utils.Envelope:
     additionalProperties: {}
-    type: object
-  internal_handlers.AnalyzeRiskResponse:
-    properties:
-      ai_risk_score:
-        example: 35.5
-        type: number
-      flagged_clauses:
-        items:
-          $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.FlaggedClause'
-        type: array
-    type: object
-  internal_handlers.AuditAnomaliesResponse:
-    properties:
-      anomalies:
-        items:
-          $ref: '#/definitions/internal_handlers.SecurityAnomalyItem'
-        type: array
-    type: object
-  internal_handlers.ClockInResponse:
-    properties:
-      attendance_log_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      clock_in:
-        example: "2025-01-15T09:00:00Z"
-        type: string
-      is_within_geofence:
-        example: true
-        type: boolean
-    type: object
-  internal_handlers.CopilotQueryResponse:
-    properties:
-      chart_recommendation:
-        example: bar_chart
-        type: string
-      data_table:
-        items:
-          $ref: '#/definitions/internal_handlers.DataTableRow'
-        type: array
-      generated_sql:
-        example: SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue FROM
-          crm_deals d JOIN users u ON d.assigned_to = u.id WHERE d.stage = 'closed_won'
-          AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30' GROUP BY u.full_name
-          ORDER BY total_revenue DESC LIMIT 5
-        type: string
-    type: object
-  internal_handlers.CreateCampaignResponse:
-    properties:
-      ai_target_segment_criteria:
-        example: '{"criteria": "contacts with open rate > 30%"}'
-        type: string
-      campaign_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.CreateExpenseResponse:
-    properties:
-      ai_audit_notes:
-        example: No policy violations detected.
-        type: string
-      ai_fraud_flag:
-        example: false
-        type: boolean
-      expense_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.CreateJournalEntryResponse:
-    properties:
-      entry_number:
-        example: JE-20260102-0042
-        type: string
-      journal_entry_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.CreateLeadResponse:
-    properties:
-      ai_win_probability:
-        example: 65
-        type: integer
-      assigned_to:
-        example: 550e8400-e29b-41d4-a716-446655440001
-        type: string
-      contact_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.CreateTicketResponse:
-    properties:
-      ai_sentiment_score:
-        example: -0.45
-        type: number
-      ai_suggested_response:
-        example: Thank you for reaching out...
-        type: string
-      priority:
-        example: high
-        type: string
-      ticket_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.DashboardDataResponse:
-    properties:
-      dashboard_id:
-        type: string
-      widgets:
-        items:
-          $ref: '#/definitions/internal_handlers.WidgetDataItem'
-        type: array
-    type: object
-  internal_handlers.DashboardResponse:
-    properties:
-      config:
-        items:
-          type: integer
-        type: array
-      created_at:
-        type: string
-      id:
-        type: string
-      is_active:
-        type: boolean
-      name:
-        type: string
-      org_id:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  internal_handlers.DataTableRow:
-    additionalProperties: {}
-    type: object
-  internal_handlers.HealthResponse:
-    properties:
-      database:
-        example: connected
-        type: string
-      status:
-        example: ok
-        type: string
-    type: object
-  internal_handlers.IngestReadingBatchResponse:
-    properties:
-      accepted:
-        type: integer
-      rejected:
-        type: integer
-    type: object
-  internal_handlers.IngestReadingResponse:
-    properties:
-      anomaly_description:
-        type: string
-      anomaly_detected:
-        type: boolean
-      status:
-        example: processed
-        type: string
-    type: object
-  internal_handlers.IoTDeviceResponse:
-    properties:
-      device_name:
-        type: string
-      device_type:
-        type: string
-      id:
-        type: string
-      last_ping:
-        type: string
-      mac_address:
-        type: string
-      org_id:
-        type: string
-      status:
-        type: string
-    type: object
-  internal_handlers.KnowledgeSearchResponse:
-    properties:
-      ai_answer:
-        example: Based on our knowledge base, parental leave in Australia...
-        type: string
-      source_documents:
-        items:
-          $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.SourceDocument'
-        type: array
-    type: object
-  internal_handlers.ListDashboardsResponse:
-    properties:
-      dashboards:
-        items:
-          $ref: '#/definitions/internal_handlers.DashboardResponse'
-        type: array
-    type: object
-  internal_handlers.ListIoTDevicesResponse:
-    properties:
-      devices:
-        items:
-          $ref: '#/definitions/internal_handlers.IoTDeviceResponse'
-        type: array
-    type: object
-  internal_handlers.LoginResponse:
-    properties:
-      access_token:
-        example: eyJhbGciOiJIUzI1NiIs...
-        type: string
-      refresh_token:
-        type: string
-      user_profile: {}
-    type: object
-  internal_handlers.OCRResponse:
-    properties:
-      invoice_number:
-        example: INV-4521
-        type: string
-      line_items:
-        items:
-          $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.OCRLineItem'
-        type: array
-      tax_amount:
-        example: 45.6
-        type: number
-      total_amount:
-        example: 570
-        type: number
-      vendor_name:
-        example: Acme Supplies Inc.
-        type: string
-    type: object
-  internal_handlers.ParseResumeResponse:
-    properties:
-      ai_match_score:
-        example: 85
-        type: integer
-      candidate_name:
-        example: Jane Smith
-        type: string
-      email:
-        example: jane.smith@email.com
-        type: string
-      extracted_skills:
-        example:
-        - Python
-        - Go
-        - Docker
-        - Kubernetes
-        items:
-          type: string
-        type: array
-    type: object
-  internal_handlers.RegisterResponse:
-    properties:
-      access_token:
-        example: eyJhbGciOiJIUzI1NiIs...
-        type: string
-      org_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      user_id:
-        example: 550e8400-e29b-41d4-a716-446655440001
-        type: string
-    type: object
-  internal_handlers.ReorderPredictionsResponse:
-    properties:
-      predictions:
-        items:
-          $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.StockoutPrediction'
-        type: array
-    type: object
-  internal_handlers.RouteOptimizeResponse:
-    properties:
-      carbon_offset_kg:
-        example: 12.45
-        type: number
-      optimized_waypoints:
-        items:
-          $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.Waypoint'
-        type: array
-      predicted_eta:
-        example: "2025-01-15T16:45:00Z"
-        type: string
-      route_plan_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.ScheduleFieldVisitResponse:
-    properties:
-      estimated_travel_time_minutes:
-        example: 25
-        type: integer
-      visit_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.SecurityAnomalyItem:
-    properties:
-      action:
-        example: user.login
-        type: string
-      ai_risk_score:
-        example: 0.87
-        type: number
-      anomaly_type:
-        example: suspicious_login
-        type: string
-      ip_address:
-        example: 192.168.1.100
-        type: string
-      log_id:
-        example: 10042
-        type: integer
-      user_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.TelemetryIngestResponse:
-    properties:
-      ai_predictive_alert_triggered:
-        example: false
-        type: boolean
-      processed_at:
-        example: "2025-01-15T14:30:00Z"
-        type: string
-      status:
-        example: queued
-        type: string
-    type: object
-  internal_handlers.TriggerWorkflowResponse:
-    properties:
-      status:
-        example: success
-        type: string
-      steps_executed:
-        example: 4
-        type: integer
-      workflow_execution_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-    type: object
-  internal_handlers.WidgetDataItem:
-    properties:
-      anomaly_description:
-        type: string
-      anomaly_detected:
-        type: boolean
-      data:
-        items:
-          items: {}
-          type: array
-        type: array
-      title:
-        type: string
-      widget_type:
-        type: string
-    type: object
-  internal_handlers.analyzeRiskRequest:
-    properties:
-      contract_text:
-        type: string
-      quote_id:
-        type: string
-    type: object
-  internal_handlers.assignShiftRequest:
-    properties:
-      employee_id:
-        type: string
-      shift_date:
-        type: string
-      shift_template_id:
-        type: string
-    type: object
-  internal_handlers.calculateTaxRequest:
-    properties:
-      country_code:
-        type: string
-      subtotal:
-        type: number
-    type: object
-  internal_handlers.clockInRequest:
-    properties:
-      latitude:
-        type: number
-      longitude:
-        type: number
-    type: object
-  internal_handlers.convertCurrencyRequest:
-    properties:
-      amount:
-        type: number
-      from_currency:
-        type: string
-      to_currency:
-        type: string
-    type: object
-  internal_handlers.copilotQueryRequest:
-    properties:
-      prompt:
-        example: Show top 5 sales reps by revenue in Q2
-        type: string
-    type: object
-  internal_handlers.createAPIKeyRequest:
-    properties:
-      expires_in_days:
-        type: integer
-      name:
-        type: string
-      scopes:
-        items:
-          type: string
-        type: array
-    type: object
-  internal_handlers.createAssetRequest:
-    properties:
-      asset_name:
-        type: string
-      purchase_cost:
-        type: number
-      purchase_date:
-        type: string
-      salvage_value:
-        type: number
-      useful_life_years:
-        type: integer
-    type: object
-  internal_handlers.createBOMComponentEntry:
-    properties:
-      component_product_id:
-        type: string
-      quantity_required:
-        type: number
-    type: object
-  internal_handlers.createBOMRequest:
-    properties:
-      bom_code:
-        type: string
-      components:
-        items:
-          $ref: '#/definitions/internal_handlers.createBOMComponentEntry'
-        type: array
-      parent_product_id:
-        type: string
-    type: object
-  internal_handlers.createCampaignRequest:
-    properties:
-      budget:
-        type: number
-      channel:
-        type: string
-      name:
-        type: string
-    type: object
-  internal_handlers.createDashboardRequest:
-    properties:
-      config:
-        items:
-          type: integer
-        type: array
-      name:
-        example: Executive Overview
-        type: string
-    type: object
-  internal_handlers.createEmployeeRequest:
-    properties:
-      department:
-        type: string
-      employee_code:
-        type: string
-      hired_at:
-        type: string
-      job_title:
-        type: string
-      salary:
-        type: number
-      user_id:
-        type: string
-    type: object
-  internal_handlers.createExchangeRateRequest:
-    properties:
-      effective_date:
-        type: string
-      from_currency:
-        type: string
-      rate:
-        type: number
-      to_currency:
-        type: string
-    type: object
-  internal_handlers.createExpenseRequest:
-    properties:
-      amount:
-        type: number
-      category:
-        type: string
-      receipt_file:
-        type: string
-    type: object
-  internal_handlers.createJournalEntryRequest:
-    properties:
-      entry_date:
-        type: string
-      items:
-        items:
-          $ref: '#/definitions/internal_handlers.journalItemRequest'
-        type: array
-      memo:
-        type: string
-    type: object
-  internal_handlers.createLeadRequest:
-    properties:
-      company_name:
-        type: string
-      email:
-        type: string
-      estimated_deal_size:
-        type: number
-      first_name:
-        type: string
-      last_name:
-        type: string
-    type: object
-  internal_handlers.createPurchaseOrderRequest:
-    properties:
-      po_number:
-        type: string
-      supplier_name:
-        type: string
-      total_cost:
-        type: number
-    type: object
-  internal_handlers.createRoleRequest:
-    properties:
-      description:
-        type: string
-      name:
-        type: string
-      permission_ids:
-        items:
-          type: string
-        type: array
-    type: object
-  internal_handlers.createShiftTemplateRequest:
-    properties:
-      day_of_week:
-        type: integer
-      department:
-        type: string
-      end_time:
-        type: string
-      name:
-        type: string
-      required_headcount:
-        type: integer
-      start_time:
-        type: string
-    type: object
-  internal_handlers.createSubscriptionRequest:
-    properties:
-      payment_method_id:
-        type: string
-      plan_code:
-        type: string
-    type: object
-  internal_handlers.createTaxRateRequest:
-    properties:
-      country_code:
-        type: string
-      tax_name:
-        type: string
-      tax_rate:
-        type: number
-    type: object
-  internal_handlers.createTicketRequest:
-    properties:
-      contact_id:
-        type: string
-      description:
-        type: string
-      subject:
-        type: string
-    type: object
-  internal_handlers.createWorkOrderRequest:
-    properties:
-      bom_id:
-        type: string
-      quantity:
-        type: integer
-      scheduled_end:
-        type: string
-      scheduled_start:
-        type: string
-    type: object
-  internal_handlers.importBankStatementRequest:
-    properties:
-      account_number:
-        type: string
-      bank_name:
-        type: string
-      closing_balance:
-        type: number
-      opening_balance:
-        type: number
-      statement_date:
-        type: string
-      transactions:
-        items:
-          $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.BankTransactionInput'
-        type: array
-    type: object
-  internal_handlers.ingestReadingBatchRequest:
-    properties:
-      readings:
-        items:
-          $ref: '#/definitions/internal_handlers.ingestReadingRequest'
-        type: array
-    type: object
-  internal_handlers.ingestReadingRequest:
-    properties:
-      device_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      metric_name:
-        example: temperature
-        type: string
-      metric_value:
-        example: 72.5
-        type: number
-      unit:
-        example: celsius
-        type: string
-    type: object
-  internal_handlers.inviteRequest:
-    properties:
-      email:
-        type: string
-      role_id:
-        type: string
-    type: object
-  internal_handlers.issueStockRequest:
-    properties:
-      product_id:
-        type: string
-      quantity:
-        type: number
-      reference:
-        type: string
-      warehouse_id:
-        type: string
-    type: object
-  internal_handlers.journalItemRequest:
-    properties:
-      account_id:
-        type: string
-      credit:
-        type: number
-      debit:
-        type: number
-    type: object
-  internal_handlers.knowledgeSearchRequest:
-    properties:
-      query:
-        type: string
-    type: object
-  internal_handlers.launchCampaignResponse:
-    properties:
-      campaign_id:
-        example: 550e8400-e29b-41d4-a716-446655440000
-        type: string
-      estimated_reach:
-        example: 12500
-        type: integer
-      status:
-        example: active
-        type: string
-    type: object
-  internal_handlers.loginRequest:
-    properties:
-      email:
-        type: string
-      mfa_code:
-        type: string
-      password:
-        type: string
-    type: object
-  internal_handlers.receiveStockRequest:
-    properties:
-      product_id:
-        type: string
-      quantity:
-        type: number
-      reference:
-        type: string
-      warehouse_id:
-        type: string
-    type: object
-  internal_handlers.registerDeviceRequest:
-    properties:
-      device_name:
-        example: Temperature Sensor A1
-        type: string
-      device_type:
-        example: temperature_sensor
-        type: string
-      mac_address:
-        example: AA:BB:CC:DD:EE:01
-        type: string
-    type: object
-  internal_handlers.registerRequest:
-    properties:
-      company_name:
-        type: string
-      domain_slug:
-        type: string
-      owner_email:
-        type: string
-      owner_full_name:
-        type: string
-      owner_password:
-        type: string
-    type: object
-  internal_handlers.routeOptimizeRequest:
-    properties:
-      available_vehicle_ids:
-        items:
-          type: string
-        type: array
-      shipment_ids:
-        items:
-          type: string
-        type: array
-    type: object
-  internal_handlers.runPayrollRequest:
-    properties:
-      pay_period_end:
-        type: string
-      pay_period_start:
-        type: string
-    type: object
-  internal_handlers.scheduleFieldVisitRequest:
-    properties:
-      contact_id:
-        type: string
-      location_lat:
-        type: number
-      location_long:
-        type: number
-      notes:
-        type: string
-      sales_rep_id:
-        type: string
-      scheduled_at:
-        type: string
-    type: object
-  internal_handlers.setEmployeeTaxProfileRequest:
-    properties:
-      additional_withholding:
-        type: number
-      allowances:
-        type: integer
-      employee_id:
-        type: string
-      filing_status:
-        type: string
-      tax_country:
-        type: string
-      tax_id:
-        type: string
-    type: object
-  internal_handlers.telemetryIngestRequest:
-    properties:
-      engine_temp_c:
-        type: number
-      latitude:
-        type: number
-      longitude:
-        type: number
-      speed_kmh:
-        type: number
-      vehicle_vin:
-        type: string
-    type: object
-  internal_handlers.transferStockRequest:
-    properties:
-      from_warehouse_id:
-        type: string
-      product_id:
-        type: string
-      quantity:
-        type: number
-      to_warehouse_id:
-        type: string
-    type: object
-  internal_handlers.triggerWorkflowRequest:
-    properties:
-      event_type:
-        example: invoice.paid
-        type: string
-      payload:
-        additionalProperties: true
-        type: object
-    type: object
-  internal_handlers.updateEmployeeRequest:
-    properties:
-      department:
-        type: string
-      job_title:
-        type: string
-      salary:
-        type: number
-    type: object
-  internal_handlers.updateMemberRequest:
-    properties:
-      role_id:
-        type: string
     type: object
 host: localhost:8080
 info:
@@ -937,6 +982,112 @@ info:
   title: Strata API
   version: 0.1.0
 paths:
+  /api/v1/account:
+    delete:
+      description: Permanently deletes the authenticated user's account and all associated
+        data.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Delete own account
+      tags:
+      - Account
+    get:
+      description: Returns the profile of the currently authenticated user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AccountProfileResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get own profile
+      tags:
+      - Account
+    patch:
+      consumes:
+      - application/json
+      description: Partially updates profile fields (full_name, email, phone_number)
+        for the authenticated user.
+      parameters:
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.updateAccountRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.AccountProfileResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Update own profile
+      tags:
+      - Account
+  /api/v1/account/organizations:
+    get:
+      description: Returns all organization memberships for the currently authenticated
+        user.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.AccountOrgResponse'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List my organizations
+      tags:
+      - Account
   /api/v1/accounting/assets:
     post:
       consumes:
@@ -949,26 +1100,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createAssetRequest'
+          $ref: '#/definitions/handlers.createAssetRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Register fixed asset
@@ -1001,23 +1152,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Calculate asset depreciation
@@ -1035,26 +1186,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.importBankStatementRequest'
+          $ref: '#/definitions/handlers.importBankStatementRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Import bank statement
@@ -1078,19 +1229,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Reconcile bank statement
@@ -1108,26 +1259,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.convertCurrencyRequest'
+          $ref: '#/definitions/handlers.convertCurrencyRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Convert currency
@@ -1145,26 +1296,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createExchangeRateRequest'
+          $ref: '#/definitions/handlers.createExchangeRateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create exchange rate
@@ -1183,26 +1334,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createExpenseRequest'
+          $ref: '#/definitions/handlers.createExpenseRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.CreateExpenseResponse'
+            $ref: '#/definitions/handlers.CreateExpenseResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Submit expense with AI fraud audit
@@ -1227,19 +1378,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.OCRResponse'
+            $ref: '#/definitions/handlers.OCRResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Upload invoice for vision OCR
@@ -1257,26 +1408,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createJournalEntryRequest'
+          $ref: '#/definitions/handlers.createJournalEntryRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.CreateJournalEntryResponse'
+            $ref: '#/definitions/handlers.CreateJournalEntryResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Post general ledger entry
@@ -1294,26 +1445,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createTaxRateRequest'
+          $ref: '#/definitions/handlers.createTaxRateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create tax rate
@@ -1331,26 +1482,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.calculateTaxRequest'
+          $ref: '#/definitions/handlers.calculateTaxRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Calculate tax
@@ -1370,30 +1521,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.copilotQueryRequest'
+          $ref: '#/definitions/handlers.copilotQueryRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.CopilotQueryResponse'
+            $ref: '#/definitions/handlers.CopilotQueryResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Execute AI copilot text-to-SQL query
@@ -1411,22 +1562,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.loginRequest'
+          $ref: '#/definitions/handlers.loginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.LoginResponse'
+            $ref: '#/definitions/handlers.LoginResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       summary: User login
       tags:
       - Auth
@@ -1442,22 +1593,22 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.registerRequest'
+          $ref: '#/definitions/handlers.registerRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.RegisterResponse'
+            $ref: '#/definitions/handlers.RegisterResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       summary: Register organization & owner
       tags:
       - Auth
@@ -1471,19 +1622,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.ListDashboardsResponse'
+            $ref: '#/definitions/handlers.ListDashboardsResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: List BI dashboards
@@ -1500,30 +1651,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createDashboardRequest'
+          $ref: '#/definitions/handlers.createDashboardRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.DashboardResponse'
+            $ref: '#/definitions/handlers.DashboardResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create BI dashboard
@@ -1545,23 +1696,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.DashboardDataResponse'
+            $ref: '#/definitions/handlers.DashboardDataResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get dashboard data
@@ -1579,26 +1730,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createSubscriptionRequest'
+          $ref: '#/definitions/handlers.createSubscriptionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create / upgrade subscription
@@ -1616,26 +1767,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createCampaignRequest'
+          $ref: '#/definitions/handlers.createCampaignRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.CreateCampaignResponse'
+            $ref: '#/definitions/handlers.CreateCampaignResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create marketing campaign
@@ -1659,23 +1810,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.launchCampaignResponse'
+            $ref: '#/definitions/handlers.launchCampaignResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Launch marketing campaign
@@ -1693,26 +1844,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.scheduleFieldVisitRequest'
+          $ref: '#/definitions/handlers.scheduleFieldVisitRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.ScheduleFieldVisitResponse'
+            $ref: '#/definitions/handlers.ScheduleFieldVisitResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Schedule field sales visit
@@ -1730,26 +1881,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createLeadRequest'
+          $ref: '#/definitions/handlers.createLeadRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.CreateLeadResponse'
+            $ref: '#/definitions/handlers.CreateLeadResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create lead & trigger AI scoring
@@ -1768,30 +1919,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.analyzeRiskRequest'
+          $ref: '#/definitions/handlers.analyzeRiskRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.AnalyzeRiskResponse'
+            $ref: '#/definitions/handlers.AnalyzeRiskResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Analyze contract risk
@@ -1809,30 +1960,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createTicketRequest'
+          $ref: '#/definitions/handlers.createTicketRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.CreateTicketResponse'
+            $ref: '#/definitions/handlers.CreateTicketResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Auto-route support ticket & analyze sentiment
@@ -1851,30 +2002,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.routeOptimizeRequest'
+          $ref: '#/definitions/handlers.routeOptimizeRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.RouteOptimizeResponse'
+            $ref: '#/definitions/handlers.RouteOptimizeResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Generate AI optimized routes & ETAs
@@ -1893,30 +2044,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.telemetryIngestRequest'
+          $ref: '#/definitions/handlers.telemetryIngestRequest'
       produces:
       - application/json
       responses:
         "202":
           description: Accepted
           schema:
-            $ref: '#/definitions/internal_handlers.TelemetryIngestResponse'
+            $ref: '#/definitions/handlers.TelemetryIngestResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - ApiKeyAuth: []
       summary: Ingest vehicle telemetry stream
@@ -1947,23 +2098,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.ParseResumeResponse'
+            $ref: '#/definitions/handlers.ParseResumeResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "413":
           description: Request Entity Too Large
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Parse resume & score match
@@ -1983,30 +2134,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.clockInRequest'
+          $ref: '#/definitions/handlers.clockInRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.ClockInResponse'
+            $ref: '#/definitions/handlers.ClockInResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Geofenced clock-in
@@ -2025,19 +2176,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Clock out
@@ -2059,16 +2210,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.Employee'
+              $ref: '#/definitions/services.Employee'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: List employees
@@ -2085,26 +2236,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createEmployeeRequest'
+          $ref: '#/definitions/handlers.createEmployeeRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create employee
@@ -2126,19 +2277,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.Employee'
+            $ref: '#/definitions/services.Employee'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get employee
@@ -2160,30 +2311,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.updateEmployeeRequest'
+          $ref: '#/definitions/handlers.updateEmployeeRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Update employee
@@ -2203,26 +2354,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.knowledgeSearchRequest'
+          $ref: '#/definitions/handlers.knowledgeSearchRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.KnowledgeSearchResponse'
+            $ref: '#/definitions/handlers.KnowledgeSearchResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: RAG knowledge base semantic search
@@ -2239,16 +2390,16 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.PayrollRun'
+              $ref: '#/definitions/services.PayrollRun'
             type: array
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: List payroll runs
@@ -2266,26 +2417,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.runPayrollRequest'
+          $ref: '#/definitions/handlers.runPayrollRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Run payroll
@@ -2306,19 +2457,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_services.PayrollRun'
+            $ref: '#/definitions/services.PayrollRun'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get payroll run
@@ -2342,23 +2493,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get payroll run detail
@@ -2376,26 +2527,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.setEmployeeTaxProfileRequest'
+          $ref: '#/definitions/handlers.setEmployeeTaxProfileRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Set employee tax profile
@@ -2413,26 +2564,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.assignShiftRequest'
+          $ref: '#/definitions/handlers.assignShiftRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Assign shift
@@ -2465,19 +2616,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Predict shift needs
@@ -2511,19 +2662,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get employee schedule
@@ -2541,26 +2692,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createShiftTemplateRequest'
+          $ref: '#/definitions/handlers.createShiftTemplateRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create shift template
@@ -2578,26 +2729,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.issueStockRequest'
+          $ref: '#/definitions/handlers.issueStockRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Issue stock
@@ -2615,26 +2766,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.receiveStockRequest'
+          $ref: '#/definitions/handlers.receiveStockRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Receive stock
@@ -2656,19 +2807,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.ReorderPredictionsResponse'
+            $ref: '#/definitions/handlers.ReorderPredictionsResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get AI reorder & stockout predictions
@@ -2692,19 +2843,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get inventory snapshot
@@ -2722,26 +2873,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.transferStockRequest'
+          $ref: '#/definitions/handlers.transferStockRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Transfer stock
@@ -2757,19 +2908,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.ListIoTDevicesResponse'
+            $ref: '#/definitions/handlers.ListIoTDevicesResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: List IoT devices
@@ -2786,30 +2937,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.registerDeviceRequest'
+          $ref: '#/definitions/handlers.registerDeviceRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/internal_handlers.IoTDeviceResponse'
+            $ref: '#/definitions/handlers.IoTDeviceResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Register IoT device
@@ -2827,30 +2978,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.ingestReadingRequest'
+          $ref: '#/definitions/handlers.ingestReadingRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.IngestReadingResponse'
+            $ref: '#/definitions/handlers.IngestReadingResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Ingest device reading
@@ -2868,30 +3019,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.ingestReadingBatchRequest'
+          $ref: '#/definitions/handlers.ingestReadingBatchRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.IngestReadingBatchResponse'
+            $ref: '#/definitions/handlers.IngestReadingBatchResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Ingest device readings batch
@@ -2909,26 +3060,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createBOMRequest'
+          $ref: '#/definitions/handlers.createBOMRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create a bill of materials
@@ -2946,26 +3097,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createWorkOrderRequest'
+          $ref: '#/definitions/handlers.createWorkOrderRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create a work order
@@ -2983,26 +3134,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createAPIKeyRequest'
+          $ref: '#/definitions/handlers.createAPIKeyRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Generate API key
@@ -3020,26 +3171,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.inviteRequest'
+          $ref: '#/definitions/handlers.inviteRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Invite team member
@@ -3061,23 +3212,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Deactivate organization member
@@ -3099,30 +3250,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.updateMemberRequest'
+          $ref: '#/definitions/handlers.updateMemberRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Update organization member
@@ -3144,23 +3295,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Remove member from organization
@@ -3178,26 +3329,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createRoleRequest'
+          $ref: '#/definitions/handlers.createRoleRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create dynamic role
@@ -3215,26 +3366,26 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.createPurchaseOrderRequest'
+          $ref: '#/definitions/handlers.createPurchaseOrderRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Create a purchase order
@@ -3256,19 +3407,19 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Get supplier risk report
@@ -3301,23 +3452,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.AuditAnomaliesResponse'
+            $ref: '#/definitions/handlers.AuditAnomaliesResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Fetch security audit anomalies
@@ -3337,30 +3488,30 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/internal_handlers.triggerWorkflowRequest'
+          $ref: '#/definitions/handlers.triggerWorkflowRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/internal_handlers.TriggerWorkflowResponse'
+            $ref: '#/definitions/handlers.TriggerWorkflowResponse'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "403":
           description: Forbidden
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope'
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Trigger automated workflow
@@ -3376,11 +3527,11 @@ paths:
         "200":
           description: Service is healthy
           schema:
-            $ref: '#/definitions/internal_handlers.HealthResponse'
+            $ref: '#/definitions/handlers.HealthResponse'
         "503":
           description: Database is unavailable
           schema:
-            $ref: '#/definitions/internal_handlers.HealthResponse'
+            $ref: '#/definitions/handlers.HealthResponse'
       summary: Service health check
       tags:
       - System
@@ -3399,6 +3550,8 @@ swagger: "2.0"
 tags:
 - description: System health and meta endpoints.
   name: System
+- description: User account management — own profile, update, delete, and organizations.
+  name: Account
 - description: Authentication, registration, and multi-tenancy.
   name: Auth
 - description: Organization management, roles, members, API keys.

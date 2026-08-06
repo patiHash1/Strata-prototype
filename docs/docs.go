@@ -22,6 +22,170 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/account": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the profile of the currently authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Get own profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AccountProfileResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Permanently deletes the authenticated user's account and all associated data.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Delete own account",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            },
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Partially updates profile fields (full_name, email, phone_number) for the authenticated user.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "Update own profile",
+                "parameters": [
+                    {
+                        "description": "Fields to update",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.updateAccountRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.AccountProfileResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/account/organizations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all organization memberships for the currently authenticated user.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Account"
+                ],
+                "summary": "List my organizations",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/handlers.AccountOrgResponse"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/accounting/assets": {
             "post": {
                 "security": [
@@ -47,7 +211,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createAssetRequest"
+                            "$ref": "#/definitions/handlers.createAssetRequest"
                         }
                     }
                 ],
@@ -55,25 +219,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -121,31 +285,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -176,7 +340,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.importBankStatementRequest"
+                            "$ref": "#/definitions/handlers.importBankStatementRequest"
                         }
                     }
                 ],
@@ -184,25 +348,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -239,25 +403,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -288,7 +452,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.convertCurrencyRequest"
+                            "$ref": "#/definitions/handlers.convertCurrencyRequest"
                         }
                     }
                 ],
@@ -296,25 +460,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -345,7 +509,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createExchangeRateRequest"
+                            "$ref": "#/definitions/handlers.createExchangeRateRequest"
                         }
                     }
                 ],
@@ -353,25 +517,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -402,7 +566,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createExpenseRequest"
+                            "$ref": "#/definitions/handlers.createExpenseRequest"
                         }
                     }
                 ],
@@ -410,25 +574,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CreateExpenseResponse"
+                            "$ref": "#/definitions/handlers.CreateExpenseResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -465,25 +629,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.OCRResponse"
+                            "$ref": "#/definitions/handlers.OCRResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -514,7 +678,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createJournalEntryRequest"
+                            "$ref": "#/definitions/handlers.createJournalEntryRequest"
                         }
                     }
                 ],
@@ -522,25 +686,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CreateJournalEntryResponse"
+                            "$ref": "#/definitions/handlers.CreateJournalEntryResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -571,7 +735,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createTaxRateRequest"
+                            "$ref": "#/definitions/handlers.createTaxRateRequest"
                         }
                     }
                 ],
@@ -579,25 +743,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -628,7 +792,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.calculateTaxRequest"
+                            "$ref": "#/definitions/handlers.calculateTaxRequest"
                         }
                     }
                 ],
@@ -636,25 +800,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -685,7 +849,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.copilotQueryRequest"
+                            "$ref": "#/definitions/handlers.copilotQueryRequest"
                         }
                     }
                 ],
@@ -693,31 +857,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CopilotQueryResponse"
+                            "$ref": "#/definitions/handlers.CopilotQueryResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -743,7 +907,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.loginRequest"
+                            "$ref": "#/definitions/handlers.loginRequest"
                         }
                     }
                 ],
@@ -751,19 +915,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.LoginResponse"
+                            "$ref": "#/definitions/handlers.LoginResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -789,7 +953,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.registerRequest"
+                            "$ref": "#/definitions/handlers.registerRequest"
                         }
                     }
                 ],
@@ -797,19 +961,19 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.RegisterResponse"
+                            "$ref": "#/definitions/handlers.RegisterResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -834,25 +998,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ListDashboardsResponse"
+                            "$ref": "#/definitions/handlers.ListDashboardsResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -881,7 +1045,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createDashboardRequest"
+                            "$ref": "#/definitions/handlers.createDashboardRequest"
                         }
                     }
                 ],
@@ -889,31 +1053,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.DashboardResponse"
+                            "$ref": "#/definitions/handlers.DashboardResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -947,31 +1111,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.DashboardDataResponse"
+                            "$ref": "#/definitions/handlers.DashboardDataResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1002,7 +1166,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createSubscriptionRequest"
+                            "$ref": "#/definitions/handlers.createSubscriptionRequest"
                         }
                     }
                 ],
@@ -1010,25 +1174,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1059,7 +1223,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createCampaignRequest"
+                            "$ref": "#/definitions/handlers.createCampaignRequest"
                         }
                     }
                 ],
@@ -1067,25 +1231,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CreateCampaignResponse"
+                            "$ref": "#/definitions/handlers.CreateCampaignResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1122,31 +1286,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.launchCampaignResponse"
+                            "$ref": "#/definitions/handlers.launchCampaignResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1177,7 +1341,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.scheduleFieldVisitRequest"
+                            "$ref": "#/definitions/handlers.scheduleFieldVisitRequest"
                         }
                     }
                 ],
@@ -1185,25 +1349,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ScheduleFieldVisitResponse"
+                            "$ref": "#/definitions/handlers.ScheduleFieldVisitResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1234,7 +1398,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createLeadRequest"
+                            "$ref": "#/definitions/handlers.createLeadRequest"
                         }
                     }
                 ],
@@ -1242,25 +1406,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CreateLeadResponse"
+                            "$ref": "#/definitions/handlers.CreateLeadResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1291,7 +1455,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.analyzeRiskRequest"
+                            "$ref": "#/definitions/handlers.analyzeRiskRequest"
                         }
                     }
                 ],
@@ -1299,31 +1463,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.AnalyzeRiskResponse"
+                            "$ref": "#/definitions/handlers.AnalyzeRiskResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1354,7 +1518,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createTicketRequest"
+                            "$ref": "#/definitions/handlers.createTicketRequest"
                         }
                     }
                 ],
@@ -1362,31 +1526,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.CreateTicketResponse"
+                            "$ref": "#/definitions/handlers.CreateTicketResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1417,7 +1581,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.routeOptimizeRequest"
+                            "$ref": "#/definitions/handlers.routeOptimizeRequest"
                         }
                     }
                 ],
@@ -1425,31 +1589,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.RouteOptimizeResponse"
+                            "$ref": "#/definitions/handlers.RouteOptimizeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1480,7 +1644,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.telemetryIngestRequest"
+                            "$ref": "#/definitions/handlers.telemetryIngestRequest"
                         }
                     }
                 ],
@@ -1488,31 +1652,31 @@ const docTemplate = `{
                     "202": {
                         "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.TelemetryIngestResponse"
+                            "$ref": "#/definitions/handlers.TelemetryIngestResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1556,31 +1720,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ParseResumeResponse"
+                            "$ref": "#/definitions/handlers.ParseResumeResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "413": {
                         "description": "Request Entity Too Large",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1611,7 +1775,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.clockInRequest"
+                            "$ref": "#/definitions/handlers.clockInRequest"
                         }
                     }
                 ],
@@ -1619,31 +1783,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ClockInResponse"
+                            "$ref": "#/definitions/handlers.ClockInResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1671,25 +1835,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1724,20 +1888,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.Employee"
+                                "$ref": "#/definitions/services.Employee"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1766,7 +1930,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createEmployeeRequest"
+                            "$ref": "#/definitions/handlers.createEmployeeRequest"
                         }
                     }
                 ],
@@ -1774,25 +1938,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1826,25 +1990,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.Employee"
+                            "$ref": "#/definitions/services.Employee"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1880,7 +2044,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.updateEmployeeRequest"
+                            "$ref": "#/definitions/handlers.updateEmployeeRequest"
                         }
                     }
                 ],
@@ -1888,31 +2052,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1943,7 +2107,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.knowledgeSearchRequest"
+                            "$ref": "#/definitions/handlers.knowledgeSearchRequest"
                         }
                     }
                 ],
@@ -1951,25 +2115,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.KnowledgeSearchResponse"
+                            "$ref": "#/definitions/handlers.KnowledgeSearchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -1996,20 +2160,20 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.PayrollRun"
+                                "$ref": "#/definitions/services.PayrollRun"
                             }
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2038,7 +2202,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.runPayrollRequest"
+                            "$ref": "#/definitions/handlers.runPayrollRequest"
                         }
                     }
                 ],
@@ -2046,25 +2210,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2098,25 +2262,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.PayrollRun"
+                            "$ref": "#/definitions/services.PayrollRun"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2153,31 +2317,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2208,7 +2372,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.setEmployeeTaxProfileRequest"
+                            "$ref": "#/definitions/handlers.setEmployeeTaxProfileRequest"
                         }
                     }
                 ],
@@ -2216,25 +2380,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2265,7 +2429,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.assignShiftRequest"
+                            "$ref": "#/definitions/handlers.assignShiftRequest"
                         }
                     }
                 ],
@@ -2273,25 +2437,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2341,25 +2505,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2410,25 +2574,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2459,7 +2623,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createShiftTemplateRequest"
+                            "$ref": "#/definitions/handlers.createShiftTemplateRequest"
                         }
                     }
                 ],
@@ -2467,25 +2631,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2516,7 +2680,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.issueStockRequest"
+                            "$ref": "#/definitions/handlers.issueStockRequest"
                         }
                     }
                 ],
@@ -2524,25 +2688,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2573,7 +2737,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.receiveStockRequest"
+                            "$ref": "#/definitions/handlers.receiveStockRequest"
                         }
                     }
                 ],
@@ -2581,25 +2745,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2632,25 +2796,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ReorderPredictionsResponse"
+                            "$ref": "#/definitions/handlers.ReorderPredictionsResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2687,25 +2851,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2736,7 +2900,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.transferStockRequest"
+                            "$ref": "#/definitions/handlers.transferStockRequest"
                         }
                     }
                 ],
@@ -2744,25 +2908,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2787,25 +2951,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ListIoTDevicesResponse"
+                            "$ref": "#/definitions/handlers.ListIoTDevicesResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2834,7 +2998,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.registerDeviceRequest"
+                            "$ref": "#/definitions/handlers.registerDeviceRequest"
                         }
                     }
                 ],
@@ -2842,31 +3006,31 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.IoTDeviceResponse"
+                            "$ref": "#/definitions/handlers.IoTDeviceResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2897,7 +3061,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ingestReadingRequest"
+                            "$ref": "#/definitions/handlers.ingestReadingRequest"
                         }
                     }
                 ],
@@ -2905,31 +3069,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.IngestReadingResponse"
+                            "$ref": "#/definitions/handlers.IngestReadingResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -2960,7 +3124,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.ingestReadingBatchRequest"
+                            "$ref": "#/definitions/handlers.ingestReadingBatchRequest"
                         }
                     }
                 ],
@@ -2968,31 +3132,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.IngestReadingBatchResponse"
+                            "$ref": "#/definitions/handlers.IngestReadingBatchResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3023,7 +3187,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createBOMRequest"
+                            "$ref": "#/definitions/handlers.createBOMRequest"
                         }
                     }
                 ],
@@ -3031,25 +3195,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3080,7 +3244,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createWorkOrderRequest"
+                            "$ref": "#/definitions/handlers.createWorkOrderRequest"
                         }
                     }
                 ],
@@ -3088,25 +3252,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3137,7 +3301,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createAPIKeyRequest"
+                            "$ref": "#/definitions/handlers.createAPIKeyRequest"
                         }
                     }
                 ],
@@ -3145,25 +3309,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3194,7 +3358,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.inviteRequest"
+                            "$ref": "#/definitions/handlers.inviteRequest"
                         }
                     }
                 ],
@@ -3202,25 +3366,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3254,31 +3418,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3314,7 +3478,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.updateMemberRequest"
+                            "$ref": "#/definitions/handlers.updateMemberRequest"
                         }
                     }
                 ],
@@ -3322,31 +3486,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3380,31 +3544,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3435,7 +3599,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createRoleRequest"
+                            "$ref": "#/definitions/handlers.createRoleRequest"
                         }
                     }
                 ],
@@ -3443,25 +3607,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3492,7 +3656,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.createPurchaseOrderRequest"
+                            "$ref": "#/definitions/handlers.createPurchaseOrderRequest"
                         }
                     }
                 ],
@@ -3500,25 +3664,25 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3552,25 +3716,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3617,31 +3781,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.AuditAnomaliesResponse"
+                            "$ref": "#/definitions/handlers.AuditAnomaliesResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3672,7 +3836,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.triggerWorkflowRequest"
+                            "$ref": "#/definitions/handlers.triggerWorkflowRequest"
                         }
                     }
                 ],
@@ -3680,31 +3844,31 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.TriggerWorkflowResponse"
+                            "$ref": "#/definitions/handlers.TriggerWorkflowResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "403": {
                         "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_utils.Envelope"
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     }
                 }
@@ -3724,13 +3888,13 @@ const docTemplate = `{
                     "200": {
                         "description": "Service is healthy",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.HealthResponse"
+                            "$ref": "#/definitions/handlers.HealthResponse"
                         }
                     },
                     "503": {
                         "description": "Database is unavailable",
                         "schema": {
-                            "$ref": "#/definitions/internal_handlers.HealthResponse"
+                            "$ref": "#/definitions/handlers.HealthResponse"
                         }
                     }
                 }
@@ -3738,7 +3902,1287 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "github_com_patiHash1_Strata-prototype_internal_services.BankTransactionInput": {
+        "handlers.AccountOrgResponse": {
+            "type": "object",
+            "properties": {
+                "is_active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "joined_at": {
+                    "type": "string",
+                    "example": "2025-01-15T10:30:00Z"
+                },
+                "org_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "role_id": {
+                    "type": "string",
+                    "example": "660e8400-e29b-41d4-a716-446655440001"
+                }
+            }
+        },
+        "handlers.AccountProfileResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2025-01-15T10:30:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "alice@example.com"
+                },
+                "full_name": {
+                    "type": "string",
+                    "example": "Alice Johnson"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "mfa_enabled": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "phone_number": {
+                    "type": "string",
+                    "example": "+1-555-0100"
+                }
+            }
+        },
+        "handlers.AnalyzeRiskResponse": {
+            "type": "object",
+            "properties": {
+                "ai_risk_score": {
+                    "type": "number",
+                    "example": 35.5
+                },
+                "flagged_clauses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.FlaggedClause"
+                    }
+                }
+            }
+        },
+        "handlers.AuditAnomaliesResponse": {
+            "type": "object",
+            "properties": {
+                "anomalies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.SecurityAnomalyItem"
+                    }
+                }
+            }
+        },
+        "handlers.ClockInResponse": {
+            "type": "object",
+            "properties": {
+                "attendance_log_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "clock_in": {
+                    "type": "string",
+                    "example": "2025-01-15T09:00:00Z"
+                },
+                "is_within_geofence": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "handlers.CopilotQueryResponse": {
+            "type": "object",
+            "properties": {
+                "chart_recommendation": {
+                    "type": "string",
+                    "example": "bar_chart"
+                },
+                "data_table": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.DataTableRow"
+                    }
+                },
+                "generated_sql": {
+                    "type": "string",
+                    "example": "SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue FROM crm_deals d JOIN users u ON d.assigned_to = u.id WHERE d.stage = 'closed_won' AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30' GROUP BY u.full_name ORDER BY total_revenue DESC LIMIT 5"
+                }
+            }
+        },
+        "handlers.CreateCampaignResponse": {
+            "type": "object",
+            "properties": {
+                "ai_target_segment_criteria": {
+                    "type": "string",
+                    "example": "{\"criteria\": \"contacts with open rate \u003e 30%\"}"
+                },
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.CreateExpenseResponse": {
+            "type": "object",
+            "properties": {
+                "ai_audit_notes": {
+                    "type": "string",
+                    "example": "No policy violations detected."
+                },
+                "ai_fraud_flag": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "expense_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.CreateJournalEntryResponse": {
+            "type": "object",
+            "properties": {
+                "entry_number": {
+                    "type": "string",
+                    "example": "JE-20260102-0042"
+                },
+                "journal_entry_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.CreateLeadResponse": {
+            "type": "object",
+            "properties": {
+                "ai_win_probability": {
+                    "type": "integer",
+                    "example": 65
+                },
+                "assigned_to": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                },
+                "contact_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.CreateTicketResponse": {
+            "type": "object",
+            "properties": {
+                "ai_sentiment_score": {
+                    "type": "number",
+                    "example": -0.45
+                },
+                "ai_suggested_response": {
+                    "type": "string",
+                    "example": "Thank you for reaching out..."
+                },
+                "priority": {
+                    "type": "string",
+                    "example": "high"
+                },
+                "ticket_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.DashboardDataResponse": {
+            "type": "object",
+            "properties": {
+                "dashboard_id": {
+                    "type": "string"
+                },
+                "widgets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.WidgetDataItem"
+                    }
+                }
+            }
+        },
+        "handlers.DashboardResponse": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "org_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.DataTableRow": {
+            "type": "object",
+            "additionalProperties": {}
+        },
+        "handlers.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "type": "string",
+                    "example": "connected"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "handlers.IngestReadingBatchResponse": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "integer"
+                },
+                "rejected": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.IngestReadingResponse": {
+            "type": "object",
+            "properties": {
+                "anomaly_description": {
+                    "type": "string"
+                },
+                "anomaly_detected": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "processed"
+                }
+            }
+        },
+        "handlers.IoTDeviceResponse": {
+            "type": "object",
+            "properties": {
+                "device_name": {
+                    "type": "string"
+                },
+                "device_type": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_ping": {
+                    "type": "string"
+                },
+                "mac_address": {
+                    "type": "string"
+                },
+                "org_id": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.KnowledgeSearchResponse": {
+            "type": "object",
+            "properties": {
+                "ai_answer": {
+                    "type": "string",
+                    "example": "Based on our knowledge base, parental leave in Australia..."
+                },
+                "source_documents": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.SourceDocument"
+                    }
+                }
+            }
+        },
+        "handlers.ListDashboardsResponse": {
+            "type": "object",
+            "properties": {
+                "dashboards": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.DashboardResponse"
+                    }
+                }
+            }
+        },
+        "handlers.ListIoTDevicesResponse": {
+            "type": "object",
+            "properties": {
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.IoTDeviceResponse"
+                    }
+                }
+            }
+        },
+        "handlers.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIs..."
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "user_profile": {}
+            }
+        },
+        "handlers.OCRResponse": {
+            "type": "object",
+            "properties": {
+                "invoice_number": {
+                    "type": "string",
+                    "example": "INV-4521"
+                },
+                "line_items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.OCRLineItem"
+                    }
+                },
+                "tax_amount": {
+                    "type": "number",
+                    "example": 45.6
+                },
+                "total_amount": {
+                    "type": "number",
+                    "example": 570
+                },
+                "vendor_name": {
+                    "type": "string",
+                    "example": "Acme Supplies Inc."
+                }
+            }
+        },
+        "handlers.ParseResumeResponse": {
+            "type": "object",
+            "properties": {
+                "ai_match_score": {
+                    "type": "integer",
+                    "example": 85
+                },
+                "candidate_name": {
+                    "type": "string",
+                    "example": "Jane Smith"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "jane.smith@email.com"
+                },
+                "extracted_skills": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Python",
+                        "Go",
+                        "Docker",
+                        "Kubernetes"
+                    ]
+                }
+            }
+        },
+        "handlers.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIs..."
+                },
+                "org_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440001"
+                }
+            }
+        },
+        "handlers.ReorderPredictionsResponse": {
+            "type": "object",
+            "properties": {
+                "predictions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.StockoutPrediction"
+                    }
+                }
+            }
+        },
+        "handlers.RouteOptimizeResponse": {
+            "type": "object",
+            "properties": {
+                "carbon_offset_kg": {
+                    "type": "number",
+                    "example": 12.45
+                },
+                "optimized_waypoints": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.Waypoint"
+                    }
+                },
+                "predicted_eta": {
+                    "type": "string",
+                    "example": "2025-01-15T16:45:00Z"
+                },
+                "route_plan_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.ScheduleFieldVisitResponse": {
+            "type": "object",
+            "properties": {
+                "estimated_travel_time_minutes": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "visit_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.SecurityAnomalyItem": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "user.login"
+                },
+                "ai_risk_score": {
+                    "type": "number",
+                    "example": 0.87
+                },
+                "anomaly_type": {
+                    "type": "string",
+                    "example": "suspicious_login"
+                },
+                "ip_address": {
+                    "type": "string",
+                    "example": "192.168.1.100"
+                },
+                "log_id": {
+                    "type": "integer",
+                    "example": 10042
+                },
+                "user_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.TelemetryIngestResponse": {
+            "type": "object",
+            "properties": {
+                "ai_predictive_alert_triggered": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "processed_at": {
+                    "type": "string",
+                    "example": "2025-01-15T14:30:00Z"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "queued"
+                }
+            }
+        },
+        "handlers.TriggerWorkflowResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "success"
+                },
+                "steps_executed": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "workflow_execution_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "handlers.WidgetDataItem": {
+            "type": "object",
+            "properties": {
+                "anomaly_description": {
+                    "type": "string"
+                },
+                "anomaly_detected": {
+                    "type": "boolean"
+                },
+                "data": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "widget_type": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.analyzeRiskRequest": {
+            "type": "object",
+            "properties": {
+                "contract_text": {
+                    "type": "string"
+                },
+                "quote_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.assignShiftRequest": {
+            "type": "object",
+            "properties": {
+                "employee_id": {
+                    "type": "string"
+                },
+                "shift_date": {
+                    "type": "string"
+                },
+                "shift_template_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.calculateTaxRequest": {
+            "type": "object",
+            "properties": {
+                "country_code": {
+                    "type": "string"
+                },
+                "subtotal": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.clockInRequest": {
+            "type": "object",
+            "properties": {
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.convertCurrencyRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "from_currency": {
+                    "type": "string"
+                },
+                "to_currency": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.copilotQueryRequest": {
+            "type": "object",
+            "properties": {
+                "prompt": {
+                    "type": "string",
+                    "example": "Show top 5 sales reps by revenue in Q2"
+                }
+            }
+        },
+        "handlers.createAPIKeyRequest": {
+            "type": "object",
+            "properties": {
+                "expires_in_days": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.createAssetRequest": {
+            "type": "object",
+            "properties": {
+                "asset_name": {
+                    "type": "string"
+                },
+                "purchase_cost": {
+                    "type": "number"
+                },
+                "purchase_date": {
+                    "type": "string"
+                },
+                "salvage_value": {
+                    "type": "number"
+                },
+                "useful_life_years": {
+                    "type": "integer"
+                }
+            }
+        },
+        "handlers.createBOMComponentEntry": {
+            "type": "object",
+            "properties": {
+                "component_product_id": {
+                    "type": "string"
+                },
+                "quantity_required": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.createBOMRequest": {
+            "type": "object",
+            "properties": {
+                "bom_code": {
+                    "type": "string"
+                },
+                "components": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.createBOMComponentEntry"
+                    }
+                },
+                "parent_product_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createCampaignRequest": {
+            "type": "object",
+            "properties": {
+                "budget": {
+                    "type": "number"
+                },
+                "channel": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createDashboardRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Executive Overview"
+                }
+            }
+        },
+        "handlers.createEmployeeRequest": {
+            "type": "object",
+            "properties": {
+                "department": {
+                    "type": "string"
+                },
+                "employee_code": {
+                    "type": "string"
+                },
+                "hired_at": {
+                    "type": "string"
+                },
+                "job_title": {
+                    "type": "string"
+                },
+                "salary": {
+                    "type": "number"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createExchangeRateRequest": {
+            "type": "object",
+            "properties": {
+                "effective_date": {
+                    "type": "string"
+                },
+                "from_currency": {
+                    "type": "string"
+                },
+                "rate": {
+                    "type": "number"
+                },
+                "to_currency": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createExpenseRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "receipt_file": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createJournalEntryRequest": {
+            "type": "object",
+            "properties": {
+                "entry_date": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.journalItemRequest"
+                    }
+                },
+                "memo": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createLeadRequest": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "estimated_deal_size": {
+                    "type": "number"
+                },
+                "first_name": {
+                    "type": "string"
+                },
+                "last_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createPurchaseOrderRequest": {
+            "type": "object",
+            "properties": {
+                "po_number": {
+                    "type": "string"
+                },
+                "supplier_name": {
+                    "type": "string"
+                },
+                "total_cost": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.createRoleRequest": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "permission_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.createShiftTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "day_of_week": {
+                    "type": "integer"
+                },
+                "department": {
+                    "type": "string"
+                },
+                "end_time": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "required_headcount": {
+                    "type": "integer"
+                },
+                "start_time": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createSubscriptionRequest": {
+            "type": "object",
+            "properties": {
+                "payment_method_id": {
+                    "type": "string"
+                },
+                "plan_code": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createTaxRateRequest": {
+            "type": "object",
+            "properties": {
+                "country_code": {
+                    "type": "string"
+                },
+                "tax_name": {
+                    "type": "string"
+                },
+                "tax_rate": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.createTicketRequest": {
+            "type": "object",
+            "properties": {
+                "contact_id": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "subject": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.createWorkOrderRequest": {
+            "type": "object",
+            "properties": {
+                "bom_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "integer"
+                },
+                "scheduled_end": {
+                    "type": "string"
+                },
+                "scheduled_start": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.importBankStatementRequest": {
+            "type": "object",
+            "properties": {
+                "account_number": {
+                    "type": "string"
+                },
+                "bank_name": {
+                    "type": "string"
+                },
+                "closing_balance": {
+                    "type": "number"
+                },
+                "opening_balance": {
+                    "type": "number"
+                },
+                "statement_date": {
+                    "type": "string"
+                },
+                "transactions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.BankTransactionInput"
+                    }
+                }
+            }
+        },
+        "handlers.ingestReadingBatchRequest": {
+            "type": "object",
+            "properties": {
+                "readings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/handlers.ingestReadingRequest"
+                    }
+                }
+            }
+        },
+        "handlers.ingestReadingRequest": {
+            "type": "object",
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "metric_name": {
+                    "type": "string",
+                    "example": "temperature"
+                },
+                "metric_value": {
+                    "type": "number",
+                    "example": 72.5
+                },
+                "unit": {
+                    "type": "string",
+                    "example": "celsius"
+                }
+            }
+        },
+        "handlers.inviteRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "role_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.issueStockRequest": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "warehouse_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.journalItemRequest": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string"
+                },
+                "credit": {
+                    "type": "number"
+                },
+                "debit": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.knowledgeSearchRequest": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.launchCampaignResponse": {
+            "type": "object",
+            "properties": {
+                "campaign_id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "estimated_reach": {
+                    "type": "integer",
+                    "example": 12500
+                },
+                "status": {
+                    "type": "string",
+                    "example": "active"
+                }
+            }
+        },
+        "handlers.loginRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "mfa_code": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.receiveStockRequest": {
+            "type": "object",
+            "properties": {
+                "product_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "reference": {
+                    "type": "string"
+                },
+                "warehouse_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.registerDeviceRequest": {
+            "type": "object",
+            "properties": {
+                "device_name": {
+                    "type": "string",
+                    "example": "Temperature Sensor A1"
+                },
+                "device_type": {
+                    "type": "string",
+                    "example": "temperature_sensor"
+                },
+                "mac_address": {
+                    "type": "string",
+                    "example": "AA:BB:CC:DD:EE:01"
+                }
+            }
+        },
+        "handlers.registerRequest": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string"
+                },
+                "domain_slug": {
+                    "type": "string"
+                },
+                "owner_email": {
+                    "type": "string"
+                },
+                "owner_full_name": {
+                    "type": "string"
+                },
+                "owner_password": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.routeOptimizeRequest": {
+            "type": "object",
+            "properties": {
+                "available_vehicle_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "shipment_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "handlers.runPayrollRequest": {
+            "type": "object",
+            "properties": {
+                "pay_period_end": {
+                    "type": "string"
+                },
+                "pay_period_start": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.scheduleFieldVisitRequest": {
+            "type": "object",
+            "properties": {
+                "contact_id": {
+                    "type": "string"
+                },
+                "location_lat": {
+                    "type": "number"
+                },
+                "location_long": {
+                    "type": "number"
+                },
+                "notes": {
+                    "type": "string"
+                },
+                "sales_rep_id": {
+                    "type": "string"
+                },
+                "scheduled_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.setEmployeeTaxProfileRequest": {
+            "type": "object",
+            "properties": {
+                "additional_withholding": {
+                    "type": "number"
+                },
+                "allowances": {
+                    "type": "integer"
+                },
+                "employee_id": {
+                    "type": "string"
+                },
+                "filing_status": {
+                    "type": "string"
+                },
+                "tax_country": {
+                    "type": "string"
+                },
+                "tax_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.telemetryIngestRequest": {
+            "type": "object",
+            "properties": {
+                "engine_temp_c": {
+                    "type": "number"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "speed_kmh": {
+                    "type": "number"
+                },
+                "vehicle_vin": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.transferStockRequest": {
+            "type": "object",
+            "properties": {
+                "from_warehouse_id": {
+                    "type": "string"
+                },
+                "product_id": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "to_warehouse_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.triggerWorkflowRequest": {
+            "type": "object",
+            "properties": {
+                "event_type": {
+                    "type": "string",
+                    "example": "invoice.paid"
+                },
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "handlers.updateAccountRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "phone_number": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.updateEmployeeRequest": {
+            "type": "object",
+            "properties": {
+                "department": {
+                    "type": "string"
+                },
+                "job_title": {
+                    "type": "string"
+                },
+                "salary": {
+                    "type": "number"
+                }
+            }
+        },
+        "handlers.updateMemberRequest": {
+            "type": "object",
+            "properties": {
+                "role_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.BankTransactionInput": {
             "type": "object",
             "properties": {
                 "amount": {
@@ -3761,7 +5205,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.Employee": {
+        "services.Employee": {
             "type": "object",
             "properties": {
                 "department": {
@@ -3802,7 +5246,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.FlaggedClause": {
+        "services.FlaggedClause": {
             "type": "object",
             "properties": {
                 "clause": {
@@ -3817,7 +5261,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.OCRLineItem": {
+        "services.OCRLineItem": {
             "type": "object",
             "properties": {
                 "description": {
@@ -3834,7 +5278,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.PayrollRun": {
+        "services.PayrollRun": {
             "type": "object",
             "properties": {
                 "created_at": {
@@ -3860,7 +5304,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.SourceDocument": {
+        "services.SourceDocument": {
             "type": "object",
             "properties": {
                 "relevance_score": {
@@ -3871,7 +5315,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.StockoutPrediction": {
+        "services.StockoutPrediction": {
             "type": "object",
             "properties": {
                 "current_stock": {
@@ -3891,7 +5335,7 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_services.Waypoint": {
+        "services.Waypoint": {
             "type": "object",
             "properties": {
                 "coordinates": {
@@ -3905,1225 +5349,9 @@ const docTemplate = `{
                 }
             }
         },
-        "github_com_patiHash1_Strata-prototype_internal_utils.Envelope": {
+        "utils.Envelope": {
             "type": "object",
             "additionalProperties": {}
-        },
-        "internal_handlers.AnalyzeRiskResponse": {
-            "type": "object",
-            "properties": {
-                "ai_risk_score": {
-                    "type": "number",
-                    "example": 35.5
-                },
-                "flagged_clauses": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.FlaggedClause"
-                    }
-                }
-            }
-        },
-        "internal_handlers.AuditAnomaliesResponse": {
-            "type": "object",
-            "properties": {
-                "anomalies": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.SecurityAnomalyItem"
-                    }
-                }
-            }
-        },
-        "internal_handlers.ClockInResponse": {
-            "type": "object",
-            "properties": {
-                "attendance_log_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "clock_in": {
-                    "type": "string",
-                    "example": "2025-01-15T09:00:00Z"
-                },
-                "is_within_geofence": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "internal_handlers.CopilotQueryResponse": {
-            "type": "object",
-            "properties": {
-                "chart_recommendation": {
-                    "type": "string",
-                    "example": "bar_chart"
-                },
-                "data_table": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.DataTableRow"
-                    }
-                },
-                "generated_sql": {
-                    "type": "string",
-                    "example": "SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue FROM crm_deals d JOIN users u ON d.assigned_to = u.id WHERE d.stage = 'closed_won' AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30' GROUP BY u.full_name ORDER BY total_revenue DESC LIMIT 5"
-                }
-            }
-        },
-        "internal_handlers.CreateCampaignResponse": {
-            "type": "object",
-            "properties": {
-                "ai_target_segment_criteria": {
-                    "type": "string",
-                    "example": "{\"criteria\": \"contacts with open rate \u003e 30%\"}"
-                },
-                "campaign_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.CreateExpenseResponse": {
-            "type": "object",
-            "properties": {
-                "ai_audit_notes": {
-                    "type": "string",
-                    "example": "No policy violations detected."
-                },
-                "ai_fraud_flag": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "expense_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.CreateJournalEntryResponse": {
-            "type": "object",
-            "properties": {
-                "entry_number": {
-                    "type": "string",
-                    "example": "JE-20260102-0042"
-                },
-                "journal_entry_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.CreateLeadResponse": {
-            "type": "object",
-            "properties": {
-                "ai_win_probability": {
-                    "type": "integer",
-                    "example": 65
-                },
-                "assigned_to": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
-                },
-                "contact_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.CreateTicketResponse": {
-            "type": "object",
-            "properties": {
-                "ai_sentiment_score": {
-                    "type": "number",
-                    "example": -0.45
-                },
-                "ai_suggested_response": {
-                    "type": "string",
-                    "example": "Thank you for reaching out..."
-                },
-                "priority": {
-                    "type": "string",
-                    "example": "high"
-                },
-                "ticket_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.DashboardDataResponse": {
-            "type": "object",
-            "properties": {
-                "dashboard_id": {
-                    "type": "string"
-                },
-                "widgets": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.WidgetDataItem"
-                    }
-                }
-            }
-        },
-        "internal_handlers.DashboardResponse": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "org_id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.DataTableRow": {
-            "type": "object",
-            "additionalProperties": {}
-        },
-        "internal_handlers.HealthResponse": {
-            "type": "object",
-            "properties": {
-                "database": {
-                    "type": "string",
-                    "example": "connected"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "ok"
-                }
-            }
-        },
-        "internal_handlers.IngestReadingBatchResponse": {
-            "type": "object",
-            "properties": {
-                "accepted": {
-                    "type": "integer"
-                },
-                "rejected": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_handlers.IngestReadingResponse": {
-            "type": "object",
-            "properties": {
-                "anomaly_description": {
-                    "type": "string"
-                },
-                "anomaly_detected": {
-                    "type": "boolean"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "processed"
-                }
-            }
-        },
-        "internal_handlers.IoTDeviceResponse": {
-            "type": "object",
-            "properties": {
-                "device_name": {
-                    "type": "string"
-                },
-                "device_type": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "last_ping": {
-                    "type": "string"
-                },
-                "mac_address": {
-                    "type": "string"
-                },
-                "org_id": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.KnowledgeSearchResponse": {
-            "type": "object",
-            "properties": {
-                "ai_answer": {
-                    "type": "string",
-                    "example": "Based on our knowledge base, parental leave in Australia..."
-                },
-                "source_documents": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.SourceDocument"
-                    }
-                }
-            }
-        },
-        "internal_handlers.ListDashboardsResponse": {
-            "type": "object",
-            "properties": {
-                "dashboards": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.DashboardResponse"
-                    }
-                }
-            }
-        },
-        "internal_handlers.ListIoTDevicesResponse": {
-            "type": "object",
-            "properties": {
-                "devices": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.IoTDeviceResponse"
-                    }
-                }
-            }
-        },
-        "internal_handlers.LoginResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIs..."
-                },
-                "refresh_token": {
-                    "type": "string"
-                },
-                "user_profile": {}
-            }
-        },
-        "internal_handlers.OCRResponse": {
-            "type": "object",
-            "properties": {
-                "invoice_number": {
-                    "type": "string",
-                    "example": "INV-4521"
-                },
-                "line_items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.OCRLineItem"
-                    }
-                },
-                "tax_amount": {
-                    "type": "number",
-                    "example": 45.6
-                },
-                "total_amount": {
-                    "type": "number",
-                    "example": 570
-                },
-                "vendor_name": {
-                    "type": "string",
-                    "example": "Acme Supplies Inc."
-                }
-            }
-        },
-        "internal_handlers.ParseResumeResponse": {
-            "type": "object",
-            "properties": {
-                "ai_match_score": {
-                    "type": "integer",
-                    "example": 85
-                },
-                "candidate_name": {
-                    "type": "string",
-                    "example": "Jane Smith"
-                },
-                "email": {
-                    "type": "string",
-                    "example": "jane.smith@email.com"
-                },
-                "extracted_skills": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    },
-                    "example": [
-                        "Python",
-                        "Go",
-                        "Docker",
-                        "Kubernetes"
-                    ]
-                }
-            }
-        },
-        "internal_handlers.RegisterResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string",
-                    "example": "eyJhbGciOiJIUzI1NiIs..."
-                },
-                "org_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440001"
-                }
-            }
-        },
-        "internal_handlers.ReorderPredictionsResponse": {
-            "type": "object",
-            "properties": {
-                "predictions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.StockoutPrediction"
-                    }
-                }
-            }
-        },
-        "internal_handlers.RouteOptimizeResponse": {
-            "type": "object",
-            "properties": {
-                "carbon_offset_kg": {
-                    "type": "number",
-                    "example": 12.45
-                },
-                "optimized_waypoints": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.Waypoint"
-                    }
-                },
-                "predicted_eta": {
-                    "type": "string",
-                    "example": "2025-01-15T16:45:00Z"
-                },
-                "route_plan_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.ScheduleFieldVisitResponse": {
-            "type": "object",
-            "properties": {
-                "estimated_travel_time_minutes": {
-                    "type": "integer",
-                    "example": 25
-                },
-                "visit_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.SecurityAnomalyItem": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "example": "user.login"
-                },
-                "ai_risk_score": {
-                    "type": "number",
-                    "example": 0.87
-                },
-                "anomaly_type": {
-                    "type": "string",
-                    "example": "suspicious_login"
-                },
-                "ip_address": {
-                    "type": "string",
-                    "example": "192.168.1.100"
-                },
-                "log_id": {
-                    "type": "integer",
-                    "example": 10042
-                },
-                "user_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.TelemetryIngestResponse": {
-            "type": "object",
-            "properties": {
-                "ai_predictive_alert_triggered": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "processed_at": {
-                    "type": "string",
-                    "example": "2025-01-15T14:30:00Z"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "queued"
-                }
-            }
-        },
-        "internal_handlers.TriggerWorkflowResponse": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "type": "string",
-                    "example": "success"
-                },
-                "steps_executed": {
-                    "type": "integer",
-                    "example": 4
-                },
-                "workflow_execution_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                }
-            }
-        },
-        "internal_handlers.WidgetDataItem": {
-            "type": "object",
-            "properties": {
-                "anomaly_description": {
-                    "type": "string"
-                },
-                "anomaly_detected": {
-                    "type": "boolean"
-                },
-                "data": {
-                    "type": "array",
-                    "items": {
-                        "type": "array",
-                        "items": {}
-                    }
-                },
-                "title": {
-                    "type": "string"
-                },
-                "widget_type": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.analyzeRiskRequest": {
-            "type": "object",
-            "properties": {
-                "contract_text": {
-                    "type": "string"
-                },
-                "quote_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.assignShiftRequest": {
-            "type": "object",
-            "properties": {
-                "employee_id": {
-                    "type": "string"
-                },
-                "shift_date": {
-                    "type": "string"
-                },
-                "shift_template_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.calculateTaxRequest": {
-            "type": "object",
-            "properties": {
-                "country_code": {
-                    "type": "string"
-                },
-                "subtotal": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.clockInRequest": {
-            "type": "object",
-            "properties": {
-                "latitude": {
-                    "type": "number"
-                },
-                "longitude": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.convertCurrencyRequest": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "number"
-                },
-                "from_currency": {
-                    "type": "string"
-                },
-                "to_currency": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.copilotQueryRequest": {
-            "type": "object",
-            "properties": {
-                "prompt": {
-                    "type": "string",
-                    "example": "Show top 5 sales reps by revenue in Q2"
-                }
-            }
-        },
-        "internal_handlers.createAPIKeyRequest": {
-            "type": "object",
-            "properties": {
-                "expires_in_days": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "scopes": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "internal_handlers.createAssetRequest": {
-            "type": "object",
-            "properties": {
-                "asset_name": {
-                    "type": "string"
-                },
-                "purchase_cost": {
-                    "type": "number"
-                },
-                "purchase_date": {
-                    "type": "string"
-                },
-                "salvage_value": {
-                    "type": "number"
-                },
-                "useful_life_years": {
-                    "type": "integer"
-                }
-            }
-        },
-        "internal_handlers.createBOMComponentEntry": {
-            "type": "object",
-            "properties": {
-                "component_product_id": {
-                    "type": "string"
-                },
-                "quantity_required": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.createBOMRequest": {
-            "type": "object",
-            "properties": {
-                "bom_code": {
-                    "type": "string"
-                },
-                "components": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.createBOMComponentEntry"
-                    }
-                },
-                "parent_product_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createCampaignRequest": {
-            "type": "object",
-            "properties": {
-                "budget": {
-                    "type": "number"
-                },
-                "channel": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createDashboardRequest": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
-                },
-                "name": {
-                    "type": "string",
-                    "example": "Executive Overview"
-                }
-            }
-        },
-        "internal_handlers.createEmployeeRequest": {
-            "type": "object",
-            "properties": {
-                "department": {
-                    "type": "string"
-                },
-                "employee_code": {
-                    "type": "string"
-                },
-                "hired_at": {
-                    "type": "string"
-                },
-                "job_title": {
-                    "type": "string"
-                },
-                "salary": {
-                    "type": "number"
-                },
-                "user_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createExchangeRateRequest": {
-            "type": "object",
-            "properties": {
-                "effective_date": {
-                    "type": "string"
-                },
-                "from_currency": {
-                    "type": "string"
-                },
-                "rate": {
-                    "type": "number"
-                },
-                "to_currency": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createExpenseRequest": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "number"
-                },
-                "category": {
-                    "type": "string"
-                },
-                "receipt_file": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createJournalEntryRequest": {
-            "type": "object",
-            "properties": {
-                "entry_date": {
-                    "type": "string"
-                },
-                "items": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.journalItemRequest"
-                    }
-                },
-                "memo": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createLeadRequest": {
-            "type": "object",
-            "properties": {
-                "company_name": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "estimated_deal_size": {
-                    "type": "number"
-                },
-                "first_name": {
-                    "type": "string"
-                },
-                "last_name": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createPurchaseOrderRequest": {
-            "type": "object",
-            "properties": {
-                "po_number": {
-                    "type": "string"
-                },
-                "supplier_name": {
-                    "type": "string"
-                },
-                "total_cost": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.createRoleRequest": {
-            "type": "object",
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "permission_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "internal_handlers.createShiftTemplateRequest": {
-            "type": "object",
-            "properties": {
-                "day_of_week": {
-                    "type": "integer"
-                },
-                "department": {
-                    "type": "string"
-                },
-                "end_time": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "required_headcount": {
-                    "type": "integer"
-                },
-                "start_time": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createSubscriptionRequest": {
-            "type": "object",
-            "properties": {
-                "payment_method_id": {
-                    "type": "string"
-                },
-                "plan_code": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createTaxRateRequest": {
-            "type": "object",
-            "properties": {
-                "country_code": {
-                    "type": "string"
-                },
-                "tax_name": {
-                    "type": "string"
-                },
-                "tax_rate": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.createTicketRequest": {
-            "type": "object",
-            "properties": {
-                "contact_id": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "subject": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.createWorkOrderRequest": {
-            "type": "object",
-            "properties": {
-                "bom_id": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "integer"
-                },
-                "scheduled_end": {
-                    "type": "string"
-                },
-                "scheduled_start": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.importBankStatementRequest": {
-            "type": "object",
-            "properties": {
-                "account_number": {
-                    "type": "string"
-                },
-                "bank_name": {
-                    "type": "string"
-                },
-                "closing_balance": {
-                    "type": "number"
-                },
-                "opening_balance": {
-                    "type": "number"
-                },
-                "statement_date": {
-                    "type": "string"
-                },
-                "transactions": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/github_com_patiHash1_Strata-prototype_internal_services.BankTransactionInput"
-                    }
-                }
-            }
-        },
-        "internal_handlers.ingestReadingBatchRequest": {
-            "type": "object",
-            "properties": {
-                "readings": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/internal_handlers.ingestReadingRequest"
-                    }
-                }
-            }
-        },
-        "internal_handlers.ingestReadingRequest": {
-            "type": "object",
-            "properties": {
-                "device_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "metric_name": {
-                    "type": "string",
-                    "example": "temperature"
-                },
-                "metric_value": {
-                    "type": "number",
-                    "example": 72.5
-                },
-                "unit": {
-                    "type": "string",
-                    "example": "celsius"
-                }
-            }
-        },
-        "internal_handlers.inviteRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "role_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.issueStockRequest": {
-            "type": "object",
-            "properties": {
-                "product_id": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "number"
-                },
-                "reference": {
-                    "type": "string"
-                },
-                "warehouse_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.journalItemRequest": {
-            "type": "object",
-            "properties": {
-                "account_id": {
-                    "type": "string"
-                },
-                "credit": {
-                    "type": "number"
-                },
-                "debit": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.knowledgeSearchRequest": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.launchCampaignResponse": {
-            "type": "object",
-            "properties": {
-                "campaign_id": {
-                    "type": "string",
-                    "example": "550e8400-e29b-41d4-a716-446655440000"
-                },
-                "estimated_reach": {
-                    "type": "integer",
-                    "example": 12500
-                },
-                "status": {
-                    "type": "string",
-                    "example": "active"
-                }
-            }
-        },
-        "internal_handlers.loginRequest": {
-            "type": "object",
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "mfa_code": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.receiveStockRequest": {
-            "type": "object",
-            "properties": {
-                "product_id": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "number"
-                },
-                "reference": {
-                    "type": "string"
-                },
-                "warehouse_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.registerDeviceRequest": {
-            "type": "object",
-            "properties": {
-                "device_name": {
-                    "type": "string",
-                    "example": "Temperature Sensor A1"
-                },
-                "device_type": {
-                    "type": "string",
-                    "example": "temperature_sensor"
-                },
-                "mac_address": {
-                    "type": "string",
-                    "example": "AA:BB:CC:DD:EE:01"
-                }
-            }
-        },
-        "internal_handlers.registerRequest": {
-            "type": "object",
-            "properties": {
-                "company_name": {
-                    "type": "string"
-                },
-                "domain_slug": {
-                    "type": "string"
-                },
-                "owner_email": {
-                    "type": "string"
-                },
-                "owner_full_name": {
-                    "type": "string"
-                },
-                "owner_password": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.routeOptimizeRequest": {
-            "type": "object",
-            "properties": {
-                "available_vehicle_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "shipment_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "internal_handlers.runPayrollRequest": {
-            "type": "object",
-            "properties": {
-                "pay_period_end": {
-                    "type": "string"
-                },
-                "pay_period_start": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.scheduleFieldVisitRequest": {
-            "type": "object",
-            "properties": {
-                "contact_id": {
-                    "type": "string"
-                },
-                "location_lat": {
-                    "type": "number"
-                },
-                "location_long": {
-                    "type": "number"
-                },
-                "notes": {
-                    "type": "string"
-                },
-                "sales_rep_id": {
-                    "type": "string"
-                },
-                "scheduled_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.setEmployeeTaxProfileRequest": {
-            "type": "object",
-            "properties": {
-                "additional_withholding": {
-                    "type": "number"
-                },
-                "allowances": {
-                    "type": "integer"
-                },
-                "employee_id": {
-                    "type": "string"
-                },
-                "filing_status": {
-                    "type": "string"
-                },
-                "tax_country": {
-                    "type": "string"
-                },
-                "tax_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.telemetryIngestRequest": {
-            "type": "object",
-            "properties": {
-                "engine_temp_c": {
-                    "type": "number"
-                },
-                "latitude": {
-                    "type": "number"
-                },
-                "longitude": {
-                    "type": "number"
-                },
-                "speed_kmh": {
-                    "type": "number"
-                },
-                "vehicle_vin": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.transferStockRequest": {
-            "type": "object",
-            "properties": {
-                "from_warehouse_id": {
-                    "type": "string"
-                },
-                "product_id": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "number"
-                },
-                "to_warehouse_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "internal_handlers.triggerWorkflowRequest": {
-            "type": "object",
-            "properties": {
-                "event_type": {
-                    "type": "string",
-                    "example": "invoice.paid"
-                },
-                "payload": {
-                    "type": "object",
-                    "additionalProperties": true
-                }
-            }
-        },
-        "internal_handlers.updateEmployeeRequest": {
-            "type": "object",
-            "properties": {
-                "department": {
-                    "type": "string"
-                },
-                "job_title": {
-                    "type": "string"
-                },
-                "salary": {
-                    "type": "number"
-                }
-            }
-        },
-        "internal_handlers.updateMemberRequest": {
-            "type": "object",
-            "properties": {
-                "role_id": {
-                    "type": "string"
-                }
-            }
         }
     },
     "securityDefinitions": {
@@ -5144,6 +5372,10 @@ const docTemplate = `{
         {
             "description": "System health and meta endpoints.",
             "name": "System"
+        },
+        {
+            "description": "User account management — own profile, update, delete, and organizations.",
+            "name": "Account"
         },
         {
             "description": "Authentication, registration, and multi-tenancy.",

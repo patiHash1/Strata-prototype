@@ -30,6 +30,8 @@ import (
 //
 //	@tag.name		System
 //	@tag.description	System health and meta endpoints.
+//	@tag.name		Account
+//	@tag.description	User account management — own profile, update, delete, and organizations.
 //	@tag.name		Auth
 //	@tag.description	Authentication, registration, and multi-tenancy.
 //	@tag.name		Organizations

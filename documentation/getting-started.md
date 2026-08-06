@@ -59,6 +59,7 @@ internal/
 	│   ├── handlers_routes.go             # Route registration + middleware
 	│   ├── handlers_health.go             # GET /health
 	│   ├── handlers_auth.go               # POST auth/register, auth/login
+	│   ├── handlers_account.go            # GET/PATCH/DELETE /api/v1/account, GET /api/v1/account/organizations
 	│   ├── handlers_org.go                # Org endpoints
 	│   ├── handlers_billing.go            # Billing endpoints
 	│   ├── handlers_crm.go                # CRM endpoints

@@ -53,6 +53,31 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Account (user's own profile) ──
+	mux.Handle("GET /api/v1/account",
+		utils.RequireAuth(a.Auth)(
+			http.HandlerFunc(a.getAccountHandler),
+		),
+	)
+
+	mux.Handle("PATCH /api/v1/account",
+		utils.RequireAuth(a.Auth)(
+			http.HandlerFunc(a.updateAccountHandler),
+		),
+	)
+
+	mux.Handle("DELETE /api/v1/account",
+		utils.RequireAuth(a.Auth)(
+			http.HandlerFunc(a.deleteAccountHandler),
+		),
+	)
+
+	mux.Handle("GET /api/v1/account/organizations",
+		utils.RequireAuth(a.Auth)(
+			http.HandlerFunc(a.listMyOrganizationsHandler),
+		),
+	)
+
 	// ── Organization member management ──
 	mux.Handle("PATCH /api/v1/org/members/{member_id}",
 		utils.RequireAuth(a.Auth)(

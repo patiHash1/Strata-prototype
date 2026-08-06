@@ -51,6 +51,7 @@ internal/
 │   ├── handlers_routes.go             # Route registration + middleware stack + Swagger UI
 │   ├── handlers_health.go             # GET /health
 │   ├── handlers_auth.go               # POST auth/register, POST auth/login
+│   ├── handlers_account.go            # GET/PATCH/DELETE /api/v1/account, GET /api/v1/account/organizations
 │   ├── handlers_org.go                # POST org/invitations, org/roles, org/api-keys
 │   ├── handlers_billing.go            # POST billing/subscriptions
 │   ├── handlers_crm.go                # POST crm/leads, quotes/risk-analysis, crm/tickets, crm/field-visits, crm/campaigns, crm/campaigns/{id}/launch
@@ -595,12 +596,13 @@ func Load() Config {
 
 <div align="center">
 
-### 🟢 **25 / 25 Modules Implemented**
+### 🟢 **26 / 26 Modules Implemented**
 
 </div>
 
 | # | Category | Module | Status |
 |:---:|:---|:---|:---:|
+| 0.1 | ⚪ Account | User Profile & Account Management | ✅ |
 | 1.1 | 🟣 CRM & RevOps | Sales / Lead Score | ✅ |
 | 1.2 | 🟣 CRM & RevOps | Quotes / Contract Risk | ✅ |
 | 1.3 | 🟣 CRM & RevOps | Helpdesk / Ticket Router | ✅ |
