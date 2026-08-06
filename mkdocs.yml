@@ -10,12 +10,17 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - API Reference:
+      - User Accounts: api/account.md
+      - Finance & Accounting: api/accounting.md
       - Authentication: api/authentication.md
-      - Organizations: api/organizations.md
-      - Members: api/members.md
       - Billing: api/billing.md
       - CRM & Revenue: api/crm.md
-      - Finance & Accounting: api/accounting.md
+      - Fleet Management: api/fleet.md
+      - HR Ops: api/hr.md
+      - Inventory Management: api/inventory.md
+      - Members: api/members.md
+      - Platform AI Integrations: api/platform-ai.md
+      - Organizations: api/organizations.md
       - System: api/system.md
   - Architecture:
       - Overview: architecture/overview.md
