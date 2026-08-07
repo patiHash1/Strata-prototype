@@ -631,6 +631,83 @@ type IngestReadingResult struct {
 
 **AI simulation:** Text-to-SQL uses keyword-based prompt classification to select pre-written SQL queries for each domain (sales, invoices, attendance, fleet). Chart recommendation uses a simple heuristic: `top`/`by` keywords → bar chart, time fields → line chart, otherwise → table. Workflow execution simulates step counts (2–6) without actually executing any actions. Security anomaly classification uses action name heuristics (e.g., `login` → `suspicious_login`, `delete` → `unauthorized_delete_attempt`) with randomized risk scores. All AI features are designed to be replaced with real LLM/ML services in production.
 
+## SuperAdminService
+
+**File:** `services_super_admin.go`
+
+Central service for system observability, Security Operations Center (SOC) monitoring, partitioned maintenance control, and CI health ingestion.
+
+**Dependencies:** `*pgxpool.Pool`, `*redis.Client` (optional)
+
+```go
+type SuperAdminService struct {
+    repo            *superAdminRepository
+    pool            *pgxpool.Pool
+    rdb             *redis.Client
+    cacheMu         sync.RWMutex
+    cacheRules      map[string]*MaintenanceRule
+    panicBuffer     *RingBuffer[SystemError]
+    latencyBuffer   *RingBuffer[HTTPLatencyRecord]
+    telemetryBuffer *RingBuffer[TelemetrySnapshot]
+    httpMetrics     HTTPMetrics
+    sseSubs         map[string]*sseSubscriber
+}
+```
+
+**Key types:**
+
+```go
+type MaintenanceRule struct {
+    ID           int64     `json:"id"`
+    Scope        string    `json:"scope"`        // module, tenant_id, feature
+    TargetID     string    `json:"target_id"`
+    IsActive     bool      `json:"is_active"`
+    Reason       string    `json:"reason"`
+    AllowedRoles []string  `json:"allowed_roles"`
+    CreatedAt    time.Time `json:"created_at"`
+    UpdatedAt    time.Time `json:"updated_at"`
+}
+
+type TelemetrySnapshot struct {
+    Timestamp    time.Time       `json:"timestamp"`
+    Runtime      RuntimeMetrics  `json:"runtime"`
+    DB           DBMetrics       `json:"db"`
+    HTTP         HTTPMetrics     `json:"http"`
+    RecentPanics []SystemError   `json:"recent_panics"`
+}
+
+type SOCEvent struct {
+    ID        string         `json:"id"`
+    Type      string         `json:"type"`
+    Severity  string         `json:"severity"`
+    Message   string         `json:"message"`
+    Timestamp time.Time      `json:"timestamp"`
+}
+```
+
+**Key methods:**
+
+| Method | Description |
+|:---|:---|
+| `IsUnderMaintenance(scope, targetID) (*MaintenanceRule, bool)` | O(1) in-memory maintenance check |
+| `ToggleMaintenance(ctx, req) (*MaintenanceRule, error)` | Upserts rule + publishes Redis invalidation |
+| `ListMaintenanceRules(ctx) ([]MaintenanceRule, error)` | Lists all active rules from DB |
+| `CollectSnapshot() TelemetrySnapshot` | Gathers runtime + DB + HTTP metrics |
+| `RecordPanic(module, errMsg, stackTrace, statusCode)` | Captures panic into ring buffer + async DB persist |
+| `RecordHTTPLatency(record HTTPLatencyRecord)` | Tracks HTTP latency for percentile computation |
+| `PublishSOCEvent(ctx, event SOCEvent)` | Publishes security event to Redis + fans out to local SSE subscribers |
+| `AddSSESubscriber() (chan []byte, func())` | Registers SSE subscriber with cleanup callback |
+| `IngestCIHealth(ctx, req) (*CIHealthReport, error)` | Stores CI health report (coverage, linters, vulns) |
+| `GetModuleHealth(ctx) ([]ModuleHealth, error)` | Computes composite health scores per module |
+| `PrometheusMetrics() string` | Returns Prometheus exposition format metrics |
+| `Shutdown()` | Gracefully stops background Redis subscriber goroutines |
+
+**Redis channels:**
+- `strata:events:maintenance-sync` — cache invalidation broadcast
+- `strata:events:security-soc` — SOC event fan-out for SSE
+
+**Ring buffers:** Fixed-size (100 items) for panics, latencies, and telemetry snapshots — prevents unbounded memory growth under load.
+
 ## Mailer
 
 **File:** `services_mailer.go`

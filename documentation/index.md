@@ -46,6 +46,13 @@ The project is in early prototype stage. The API is under active development and
 - [IoT Gateway](api/platform-ai.md#iot-gateway)
 - [Batch IoT Ingestion](api/platform-ai.md#iot-gateway)
 
+### Super Admin
+- [Super Admin API](api/super-admin.md)
+- [System Metrics & Health](api/super-admin.md#metrics)
+- [Partitioned Maintenance](api/super-admin.md#maintenance)
+- [SOC Security Stream (SSE)](api/super-admin.md#security-stream)
+- [User & Organization CRUD](api/super-admin.md#user--organization-management)
+
 ### Architecture
 - [Architecture Overview](architecture/overview.md)
 - [Database Schema](architecture/database.md)

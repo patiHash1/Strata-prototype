@@ -44,6 +44,7 @@ internal/
 │   ├── services_supplychain.go # SupplyChainService: fleet, telematics, inventory, routes
 │   ├── services_hr.go          # HRService: attendance, resume parsing, knowledge search
 │   ├── services_platform.go    # PlatformService: AI copilot, workflows, security anomalies
+│   ├── services_super_admin.go # SuperAdminService: observability, SOC, maintenance, CI health
 │   └── services_mailer.go      # Mailer: transactional email (stub)
 │
 ├── handlers/            # HTTP LAYER — handlers, routes, App wiring
@@ -62,18 +63,19 @@ internal/
 │   ├── handlers_hr.go                 # POST hr/attendance/clock-in, hr/ats/parse-resume, hr/knowledge/search, hr/employees, hr/payroll/runs; GET hr/employees, hr/employees/{id}, hr/payroll/runs, hr/payroll/runs/{id}; PATCH hr/employees/{id}; clock-out, shifts/templates, shifts/assignments, shifts/predictions, shifts/schedule, payroll/detail, payroll/tax-profiles
 │   ├── handlers_hr_extra.go           # Clock-out, shift management, tax profiles, payroll detail
 │   ├── handlers_platform.go           # POST ai/copilot/query, workflows/trigger, bi/dashboards, iot/devices, iot/readings; GET security/audit-anomalies, bi/dashboards, bi/dashboards/{id}/data, iot/devices; iot/readings/batch
-│   └── handlers_platform_extra.go     # Batch IoT reading ingestion
+│   ├── handlers_platform_extra.go     # Batch IoT reading ingestion
+│   └── handlers_super_admin.go        # Super-admin: metrics, health, maintenance, SOC SSE stream, user/org CRUD
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
-│   ├── middleware.go     # RequireAuth, RequirePermission, RequireAPIKey, Logging, CORS, Recovery
+│   ├── middleware.go     # RequireAuth, RequirePermission, RequireAPIKey, Logging, CORS, Recovery, PartitionedMaintenance
 │   └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 │
 ├── config/config.go     # App configuration loaded from env vars
 ├── database/
 │   ├── database.go      # pgx connection pool with retry logic
 │   ├── migrations.go    # Embedded migration loader (embed.FS)
-│   └── migrations/      # 67 numbered .up.sql migration files
+│   └── migrations/      # 71 numbered .up.sql migration files
 └── env/env.go           # Safe environment variable helpers (GetString, GetInt, GetBool)
 
 docs/                    # Auto-generated Swagger/OpenAPI spec (do not edit)
@@ -161,9 +163,16 @@ swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency 
 
 | Env Variable | Default | Description |
 |:---|:---|:---|
+| `PORT` | `8080` | HTTP server port |
 | `ENABLE_SWAGGER` | `true` | Set to `false` in production to disable the Swagger UI route |
 | `JWT_SECRET` | `dev-secret-change-in-production` | HMAC signing key for JWTs |
-| `DATABASE_URL` | `""` | Postgres connection string (if empty, runs DB-less) |
+| `JWT_ISSUER` | `strata` | JWT issuer claim |
+| `DATABASE_URL` | `""` | Postgres connection string |
+| `REDIS_ADDR` | `""` | Redis address (optional — enables multi-node cache sync & SSE fan-out) |
+| `REDIS_PASSWORD` | `""` | Redis password |
+| `REDIS_DB` | `0` | Redis database number |
+| `SUPERADMIN_UNAME` | `admin@strata.local` | Default super-admin email (seeded on first run) |
+| `SUPERADMIN_PWORD` | `SuperAdmin123!` | Default super-admin password (seeded on first run) |
 
 ---
 
@@ -596,7 +605,7 @@ func Load() Config {
 
 <div align="center">
 
-### 🟢 **26 / 26 Modules Implemented**
+### 🟢 **27 / 27 Modules Implemented**
 
 </div>
 
@@ -628,6 +637,10 @@ func Load() Config {
 | 5.3 | 🔴 Platform & AI | Low‑Code Workflows | ✅ |
 | 5.4 | 🔴 Platform & AI | IoT Gateway & Batch Ingestion | ✅ |
 | 5.5 | 🔴 Platform & AI | Audit / Security / RBAC | ✅ |
+| 6.1 | ⚪ Super Admin | System Observability & SOC | ✅ |
+| 6.2 | ⚪ Super Admin | Partitioned Maintenance | ✅ |
+| 6.3 | ⚪ Super Admin | CI Health & Module Scores | ✅ |
+| 6.4 | ⚪ Super Admin | User & Org CRUD (Ban/Suspend) | ✅ |
 
 ---
 
@@ -686,6 +699,7 @@ open http://localhost:8080/swagger/
 - ~~Inventory levels per warehouse~~ — multi‑warehouse stock tracking with receive/issue/transfer/snapshot
 - ~~Shift management & AI prediction~~ — shift templates, assignments, scheduling, and AI‑driven predictions
 - ~~Payroll tax withholding per employee~~ — per‑employee tax profiles, withholding calculations, and payroll detail
+- ~~Super‑admin subsystem~~ — system observability, SOC security monitoring, partitioned maintenance, CI health ingestion, user/org CRUD
 
 </details>
 

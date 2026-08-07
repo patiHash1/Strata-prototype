@@ -17,9 +17,10 @@ Global middleware is applied in `routes()` in `handlers_routes.go`. The order de
 
 ```go
 var handler http.Handler = mux
-handler = utils.CORSMiddleware(handler)     // 1. CORS headers
-handler = utils.LoggingMiddleware(handler)  // 2. Request logging
-handler = utils.RecoveryMiddleware(handler) // 3. Panic recovery
+handler = utils.CORSMiddleware(handler)                           // 1. CORS headers
+handler = utils.LoggingMiddleware(adminSvc)(handler)              // 2. Request logging + latency tracking
+handler = utils.RecoveryMiddleware(adminSvc)(handler)             // 3. Panic recovery + stack capture
+handler = utils.PartitionedMaintenanceMiddleware(adminSvc)(handler) // 4. Maintenance mode enforcement
 ```
 
 ### CORSMiddleware
@@ -39,10 +40,10 @@ Preflight `OPTIONS` requests are handled immediately with `204 No Content`.
 ### LoggingMiddleware
 
 ```go
-func LoggingMiddleware(next http.Handler) http.Handler
+func LoggingMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler
 ```
 
-Logs every request with method, path, status code, and duration:
+Logs every request with method, path, status code, and duration. Also pushes latency records into the `SuperAdminService` for percentile computation and per-module HTTP metrics aggregation:
 
 ```
 2026/08/01 12:00:00 POST /api/v1/auth/login 200 12.345µs
@@ -53,10 +54,26 @@ Uses a custom `loggingResponseWriter` to capture the status code.
 ### RecoveryMiddleware
 
 ```go
-func RecoveryMiddleware(next http.Handler) http.Handler
+func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler
 ```
 
-Catches panics in handler code and returns `500 Internal Server Error` with a JSON error body, preventing the server from crashing.
+Catches panics in handler code and returns `500 Internal Server Error` with a JSON error body. Captures the full stack trace into the `SuperAdminService` ring buffer and persists it asynchronously to `super_admin_system_errors`.
+
+### PartitionedMaintenanceMiddleware
+
+```go
+func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler
+```
+
+Runs on **every incoming HTTP request** and checks the local in-memory maintenance cache (`sync.RWMutex` map) for active maintenance locks. Returns HTTP 503 with a JSON error body if the request's module or tenant is under maintenance.
+
+**Bypass rules:**
+- All routes matching `/api/v1/super-admin/*` are always accessible
+- Users with the `super_admin.access` permission bypass all maintenance checks
+
+**Performance:** The in-memory cache read is O(1) with sub-microsecond overhead — no database queries or allocations on the hot path.
+
+**Multi-node sync:** When a maintenance rule is toggled via the API, a cache-invalidation message is published to Redis channel `strata:events:maintenance-sync`. All connected nodes reload their cache from PostgreSQL within milliseconds.
 
 ## Route-level middleware
 
@@ -220,5 +237,11 @@ The order of middleware composition matters:
 
 - **Global middleware** is applied outermost-first, meaning the first middleware wrapped runs last (it's the outermost wrapper)
 - **Route-level middleware** is applied in the order it's composed: `RequireAuth` runs before `RequirePermission`, which runs before the handler
+
+**Current global stack (execution order):**
+1. `PartitionedMaintenanceMiddleware` — blocks maintenance-locked requests first (outermost)
+2. `RecoveryMiddleware` — catches panics from all inner layers
+3. `LoggingMiddleware` — logs request + records latency metrics
+4. `CORSMiddleware` — sets CORS headers (innermost global)
 
 For route-level middleware, `RequireAuth` must always come before `RequirePermission` because the permission check depends on claims being present in the context.

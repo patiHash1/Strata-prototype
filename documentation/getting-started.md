@@ -12,6 +12,7 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 - **Supply Chain & Inventory** with multi-warehouse stock tracking, receive/issue/transfer/snapshot, BOM, work orders, fleet telematics, and route optimization
 - **HR & Workforce** with time & attendance, shift management & AI prediction, payroll with per-employee tax withholding, ATS candidate matching, and knowledge base RAG
 - **Platform & AI** with text-to-SQL copilot, BI dashboards, low-code workflows, IoT gateway with batch ingestion, and security audit
+- **Super Admin** with system observability, real-time SOC monitoring (SSE), partitioned maintenance, CI health ingestion, and platform-wide user/org CRUD
 - **Billing/subscription management** with Stripe integration
 - **API key authentication** for machine-to-machine integrations
 
@@ -22,6 +23,7 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 | Language | **Go 1.26** |
 | HTTP Router | **net/http** (Go 1.22+ enhanced ServeMux with path parameters) |
 | Database | **PostgreSQL 16** via `pgx/v5` |
+| Cache & Pub/Sub | **Redis 7** via `go-redis/v9` (optional — multi-node sync) |
 | Authentication | **JWT** (HS256) with `golang-jwt/jwt/v5` |
 | Password hashing | **bcrypt** via `golang.org/x/crypto` |
 | API documentation | **Swagger/OpenAPI 2.0** via `swaggo/swag` |
@@ -41,7 +43,7 @@ internal/
 ├── database/
 │   ├── database.go          # pgx connection pool with retry logic
 │   ├── migrations.go        # Embedded migration loader (embed.FS)
-│   └── migrations/          # 67 numbered .up.sql migration files
+│   └── migrations/          # 71 numbered .up.sql migration files
 ├── services/
 	│   ├── services_auth.go       # JWT, bcrypt, refresh tokens
 	│   ├── services_users.go      # Users, organization memberships
@@ -53,6 +55,7 @@ internal/
 	│   ├── services_supplychain.go # Supply chain: fleet, telematics, inventory, routes, warehouse stock
 	│   ├── services_hr.go         # HR: attendance, shifts, payroll/tax, resume parsing, knowledge search
 	│   ├── services_platform.go   # Platform: AI copilot, workflows, IoT batch, security anomalies
+	│   ├── services_super_admin.go # Super Admin: observability, SOC, maintenance, CI health
 	│   └── services_mailer.go     # Transactional email (stub)
 	├── handlers/
 	│   ├── handlers_server.go             # App struct, DI wiring, Serve()
@@ -70,7 +73,8 @@ internal/
 	│   ├── handlers_hr.go                 # HR endpoints + clock-out, shifts, payroll detail/tax
 	│   ├── handlers_hr_extra.go           # Clock-out, shift management, tax profiles, payroll detail
 	│   ├── handlers_platform.go           # AI & Platform endpoints + batch IoT readings
-	│   └── handlers_platform_extra.go     # Batch IoT reading ingestion
+	│   ├── handlers_platform_extra.go     # Batch IoT reading ingestion
+	│   └── handlers_super_admin.go        # Super-admin: metrics, health, maintenance, SOC SSE, user/org CRUD
 └── utils/
     ├── response.go          # WriteJSON, WriteErr, Envelope
     ├── middleware.go         # RequireAuth, RequirePermission, etc.
@@ -132,6 +136,11 @@ Configuration is loaded from environment variables (optionally via a `.env` file
 | `JWT_SECRET` | `dev-secret-change-in-production` | HMAC signing key for JWTs |
 | `JWT_ISSUER` | `strata` | JWT issuer claim |
 | `ENABLE_SWAGGER` | `true` | Enable Swagger UI at `/swagger/` |
+| `REDIS_ADDR` | *(optional)* | Redis address for multi-node cache sync & SSE fan-out |
+| `REDIS_PASSWORD` | *(optional)* | Redis password |
+| `REDIS_DB` | `0` | Redis database number |
+| `SUPERADMIN_UNAME` | `admin@strata.local` | Default super-admin email (seeded on first run) |
+| `SUPERADMIN_PWORD` | `SuperAdmin123!` | Default super-admin password (seeded on first run) |
 
 ## Running the project
 

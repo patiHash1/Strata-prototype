@@ -20,6 +20,7 @@ nav:
       - Inventory Management: api/inventory.md
       - Members: api/members.md
       - Platform AI Integrations: api/platform-ai.md
+      - Super Admin Operations: api/super-admin.md
       - Organizations: api/organizations.md
       - System: api/system.md
   - Architecture:
