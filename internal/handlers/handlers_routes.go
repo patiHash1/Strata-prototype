@@ -566,11 +566,69 @@ func (a *App) routes() http.Handler {
 		))
 	}
 
+	// ── Super-Admin routes ──
+	mux.Handle("GET /api/v1/super-admin/metrics",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.getSuperAdminMetricsHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/metrics/prometheus",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.getSuperAdminMetricsPrometheusHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/health",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.getSuperAdminHealthHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/telemetry/ci-health",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.ingestCIHealthHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/maintenance",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.listMaintenanceHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/maintenance/toggle",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.toggleMaintenanceHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/security/stream",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.securityStreamHandler),
+			),
+		),
+	)
+
 	// ── Global middleware stack (outermost first) ──
 	var handler http.Handler = mux
 	handler = utils.CORSMiddleware(handler)
-	handler = utils.LoggingMiddleware(handler)
-	handler = utils.RecoveryMiddleware(handler)
+	handler = utils.LoggingMiddleware(a.SuperAdmin)(handler)
+	handler = utils.RecoveryMiddleware(a.SuperAdmin)(handler)
+	handler = utils.PartitionedMaintenanceMiddleware(a.SuperAdmin)(handler)
 
 	return handler
 }

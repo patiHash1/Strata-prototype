@@ -140,6 +140,17 @@ func (r *rbacRepository) GetPermissionKeysByRole(ctx context.Context, roleID uui
 	return keys, rows.Err()
 }
 
+func (r *rbacRepository) GetPermissionIDByKey(ctx context.Context, key string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := r.pool.QueryRow(ctx, `
+		SELECT id FROM permissions WHERE permission_key = $1
+	`, key).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, nil
+	}
+	return id, err
+}
+
 // ---- Service ----
 
 type RBACService struct {
@@ -181,6 +192,11 @@ func (s *RBACService) GetPermissionsByRole(ctx context.Context, roleID uuid.UUID
 
 func (s *RBACService) GetPermissionKeysByRole(ctx context.Context, roleID uuid.UUID) ([]string, error) {
 	return s.repo.GetPermissionKeysByRole(ctx, roleID)
+}
+
+// GetPermissionIDByKey returns the UUID of a permission by its key, or uuid.Nil if not found.
+func (s *RBACService) GetPermissionIDByKey(ctx context.Context, key string) (uuid.UUID, error) {
+	return s.repo.GetPermissionIDByKey(ctx, key)
 }
 
 // Pre-defined permission keys matching the API spec requirements.
@@ -233,4 +249,5 @@ const (
 	PermHRAIShiftsWrite              = "hr.shifts.write"
 	PermHRAIShiftsRead               = "hr.shifts.read"
 	PermHRAIClockOut                 = "hr.attendance.clockout"
+	PermSuperAdmin                   = "super_admin.access"
 )

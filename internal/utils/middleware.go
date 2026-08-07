@@ -2,8 +2,10 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -35,22 +37,38 @@ func GetAPIKeyClaims(r *http.Request) *APIKeyClaims {
 	return c
 }
 
-// LoggingMiddleware logs every incoming request.
-func LoggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
+// LoggingMiddleware logs every incoming request and pushes latency records
+// into the SuperAdminService for metrics aggregation.
+func LoggingMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			start := time.Now()
 
-		lw := &loggingResponseWriter{ResponseWriter: w, status: http.StatusOK}
-		next.ServeHTTP(lw, r)
+			lw := &loggingResponseWriter{ResponseWriter: w, status: http.StatusOK}
+			next.ServeHTTP(lw, r)
 
-		log.Printf(
-			"%s %s %d %s",
-			r.Method,
-			r.URL.Path,
-			lw.status,
-			time.Since(start).Round(time.Microsecond),
-		)
-	})
+			latency := time.Since(start)
+
+			log.Printf(
+				"%s %s %d %s",
+				r.Method,
+				r.URL.Path,
+				lw.status,
+				latency.Round(time.Microsecond),
+			)
+
+			if adminSvc != nil {
+				adminSvc.RecordHTTPLatency(services.HTTPLatencyRecord{
+					Path:       r.URL.Path,
+					Method:     r.Method,
+					StatusCode: lw.status,
+					Latency:    latency,
+					Module:     extractModule(r.URL.Path),
+					Timestamp:  start,
+				})
+			}
+		})
+	}
 }
 
 type loggingResponseWriter struct {
@@ -64,16 +82,26 @@ func (lw *loggingResponseWriter) WriteHeader(code int) {
 }
 
 // RecoveryMiddleware catches panics and returns 500.
-func RecoveryMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if rec := recover(); rec != nil {
-				log.Printf("PANIC: %v", rec)
-				WriteErr(w, http.StatusInternalServerError, "internal server error")
-			}
-		}()
-		next.ServeHTTP(w, r)
-	})
+// If an adminSvc is provided via the closure, panic traces are recorded
+// into the ring buffer and persisted asynchronously.
+func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if rec := recover(); rec != nil {
+					stack := string(debug.Stack())
+					log.Printf("PANIC: %v\n%s", rec, stack)
+
+					if adminSvc != nil {
+						adminSvc.RecordPanic("system", fmt.Sprintf("%v", rec), stack, http.StatusInternalServerError)
+					}
+
+					WriteErr(w, http.StatusInternalServerError, "internal server error")
+				}
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // CORSMiddleware adds permissive CORS headers.
@@ -194,4 +222,66 @@ func RequirePermission(perms ...string) func(http.Handler) http.Handler {
 			WriteErr(w, http.StatusForbidden, "insufficient permissions")
 		})
 	}
+}
+
+// PartitionedMaintenanceMiddleware checks the local in-memory maintenance cache
+// and blocks requests targeting modules/tenants/features under maintenance.
+// Routes matching /api/v1/super-admin/* and users with PermSuperAdmin bypass checks.
+func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Bypass: super-admin routes are always accessible.
+			if strings.HasPrefix(r.URL.Path, "/api/v1/super-admin/") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Bypass: users with PermSuperAdmin.
+			if claims := GetClaims(r); claims != nil {
+				for _, p := range claims.Permissions {
+					if p == services.PermSuperAdmin {
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+			}
+
+			if adminSvc == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Extract module from path (e.g., /api/v1/crm/... → crm).
+			module := extractModule(r.URL.Path)
+
+			// Check module-level maintenance.
+			if rule, ok := adminSvc.IsUnderMaintenance("module", module); ok {
+				http.Error(w, fmt.Sprintf(`{"error":"service under maintenance","reason":"%s"}`, rule.Reason),
+					http.StatusServiceUnavailable)
+				return
+			}
+
+			// Check tenant-level maintenance.
+			if claims := GetClaims(r); claims != nil && claims.OrgID != "" {
+				if rule, ok := adminSvc.IsUnderMaintenance("tenant_id", claims.OrgID); ok {
+					http.Error(w, fmt.Sprintf(`{"error":"organization under maintenance","reason":"%s"}`, rule.Reason),
+						http.StatusServiceUnavailable)
+					return
+				}
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// extractModule extracts the module name from an API path.
+// e.g., /api/v1/crm/leads → crm, /api/v1/accounting/journal-entries → accounting.
+func extractModule(path string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	// Expected: api, v1, <module>, ...
+	if len(parts) >= 3 && parts[0] == "api" && parts[1] == "v1" {
+		return parts[2]
+	}
+	return "unknown"
 }

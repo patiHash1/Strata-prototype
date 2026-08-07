@@ -27,6 +27,7 @@ type App struct {
 	SupplyChain *services.SupplyChainService
 	HR          *services.HRService
 	Platform    *services.PlatformService
+	SuperAdmin  *services.SuperAdminService
 	server      *http.Server
 }
 
@@ -45,6 +46,7 @@ func New(
 	supplyChainSvc *services.SupplyChainService,
 	hrSvc *services.HRService,
 	platformSvc *services.PlatformService,
+	superAdminSvc *services.SuperAdminService,
 ) *App {
 	return &App{
 		Config:      cfg,
@@ -60,6 +62,7 @@ func New(
 		SupplyChain: supplyChainSvc,
 		HR:          hrSvc,
 		Platform:    platformSvc,
+		SuperAdmin:  superAdminSvc,
 	}
 }
 
