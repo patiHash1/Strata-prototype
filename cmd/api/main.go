@@ -164,9 +164,10 @@ func seedSuperAdmin(
 	// Check if super-admin org already exists.
 	org, _ := orgSvc.GetByDomainSlug(ctx, superAdminOrgSlug)
 	if org == nil {
-		org, err := orgSvc.Create(ctx, superAdminOrgSlug, "Strata System")
-		if err != nil {
-			return err
+		var createErr error
+		org, createErr = orgSvc.Create(ctx, superAdminOrgSlug, "Strata System")
+		if createErr != nil {
+			return createErr
 		}
 		log.Printf("  created super-admin org: %s", org.ID)
 	}
