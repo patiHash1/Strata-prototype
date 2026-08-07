@@ -127,6 +127,40 @@ func (r *orgRepository) CreateAPIKey(ctx context.Context, key *APIKey) error {
 	return err
 }
 
+func (r *orgRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status OrgStatus) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE organizations SET status = $1, updated_at = NOW() WHERE id = $2
+	`, status, id)
+	return err
+}
+
+func (r *orgRepository) ListAllOrgs(ctx context.Context, offset, limit int) ([]Organization, int, error) {
+	var total int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM organizations`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, domain_slug, custom_domain, company_name, default_currency, timezone, status, created_at, updated_at
+		FROM organizations ORDER BY created_at DESC LIMIT $1 OFFSET $2
+	`, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var orgs []Organization
+	for rows.Next() {
+		var o Organization
+		if err := rows.Scan(&o.ID, &o.DomainSlug, &o.CustomDomain, &o.CompanyName,
+			&o.DefaultCurrency, &o.Timezone, &o.Status, &o.CreatedAt, &o.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		orgs = append(orgs, o)
+	}
+	return orgs, total, rows.Err()
+}
+
 // ---- Service ----
 
 type OrgService struct {
@@ -169,6 +203,21 @@ func (s *OrgService) CreateInvitation(ctx context.Context, inv *OrganizationInvi
 
 func (s *OrgService) CreateAPIKey(ctx context.Context, key *APIKey) error {
 	return s.repo.CreateAPIKey(ctx, key)
+}
+
+// SuspendOrg sets an organization's status to suspended.
+func (s *OrgService) SuspendOrg(ctx context.Context, id uuid.UUID) error {
+	return s.repo.UpdateStatus(ctx, id, OrgSuspended)
+}
+
+// ActivateOrg sets an organization's status to active.
+func (s *OrgService) ActivateOrg(ctx context.Context, id uuid.UUID) error {
+	return s.repo.UpdateStatus(ctx, id, OrgActive)
+}
+
+// ListAllOrgs returns a paginated list of all organizations.
+func (s *OrgService) ListAllOrgs(ctx context.Context, offset, limit int) ([]Organization, int, error) {
+	return s.repo.ListAllOrgs(ctx, offset, limit)
 }
 
 var (

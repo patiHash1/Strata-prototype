@@ -3805,6 +3805,803 @@
                 }
             }
         },
+        "/api/v1/super-admin/health": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns composite health scores (0-100%) for all modules factoring in CI coverage, linter issues, vulnerabilities, and 5xx error rates.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Module health scores",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ModuleHealthResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/maintenance": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns all currently active partitioned maintenance locks (by module, tenant, or feature).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "List active maintenance rules",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MaintenanceListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/maintenance/toggle": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Activates or deactivates a partitioned maintenance lock for a given scope (module, tenant_id, feature) and target. Publishes cache-invalidation via Redis Pub/Sub for multi-node sync.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Toggle maintenance mode",
+                "parameters": [
+                    {
+                        "description": "Maintenance toggle payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.MaintenanceToggleRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MaintenanceToggleResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/metrics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns aggregated runtime, database, and HTTP metrics including latency percentiles and recent panics.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "System telemetry (JSON)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MetricsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/metrics/prometheus": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns runtime, database, and HTTP metrics in Prometheus text exposition format suitable for scraping.",
+                "produces": [
+                    "text/plain"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "System telemetry (Prometheus)",
+                "responses": {
+                    "200": {
+                        "description": "Prometheus text format",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/organizations": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of all organizations with their status (active, suspended, pending_verification). Query params: offset (default 0), limit (default 50, max 100).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "List all organizations",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.OrgListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/organizations/{org_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns full details for a specific organization by ID, including status and metadata.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Get organization details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "org_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/organizations/{org_id}/activate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Re-activates a suspended or pending organization, restoring access for all members.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Activate an organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "org_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/organizations/{org_id}/suspend": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Suspends an organization, preventing all members from accessing the platform.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Suspend an organization",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "org_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/security/stream": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Opens a Server-Sent Events connection that streams real-time SOC security events (failed auth, RLS violations, anomalies) as they occur across all nodes. Events are fanned out via Redis Pub/Sub.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Real-time security event stream (SSE)",
+                "responses": {
+                    "200": {
+                        "description": "SSE event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/telemetry/ci-health": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Stores a CI health report with test coverage percentage, linter issue count, vulnerability count, and commit SHA for a given module.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Ingest CI health report",
+                "parameters": [
+                    {
+                        "description": "CI health payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/services.CIHealthIngestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.CIHealthIngestResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of all users across every organization, including ban status. Query params: offset (default 0), limit (default 50, max 100).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "List all users",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page size (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.UserListResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/users/{user_id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns full details for a specific user by ID, including ban status and organization memberships.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Get user details",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/users/{user_id}/ban": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Bans a user platform-wide with a mandatory reason. Banned users cannot authenticate.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Ban a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Ban reason",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.banUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/users/{user_id}/unban": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Removes a platform-wide ban from a user, restoring their ability to authenticate.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Unban a user",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "User ID",
+                        "name": "user_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/workflows/trigger": {
             "post": {
                 "security": [
@@ -3969,6 +4766,14 @@
                     "items": {
                         "$ref": "#/definitions/handlers.SecurityAnomalyItem"
                     }
+                }
+            }
+        },
+        "handlers.CIHealthIngestResponse": {
+            "type": "object",
+            "properties": {
+                "report": {
+                    "$ref": "#/definitions/services.CIHealthReport"
                 }
             }
         },
@@ -4251,6 +5056,44 @@
                 "user_profile": {}
             }
         },
+        "handlers.MaintenanceListResponse": {
+            "type": "object",
+            "properties": {
+                "rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.MaintenanceRule"
+                    }
+                }
+            }
+        },
+        "handlers.MaintenanceToggleResponse": {
+            "type": "object",
+            "properties": {
+                "rule": {
+                    "$ref": "#/definitions/services.MaintenanceRule"
+                }
+            }
+        },
+        "handlers.MetricsResponse": {
+            "type": "object",
+            "properties": {
+                "metrics": {
+                    "$ref": "#/definitions/services.TelemetrySnapshot"
+                }
+            }
+        },
+        "handlers.ModuleHealthResponse": {
+            "type": "object",
+            "properties": {
+                "modules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.ModuleHealth"
+                    }
+                }
+            }
+        },
         "handlers.OCRResponse": {
             "type": "object",
             "properties": {
@@ -4275,6 +5118,20 @@
                 "vendor_name": {
                     "type": "string",
                     "example": "Acme Supplies Inc."
+                }
+            }
+        },
+        "handlers.OrgListResponse": {
+            "type": "object",
+            "properties": {
+                "organizations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.Organization"
+                    }
+                },
+                "total": {
+                    "type": "integer"
                 }
             }
         },
@@ -4434,6 +5291,20 @@
                 }
             }
         },
+        "handlers.UserListResponse": {
+            "type": "object",
+            "properties": {
+                "total": {
+                    "type": "integer"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.User"
+                    }
+                }
+            }
+        },
         "handlers.WidgetDataItem": {
             "type": "object",
             "properties": {
@@ -4479,6 +5350,14 @@
                     "type": "string"
                 },
                 "shift_template_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "handlers.banUserRequest": {
+            "type": "object",
+            "properties": {
+                "reason": {
                     "type": "string"
                 }
             }
@@ -5199,6 +6078,69 @@
                 }
             }
         },
+        "services.CIHealthIngestRequest": {
+            "type": "object",
+            "properties": {
+                "commit_sha": {
+                    "type": "string"
+                },
+                "coverage_percent": {
+                    "type": "number"
+                },
+                "linter_issues": {
+                    "type": "integer"
+                },
+                "module": {
+                    "type": "string"
+                },
+                "vulnerabilities_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "services.CIHealthReport": {
+            "type": "object",
+            "properties": {
+                "commit_sha": {
+                    "type": "string"
+                },
+                "coverage_percent": {
+                    "type": "number"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "linter_issues": {
+                    "type": "integer"
+                },
+                "module": {
+                    "type": "string"
+                },
+                "vulnerabilities_count": {
+                    "type": "integer"
+                }
+            }
+        },
+        "services.DBMetrics": {
+            "type": "object",
+            "properties": {
+                "acquired_conns": {
+                    "type": "integer"
+                },
+                "idle_conns": {
+                    "type": "integer"
+                },
+                "max_conns": {
+                    "type": "integer"
+                },
+                "total_conns": {
+                    "type": "integer"
+                }
+            }
+        },
         "services.Employee": {
             "type": "object",
             "properties": {
@@ -5255,6 +6197,130 @@
                 }
             }
         },
+        "services.HTTPMetrics": {
+            "type": "object",
+            "properties": {
+                "latency_p50_ms": {
+                    "type": "number"
+                },
+                "latency_p95_ms": {
+                    "type": "number"
+                },
+                "latency_p99_ms": {
+                    "type": "number"
+                },
+                "per_module": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/services.ModuleHTTPMetrics"
+                    }
+                },
+                "status_2xx": {
+                    "type": "integer"
+                },
+                "status_4xx": {
+                    "type": "integer"
+                },
+                "status_5xx": {
+                    "type": "integer"
+                },
+                "total_requests": {
+                    "type": "integer"
+                }
+            }
+        },
+        "services.MaintenanceRule": {
+            "type": "object",
+            "properties": {
+                "allowed_roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.MaintenanceToggleRequest": {
+            "type": "object",
+            "properties": {
+                "allowed_roles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "scope": {
+                    "type": "string"
+                },
+                "target_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.ModuleHTTPMetrics": {
+            "type": "object",
+            "properties": {
+                "errors_5xx": {
+                    "type": "integer"
+                },
+                "requests": {
+                    "type": "integer"
+                },
+                "total_latency_ms": {
+                    "type": "number"
+                }
+            }
+        },
+        "services.ModuleHealth": {
+            "type": "object",
+            "properties": {
+                "coverage_percent": {
+                    "type": "number"
+                },
+                "error_rate_5xx_percent": {
+                    "type": "number"
+                },
+                "health_score": {
+                    "type": "number"
+                },
+                "linter_issues": {
+                    "type": "integer"
+                },
+                "module": {
+                    "type": "string"
+                },
+                "vulnerabilities": {
+                    "type": "integer"
+                }
+            }
+        },
         "services.OCRLineItem": {
             "type": "object",
             "properties": {
@@ -5269,6 +6335,51 @@
                 },
                 "unit_price": {
                     "type": "number"
+                }
+            }
+        },
+        "services.OrgStatus": {
+            "type": "string",
+            "enum": [
+                "active",
+                "suspended",
+                "pending_verification"
+            ],
+            "x-enum-varnames": [
+                "OrgActive",
+                "OrgSuspended",
+                "OrgPendingVerification"
+            ]
+        },
+        "services.Organization": {
+            "type": "object",
+            "properties": {
+                "company_name": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "custom_domain": {
+                    "type": "string"
+                },
+                "default_currency": {
+                    "type": "string"
+                },
+                "domain_slug": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "status": {
+                    "$ref": "#/definitions/services.OrgStatus"
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -5295,6 +6406,23 @@
                 },
                 "total_disbursed": {
                     "type": "number"
+                }
+            }
+        },
+        "services.RuntimeMetrics": {
+            "type": "object",
+            "properties": {
+                "allocated_mb": {
+                    "type": "number"
+                },
+                "gc_runs": {
+                    "type": "integer"
+                },
+                "goroutines": {
+                    "type": "integer"
+                },
+                "heap_objects": {
+                    "type": "integer"
                 }
             }
         },
@@ -5325,6 +6453,81 @@
                     "type": "integer"
                 },
                 "sku": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.SystemError": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "error_message": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "module": {
+                    "type": "string"
+                },
+                "stack_trace": {
+                    "type": "string"
+                },
+                "status_code": {
+                    "type": "integer"
+                }
+            }
+        },
+        "services.TelemetrySnapshot": {
+            "type": "object",
+            "properties": {
+                "db": {
+                    "$ref": "#/definitions/services.DBMetrics"
+                },
+                "http": {
+                    "$ref": "#/definitions/services.HTTPMetrics"
+                },
+                "recent_panics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/services.SystemError"
+                    }
+                },
+                "runtime": {
+                    "$ref": "#/definitions/services.RuntimeMetrics"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "services.User": {
+            "type": "object",
+            "properties": {
+                "ban_reason": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "full_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "is_banned": {
+                    "type": "boolean"
+                },
+                "mfa_enabled": {
+                    "type": "boolean"
+                },
+                "phone_number": {
                     "type": "string"
                 }
             }
@@ -5406,6 +6609,10 @@
         {
             "description": "Platform, AI Core \u0026 BI — text-to-SQL copilot, workflow automation, security audit anomalies.",
             "name": "AI \u0026 Platform"
+        },
+        {
+            "description": "System observability, SOC monitoring, partitioned maintenance, and CI health.",
+            "name": "Super Admin"
         }
     ]
 }

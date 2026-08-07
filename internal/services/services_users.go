@@ -22,6 +22,8 @@ type User struct {
 	PhoneNumber  *string   `json:"phone_number,omitempty"`
 	MFAEnabled   bool      `json:"mfa_enabled"`
 	MFASecret    *string   `json:"-"`
+	IsBanned     bool      `json:"is_banned"`
+	BanReason    string    `json:"ban_reason,omitempty"`
 	CreatedAt    time.Time `json:"created_at"`
 }
 
@@ -57,9 +59,9 @@ func (r *userRepository) Create(ctx context.Context, u *User) error {
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	u := &User{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, created_at
+		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
 		FROM users WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.CreatedAt)
+	`, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -69,9 +71,9 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, e
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	u := &User{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, created_at
+		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
 		FROM users WHERE id = $1
-	`, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.CreatedAt)
+	`, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -235,6 +237,21 @@ func (s *UserService) DeleteAccount(ctx context.Context, id uuid.UUID) error {
 	return s.repo.Delete(ctx, id)
 }
 
+// BanUser bans a user by setting is_banned = true with a reason.
+func (s *UserService) BanUser(ctx context.Context, id uuid.UUID, reason string) error {
+	return s.repo.BanUser(ctx, id, reason)
+}
+
+// UnbanUser removes a ban from a user.
+func (s *UserService) UnbanUser(ctx context.Context, id uuid.UUID) error {
+	return s.repo.UnbanUser(ctx, id)
+}
+
+// ListAllUsers returns a paginated list of all users across all organizations.
+func (s *UserService) ListAllUsers(ctx context.Context, offset, limit int) ([]User, int, error) {
+	return s.repo.ListAllUsers(ctx, offset, limit)
+}
+
 func (r *userRepository) Update(ctx context.Context, id uuid.UUID, fullName *string, email *string, phone *string) error {
 	var setClauses []string
 	var args []any
@@ -269,6 +286,43 @@ func (r *userRepository) Update(ctx context.Context, id uuid.UUID, fullName *str
 func (r *userRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id)
 	return err
+}
+
+func (r *userRepository) BanUser(ctx context.Context, id uuid.UUID, reason string) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET is_banned = TRUE, ban_reason = $1 WHERE id = $2`, reason, id)
+	return err
+}
+
+func (r *userRepository) UnbanUser(ctx context.Context, id uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET is_banned = FALSE, ban_reason = '' WHERE id = $1`, id)
+	return err
+}
+
+func (r *userRepository) ListAllUsers(ctx context.Context, offset, limit int) ([]User, int, error) {
+	var total int
+	if err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
+		FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2
+	`, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var users []User
+	for rows.Next() {
+		var u User
+		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber,
+			&u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt); err != nil {
+			return nil, 0, err
+		}
+		users = append(users, u)
+	}
+	return users, total, rows.Err()
 }
 
 // Domain errors

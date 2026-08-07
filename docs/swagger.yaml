@@ -53,6 +53,11 @@ definitions:
           $ref: '#/definitions/handlers.SecurityAnomalyItem'
         type: array
     type: object
+  handlers.CIHealthIngestResponse:
+    properties:
+      report:
+        $ref: '#/definitions/services.CIHealthReport'
+    type: object
   handlers.ClockInResponse:
     properties:
       attendance_log_id:
@@ -245,6 +250,30 @@ definitions:
         type: string
       user_profile: {}
     type: object
+  handlers.MaintenanceListResponse:
+    properties:
+      rules:
+        items:
+          $ref: '#/definitions/services.MaintenanceRule'
+        type: array
+    type: object
+  handlers.MaintenanceToggleResponse:
+    properties:
+      rule:
+        $ref: '#/definitions/services.MaintenanceRule'
+    type: object
+  handlers.MetricsResponse:
+    properties:
+      metrics:
+        $ref: '#/definitions/services.TelemetrySnapshot'
+    type: object
+  handlers.ModuleHealthResponse:
+    properties:
+      modules:
+        items:
+          $ref: '#/definitions/services.ModuleHealth'
+        type: array
+    type: object
   handlers.OCRResponse:
     properties:
       invoice_number:
@@ -263,6 +292,15 @@ definitions:
       vendor_name:
         example: Acme Supplies Inc.
         type: string
+    type: object
+  handlers.OrgListResponse:
+    properties:
+      organizations:
+        items:
+          $ref: '#/definitions/services.Organization'
+        type: array
+      total:
+        type: integer
     type: object
   handlers.ParseResumeResponse:
     properties:
@@ -374,6 +412,15 @@ definitions:
         example: 550e8400-e29b-41d4-a716-446655440000
         type: string
     type: object
+  handlers.UserListResponse:
+    properties:
+      total:
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/services.User'
+        type: array
+    type: object
   handlers.WidgetDataItem:
     properties:
       anomaly_description:
@@ -404,6 +451,11 @@ definitions:
       shift_date:
         type: string
       shift_template_id:
+        type: string
+    type: object
+  handlers.banUserRequest:
+    properties:
+      reason:
         type: string
     type: object
   handlers.calculateTaxRequest:
@@ -873,6 +925,47 @@ definitions:
       transaction_date:
         type: string
     type: object
+  services.CIHealthIngestRequest:
+    properties:
+      commit_sha:
+        type: string
+      coverage_percent:
+        type: number
+      linter_issues:
+        type: integer
+      module:
+        type: string
+      vulnerabilities_count:
+        type: integer
+    type: object
+  services.CIHealthReport:
+    properties:
+      commit_sha:
+        type: string
+      coverage_percent:
+        type: number
+      created_at:
+        type: string
+      id:
+        type: integer
+      linter_issues:
+        type: integer
+      module:
+        type: string
+      vulnerabilities_count:
+        type: integer
+    type: object
+  services.DBMetrics:
+    properties:
+      acquired_conns:
+        type: integer
+      idle_conns:
+        type: integer
+      max_conns:
+        type: integer
+      total_conns:
+        type: integer
+    type: object
   services.Employee:
     properties:
       department:
@@ -910,6 +1003,87 @@ definitions:
       suggested_fix:
         type: string
     type: object
+  services.HTTPMetrics:
+    properties:
+      latency_p50_ms:
+        type: number
+      latency_p95_ms:
+        type: number
+      latency_p99_ms:
+        type: number
+      per_module:
+        additionalProperties:
+          $ref: '#/definitions/services.ModuleHTTPMetrics'
+        type: object
+      status_2xx:
+        type: integer
+      status_4xx:
+        type: integer
+      status_5xx:
+        type: integer
+      total_requests:
+        type: integer
+    type: object
+  services.MaintenanceRule:
+    properties:
+      allowed_roles:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      id:
+        type: integer
+      is_active:
+        type: boolean
+      reason:
+        type: string
+      scope:
+        type: string
+      target_id:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  services.MaintenanceToggleRequest:
+    properties:
+      allowed_roles:
+        items:
+          type: string
+        type: array
+      is_active:
+        type: boolean
+      reason:
+        type: string
+      scope:
+        type: string
+      target_id:
+        type: string
+    type: object
+  services.ModuleHTTPMetrics:
+    properties:
+      errors_5xx:
+        type: integer
+      requests:
+        type: integer
+      total_latency_ms:
+        type: number
+    type: object
+  services.ModuleHealth:
+    properties:
+      coverage_percent:
+        type: number
+      error_rate_5xx_percent:
+        type: number
+      health_score:
+        type: number
+      linter_issues:
+        type: integer
+      module:
+        type: string
+      vulnerabilities:
+        type: integer
+    type: object
   services.OCRLineItem:
     properties:
       description:
@@ -920,6 +1094,37 @@ definitions:
         type: number
       unit_price:
         type: number
+    type: object
+  services.OrgStatus:
+    enum:
+    - active
+    - suspended
+    - pending_verification
+    type: string
+    x-enum-varnames:
+    - OrgActive
+    - OrgSuspended
+    - OrgPendingVerification
+  services.Organization:
+    properties:
+      company_name:
+        type: string
+      created_at:
+        type: string
+      custom_domain:
+        type: string
+      default_currency:
+        type: string
+      domain_slug:
+        type: string
+      id:
+        type: string
+      status:
+        $ref: '#/definitions/services.OrgStatus'
+      timezone:
+        type: string
+      updated_at:
+        type: string
     type: object
   services.PayrollRun:
     properties:
@@ -937,6 +1142,17 @@ definitions:
         type: string
       total_disbursed:
         type: number
+    type: object
+  services.RuntimeMetrics:
+    properties:
+      allocated_mb:
+        type: number
+      gc_runs:
+        type: integer
+      goroutines:
+        type: integer
+      heap_objects:
+        type: integer
     type: object
   services.SourceDocument:
     properties:
@@ -956,6 +1172,55 @@ definitions:
       recommended_reorder_qty:
         type: integer
       sku:
+        type: string
+    type: object
+  services.SystemError:
+    properties:
+      created_at:
+        type: string
+      error_message:
+        type: string
+      id:
+        type: integer
+      module:
+        type: string
+      stack_trace:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  services.TelemetrySnapshot:
+    properties:
+      db:
+        $ref: '#/definitions/services.DBMetrics'
+      http:
+        $ref: '#/definitions/services.HTTPMetrics'
+      recent_panics:
+        items:
+          $ref: '#/definitions/services.SystemError'
+        type: array
+      runtime:
+        $ref: '#/definitions/services.RuntimeMetrics'
+      timestamp:
+        type: string
+    type: object
+  services.User:
+    properties:
+      ban_reason:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      is_banned:
+        type: boolean
+      mfa_enabled:
+        type: boolean
+      phone_number:
         type: string
     type: object
   services.Waypoint:
@@ -3474,6 +3739,530 @@ paths:
       summary: Fetch security audit anomalies
       tags:
       - AI & Platform
+  /api/v1/super-admin/health:
+    get:
+      description: Returns composite health scores (0-100%) for all modules factoring
+        in CI coverage, linter issues, vulnerabilities, and 5xx error rates.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ModuleHealthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Module health scores
+      tags:
+      - Super Admin
+  /api/v1/super-admin/maintenance:
+    get:
+      description: Returns all currently active partitioned maintenance locks (by
+        module, tenant, or feature).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MaintenanceListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List active maintenance rules
+      tags:
+      - Super Admin
+  /api/v1/super-admin/maintenance/toggle:
+    post:
+      consumes:
+      - application/json
+      description: Activates or deactivates a partitioned maintenance lock for a given
+        scope (module, tenant_id, feature) and target. Publishes cache-invalidation
+        via Redis Pub/Sub for multi-node sync.
+      parameters:
+      - description: Maintenance toggle payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/services.MaintenanceToggleRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MaintenanceToggleResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Toggle maintenance mode
+      tags:
+      - Super Admin
+  /api/v1/super-admin/metrics:
+    get:
+      description: Returns aggregated runtime, database, and HTTP metrics including
+        latency percentiles and recent panics.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MetricsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: System telemetry (JSON)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/metrics/prometheus:
+    get:
+      description: Returns runtime, database, and HTTP metrics in Prometheus text
+        exposition format suitable for scraping.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Prometheus text format
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: System telemetry (Prometheus)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/organizations:
+    get:
+      description: 'Returns a paginated list of all organizations with their status
+        (active, suspended, pending_verification). Query params: offset (default 0),
+        limit (default 50, max 100).'
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OrgListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List all organizations
+      tags:
+      - Super Admin
+  /api/v1/super-admin/organizations/{org_id}:
+    get:
+      description: Returns full details for a specific organization by ID, including
+        status and metadata.
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get organization details
+      tags:
+      - Super Admin
+  /api/v1/super-admin/organizations/{org_id}/activate:
+    post:
+      description: Re-activates a suspended or pending organization, restoring access
+        for all members.
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Activate an organization
+      tags:
+      - Super Admin
+  /api/v1/super-admin/organizations/{org_id}/suspend:
+    post:
+      description: Suspends an organization, preventing all members from accessing
+        the platform.
+      parameters:
+      - description: Organization ID
+        in: path
+        name: org_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Suspend an organization
+      tags:
+      - Super Admin
+  /api/v1/super-admin/security/stream:
+    get:
+      description: Opens a Server-Sent Events connection that streams real-time SOC
+        security events (failed auth, RLS violations, anomalies) as they occur across
+        all nodes. Events are fanned out via Redis Pub/Sub.
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE event stream
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Real-time security event stream (SSE)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/telemetry/ci-health:
+    post:
+      consumes:
+      - application/json
+      description: Stores a CI health report with test coverage percentage, linter
+        issue count, vulnerability count, and commit SHA for a given module.
+      parameters:
+      - description: CI health payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/services.CIHealthIngestRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.CIHealthIngestResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ingest CI health report
+      tags:
+      - Super Admin
+  /api/v1/super-admin/users:
+    get:
+      description: 'Returns a paginated list of all users across every organization,
+        including ban status. Query params: offset (default 0), limit (default 50,
+        max 100).'
+      parameters:
+      - description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - Super Admin
+  /api/v1/super-admin/users/{user_id}:
+    get:
+      description: Returns full details for a specific user by ID, including ban status
+        and organization memberships.
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Get user details
+      tags:
+      - Super Admin
+  /api/v1/super-admin/users/{user_id}/ban:
+    post:
+      consumes:
+      - application/json
+      description: Bans a user platform-wide with a mandatory reason. Banned users
+        cannot authenticate.
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      - description: Ban reason
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.banUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Ban a user
+      tags:
+      - Super Admin
+  /api/v1/super-admin/users/{user_id}/unban:
+    post:
+      description: Removes a platform-wide ban from a user, restoring their ability
+        to authenticate.
+      parameters:
+      - description: User ID
+        in: path
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Unban a user
+      tags:
+      - Super Admin
   /api/v1/workflows/trigger:
     post:
       consumes:
@@ -3571,3 +4360,6 @@ tags:
 - description: Platform, AI Core & BI — text-to-SQL copilot, workflow automation,
     security audit anomalies.
   name: AI & Platform
+- description: System observability, SOC monitoring, partitioned maintenance, and
+    CI health.
+  name: Super Admin

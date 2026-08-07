@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
@@ -35,6 +37,18 @@ type MaintenanceListResponse struct {
 // MaintenanceToggleResponse wraps the toggled maintenance rule.
 type MaintenanceToggleResponse struct {
 	Rule services.MaintenanceRule `json:"rule"`
+}
+
+// UserListResponse wraps a paginated list of all users.
+type UserListResponse struct {
+	Users []services.User `json:"users"`
+	Total int             `json:"total"`
+}
+
+// OrgListResponse wraps a paginated list of all organizations.
+type OrgListResponse struct {
+	Organizations []services.Organization `json:"organizations"`
+	Total         int                     `json:"total"`
 }
 
 // ── GET /api/v1/super-admin/metrics ──
@@ -243,4 +257,365 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+// ── GET /api/v1/super-admin/users ──
+
+// listAllUsersHandler returns a paginated list of all users across all organizations.
+//
+//	@Summary		List all users
+//	@Description	Returns a paginated list of all users across every organization, including ban status. Query params: offset (default 0), limit (default 50, max 100).
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			offset	query	int	false	"Pagination offset"
+//	@Param			limit	query	int	false	"Page size (max 100)"
+//	@Success		200	{object}	UserListResponse
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/users [get]
+func (a *App) listAllUsersHandler(w http.ResponseWriter, r *http.Request) {
+	offset, limit := parsePagination(r)
+	users, total, err := a.Users.ListAllUsers(r.Context(), offset, limit)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list users: "+err.Error())
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"users": users, "total": total})
+}
+
+// ── GET /api/v1/super-admin/users/{user_id} ──
+
+// getUserDetailHandler returns details for a specific user.
+//
+//	@Summary		Get user details
+//	@Description	Returns full details for a specific user by ID, including ban status and organization memberships.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			user_id	path	string	true	"User ID"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/users/{user_id} [get]
+func (a *App) getUserDetailHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuid.Parse(r.PathValue("user_id"))
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+		return
+	}
+
+	user, err := a.Users.GetByID(r.Context(), userID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user: "+err.Error())
+		return
+	}
+	if user == nil {
+		utils.WriteErr(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	memberships, _ := a.Users.ListMembersByUser(r.Context(), userID)
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
+		"user":        user,
+		"memberships": memberships,
+	})
+}
+
+// ── POST /api/v1/super-admin/users/{user_id}/ban ──
+
+type banUserRequest struct {
+	Reason string `json:"reason"`
+}
+
+// banUserHandler bans a user across the entire platform.
+//
+//	@Summary		Ban a user
+//	@Description	Bans a user platform-wide with a mandatory reason. Banned users cannot authenticate.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Accept			json
+//	@Produce		json
+//	@Param			user_id	path	string			true	"User ID"
+//	@Param			body	body	banUserRequest	true	"Ban reason"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/users/{user_id}/ban [post]
+func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuid.Parse(r.PathValue("user_id"))
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+		return
+	}
+
+	var req banUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Reason == "" {
+		utils.WriteErr(w, http.StatusBadRequest, "reason is required")
+		return
+	}
+
+	user, err := a.Users.GetByID(r.Context(), userID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user: "+err.Error())
+		return
+	}
+	if user == nil {
+		utils.WriteErr(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	if err := a.Users.BanUser(r.Context(), userID, req.Reason); err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to ban user: "+err.Error())
+		return
+	}
+
+	// Publish SOC event.
+	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		Type:     "user.banned",
+		Severity: "high",
+		Message:  fmt.Sprintf("User %s banned: %s", user.Email, req.Reason),
+		UserID:   userID.String(),
+	})
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "user banned"})
+}
+
+// ── POST /api/v1/super-admin/users/{user_id}/unban ──
+
+// unbanUserHandler removes a ban from a user.
+//
+//	@Summary		Unban a user
+//	@Description	Removes a platform-wide ban from a user, restoring their ability to authenticate.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			user_id	path	string	true	"User ID"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/users/{user_id}/unban [post]
+func (a *App) unbanUserHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := uuid.Parse(r.PathValue("user_id"))
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+		return
+	}
+
+	user, err := a.Users.GetByID(r.Context(), userID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user: "+err.Error())
+		return
+	}
+	if user == nil {
+		utils.WriteErr(w, http.StatusNotFound, "user not found")
+		return
+	}
+
+	if err := a.Users.UnbanUser(r.Context(), userID); err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to unban user: "+err.Error())
+		return
+	}
+
+	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		Type:     "user.unbanned",
+		Severity: "low",
+		Message:  fmt.Sprintf("User %s unbanned", user.Email),
+		UserID:   userID.String(),
+	})
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "user unbanned"})
+}
+
+// ── GET /api/v1/super-admin/organizations ──
+
+// listAllOrgsHandler returns a paginated list of all organizations.
+//
+//	@Summary		List all organizations
+//	@Description	Returns a paginated list of all organizations with their status (active, suspended, pending_verification). Query params: offset (default 0), limit (default 50, max 100).
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			offset	query	int	false	"Pagination offset"
+//	@Param			limit	query	int	false	"Page size (max 100)"
+//	@Success		200	{object}	OrgListResponse
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/organizations [get]
+func (a *App) listAllOrgsHandler(w http.ResponseWriter, r *http.Request) {
+	offset, limit := parsePagination(r)
+	orgs, total, err := a.Orgs.ListAllOrgs(r.Context(), offset, limit)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list organizations: "+err.Error())
+		return
+	}
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"organizations": orgs, "total": total})
+}
+
+// ── GET /api/v1/super-admin/organizations/{org_id} ──
+
+// getOrgDetailHandler returns details for a specific organization.
+//
+//	@Summary		Get organization details
+//	@Description	Returns full details for a specific organization by ID, including status and metadata.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			org_id	path	string	true	"Organization ID"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/organizations/{org_id} [get]
+func (a *App) getOrgDetailHandler(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(r.PathValue("org_id"))
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid org_id")
+		return
+	}
+
+	org, err := a.Orgs.GetByID(r.Context(), orgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization: "+err.Error())
+		return
+	}
+	if org == nil {
+		utils.WriteErr(w, http.StatusNotFound, "organization not found")
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"organization": org})
+}
+
+// ── POST /api/v1/super-admin/organizations/{org_id}/suspend ──
+
+// suspendOrgHandler suspends an organization.
+//
+//	@Summary		Suspend an organization
+//	@Description	Suspends an organization, preventing all members from accessing the platform.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			org_id	path	string	true	"Organization ID"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/organizations/{org_id}/suspend [post]
+func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(r.PathValue("org_id"))
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid org_id")
+		return
+	}
+
+	org, err := a.Orgs.GetByID(r.Context(), orgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization: "+err.Error())
+		return
+	}
+	if org == nil {
+		utils.WriteErr(w, http.StatusNotFound, "organization not found")
+		return
+	}
+
+	if err := a.Orgs.SuspendOrg(r.Context(), orgID); err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to suspend organization: "+err.Error())
+		return
+	}
+
+	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		Type:     "org.suspended",
+		Severity: "high",
+		Message:  fmt.Sprintf("Organization %s (%s) suspended", org.CompanyName, org.DomainSlug),
+		OrgID:    orgID.String(),
+	})
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "organization suspended"})
+}
+
+// ── POST /api/v1/super-admin/organizations/{org_id}/activate ──
+
+// activateOrgHandler activates (re-enables) an organization.
+//
+//	@Summary		Activate an organization
+//	@Description	Re-activates a suspended or pending organization, restoring access for all members.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Param			org_id	path	string	true	"Organization ID"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/organizations/{org_id}/activate [post]
+func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
+	orgID, err := uuid.Parse(r.PathValue("org_id"))
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid org_id")
+		return
+	}
+
+	org, err := a.Orgs.GetByID(r.Context(), orgID)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization: "+err.Error())
+		return
+	}
+	if org == nil {
+		utils.WriteErr(w, http.StatusNotFound, "organization not found")
+		return
+	}
+
+	if err := a.Orgs.ActivateOrg(r.Context(), orgID); err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to activate organization: "+err.Error())
+		return
+	}
+
+	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		Type:     "org.activated",
+		Severity: "low",
+		Message:  fmt.Sprintf("Organization %s (%s) activated", org.CompanyName, org.DomainSlug),
+		OrgID:    orgID.String(),
+	})
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "organization activated"})
+}
+
+// ── Helpers ──
+
+// parsePagination extracts offset and limit from query params with defaults.
+func parsePagination(r *http.Request) (int, int) {
+	offset := 0
+	limit := 50
+
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 100 {
+				n = 100
+			}
+			limit = n
+		}
+	}
+	return offset, limit
 }

@@ -623,6 +623,72 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Super-Admin: User management ──
+	mux.Handle("GET /api/v1/super-admin/users",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.listAllUsersHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/users/{user_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.getUserDetailHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/users/{user_id}/ban",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.banUserHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/users/{user_id}/unban",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.unbanUserHandler),
+			),
+		),
+	)
+
+	// ── Super-Admin: Organization management ──
+	mux.Handle("GET /api/v1/super-admin/organizations",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.listAllOrgsHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/organizations/{org_id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.getOrgDetailHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/organizations/{org_id}/suspend",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.suspendOrgHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/organizations/{org_id}/activate",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.activateOrgHandler),
+			),
+		),
+	)
+
 	// ── Global middleware stack (outermost first) ──
 	var handler http.Handler = mux
 	handler = utils.CORSMiddleware(handler)
