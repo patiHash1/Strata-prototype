@@ -28,7 +28,7 @@ install-tools:
 	@# tailwindcss (standalone CLI)
 	@if [ ! -x "$(TAILWIND)" ]; then \
 		echo "  → installing tailwindcss…"; \
-		TAILWIND_VERSION=v4.1.17; \
+		TAILWIND_VERSION=v4.3.3; \
 		OS=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
 		ARCH=$$(uname -m); \
 		if [ "$$ARCH" = "x86_64" ]; then ARCH="x64"; fi; \

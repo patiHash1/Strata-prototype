@@ -1,3 +1,18 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@source "../internal/templates/**/*.templ";
+@source "../internal/templates/**/*.go";
+
+@theme {
+  --color-strata-50:  #f0f9ff;
+  --color-strata-100: #e0f2fe;
+  --color-strata-200: #bae6fd;
+  --color-strata-300: #7dd3fc;
+  --color-strata-400: #38bdf8;
+  --color-strata-500: #0ea5e9;
+  --color-strata-600: #0284c7;
+  --color-strata-700: #0369a1;
+  --color-strata-800: #075985;
+  --color-strata-900: #0c4a6e;
+  --color-strata-950: #082f49;
+}
