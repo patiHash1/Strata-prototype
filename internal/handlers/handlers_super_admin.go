@@ -55,11 +55,127 @@ type OrgListResponse struct {
 	Total         int                     `json:"total"`
 }
 
-// ── GET /api/v1/admin/dashboard ──
+// ── GET /api/v1/super-admin/login ──
 
-// dashboardHandler renders the Super Admin dashboard page.
+// superAdminLoginHandler renders the Super Admin login page.
 //
-//	@Summary		Admin dashboard
+//	@Summary		Super Admin login page
+//	@Description	Renders the Super Admin login form.
+//	@Tags			Super Admin
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Router			/api/v1/super-admin/login [get]
+func (a *App) superAdminLoginPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.SuperAdminLoginView()
+	component.Render(r.Context(), w)
+}
+
+// ── POST /api/v1/super-admin/login ──
+
+// superAdminLoginHandler processes the Super Admin login form, validates
+// credentials, checks for super_admin.access permission, sets a JWT cookie,
+// and redirects to the dashboard. On failure it re-renders the login page
+// with an error message.
+//
+//	@Summary		Super Admin login
+//	@Description	Authenticates a super admin and redirects to the dashboard.
+//	@Tags			Super Admin
+//	@Accept			x-www-form-urlencoded
+//	@Produce		html
+//	@Param			email		formData	string	true	"Email"
+//	@Param			password	formData	string	true	"Password"
+//	@Success		302	{string}	string	"Redirect to dashboard"
+//	@Failure		401	{string}	string	"HTML login page with error"
+//	@Router			/api/v1/super-admin/login [post]
+func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginView().Render(r.Context(), w)
+		return
+	}
+
+	email := r.FormValue("email")
+	password := r.FormValue("password")
+
+	if !utils.NotBlank(email) || !utils.NotBlank(password) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("Email and password are required.").Render(r.Context(), w)
+		return
+	}
+
+	if a.Users == nil || a.RBAC == nil || a.Auth == nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("Service unavailable. Please try again later.").Render(r.Context(), w)
+		return
+	}
+
+	user, err := a.Users.GetByEmail(r.Context(), email)
+	if err != nil || user == nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("Invalid email or password.").Render(r.Context(), w)
+		return
+	}
+
+	if !a.Auth.VerifyPassword(user.PasswordHash, password) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("Invalid email or password.").Render(r.Context(), w)
+		return
+	}
+
+	members, err := a.Users.ListMembersByUser(r.Context(), user.ID)
+	if err != nil || len(members) == 0 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("No organization membership found.").Render(r.Context(), w)
+		return
+	}
+
+	orgID := members[0].OrgID
+	roleID := members[0].RoleID
+
+	perms, err := a.RBAC.GetPermissionKeysByRole(r.Context(), roleID)
+	if err != nil {
+		perms = []string{}
+	}
+
+	hasSuperAdmin := false
+	for _, p := range perms {
+		if p == services.PermSuperAdmin {
+			hasSuperAdmin = true
+			break
+		}
+	}
+	if !hasSuperAdmin {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("Access denied. Super admin privileges required.").Render(r.Context(), w)
+		return
+	}
+
+	token, err := a.Auth.CreateToken(user.ID, orgID, roleID, perms)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("Could not generate session. Please try again.").Render(r.Context(), w)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "strata_token",
+		Value:    token,
+		Path:     "/",
+		MaxAge:   86400,
+		HttpOnly: true,
+		Secure:   false, // set to true in production with TLS
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.Redirect(w, r, "/api/v1/super-admin/dashboard", http.StatusFound)
+}
+
+// ── GET /api/v1/super-admin/dashboard ──
+
+// superAdminDashboardHandler renders the Super Admin dashboard page.
+//
+//	@Summary		Super Admin dashboard
 //	@Description	Renders the Super Admin dashboard with system metrics and quick actions.
 //	@Tags			Super Admin
 //	@Security		BearerAuth
@@ -67,17 +183,17 @@ type OrgListResponse struct {
 //	@Success		200	{string}	string	"HTML page"
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
-//	@Router			/api/v1/admin/dashboard [get]
-func (a *App) dashboardHandler(w http.ResponseWriter, r *http.Request) {
+//	@Router			/api/v1/super-admin/dashboard [get]
+func (a *App) superAdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	component := templates.DashboardView()
+	component := templates.SuperAdminDashboardView()
 	component.Render(r.Context(), w)
 }
 
-// DashboardHandlerForTest exposes the dashboard handler for httptest
+// SuperAdminDashboardHandlerForTest exposes the dashboard handler for httptest
 // without the auth middleware chain.
-func (a *App) DashboardHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.dashboardHandler(w, r)
+func (a *App) SuperAdminDashboardHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.superAdminDashboardHandler(w, r)
 }
 
 // ── GET /api/v1/super-admin/metrics ──

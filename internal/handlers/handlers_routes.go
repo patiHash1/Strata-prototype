@@ -624,11 +624,15 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
-	// ── Super-Admin: Dashboard (HTML) ──
-	mux.Handle("GET /api/v1/admin/dashboard",
-		utils.RequireAuth(a.Auth)(
+	// ── Super-Admin: Login page (public) ──
+	mux.HandleFunc("GET /api/v1/super-admin/login", a.superAdminLoginPageHandler)
+	mux.HandleFunc("POST /api/v1/super-admin/login", a.superAdminLoginHandler)
+
+	// ── Super-Admin: Dashboard (HTML, protected, cookie+header auth) ──
+	mux.Handle("GET /api/v1/super-admin/dashboard",
+		utils.RequireAuthCookie(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(
-				http.HandlerFunc(a.dashboardHandler),
+				http.HandlerFunc(a.superAdminDashboardHandler),
 			),
 		),
 	)

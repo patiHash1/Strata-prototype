@@ -1,12 +1,12 @@
 package templates
 
-templ Layout(title string) {
+templ SuperAdminLayout(title string) {
 	<!DOCTYPE html>
 	<html lang="en" class="h-full bg-gray-50">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<title>{title} — Strata Admin</title>
+			<title>{title} — Strata Super Admin</title>
 			<link rel="stylesheet" href="/static/css/styles.css"/>
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<script src="https://unpkg.com/htmx-ext-sse@2.2.3/sse.js" defer></script>
@@ -26,9 +26,9 @@ templ Layout(title string) {
 								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
 							</svg>
 						</button>
-						<a href="/api/v1/admin/dashboard" class="flex items-center gap-2">
+						<a href="/api/v1/super-admin/dashboard" class="flex items-center gap-2">
 							<span class="text-xl font-bold text-strata-700">⛰️ Strata</span>
-							<span class="hidden sm:inline text-sm text-gray-400 font-medium">Admin</span>
+							<span class="hidden sm:inline text-sm text-gray-400 font-medium">Super Admin</span>
 						</a>
 					</div>
 					<div class="flex items-center gap-3">
@@ -46,7 +46,7 @@ templ Layout(title string) {
 				class="fixed top-16 left-0 z-40 w-64 h-[calc(100%-4rem)] bg-white border-r border-gray-200 transition-transform duration-200 ease-in-out lg:translate-x-0 overflow-y-auto"
 			>
 				<nav class="p-4 space-y-1">
-					<a href="/api/v1/admin/dashboard"
+					<a href="/api/v1/super-admin/dashboard"
 						class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-strata-700 bg-strata-50 hover:bg-strata-100 transition-colors">
 						<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/>

@@ -124,13 +124,12 @@ func CORSMiddleware(next http.Handler) http.Handler {
 func RequireAuth(authSvc *services.AuthService) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			tokenStr := extractToken(r)
+			if tokenStr == "" {
 				WriteErr(w, http.StatusUnauthorized, "missing or invalid authorization header")
 				return
 			}
 
-			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
 			claims, err := authSvc.ValidateToken(tokenStr)
 			if err != nil {
 				WriteErr(w, http.StatusUnauthorized, "invalid or expired token")
@@ -141,6 +140,56 @@ func RequireAuth(authSvc *services.AuthService) func(http.Handler) http.Handler 
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// RequireAuthCookie validates a JWT from either the Authorization header
+// or the strata_token cookie. For browser (HTML) requests without a valid
+// token, it redirects to /api/v1/super-admin/login instead of returning JSON.
+func RequireAuthCookie(authSvc *services.AuthService) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			tokenStr := extractToken(r)
+			if tokenStr == "" {
+				if acceptsHTML(r) {
+					http.Redirect(w, r, "/api/v1/super-admin/login", http.StatusFound)
+					return
+				}
+				WriteErr(w, http.StatusUnauthorized, "missing or invalid authorization header")
+				return
+			}
+
+			claims, err := authSvc.ValidateToken(tokenStr)
+			if err != nil {
+				if acceptsHTML(r) {
+					http.Redirect(w, r, "/api/v1/super-admin/login", http.StatusFound)
+					return
+				}
+				WriteErr(w, http.StatusUnauthorized, "invalid or expired token")
+				return
+			}
+
+			ctx := context.WithValue(r.Context(), claimsKey, claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// extractToken pulls a JWT from the Authorization header or the strata_token cookie.
+func extractToken(r *http.Request) string {
+	authHeader := r.Header.Get("Authorization")
+	if authHeader != "" && strings.HasPrefix(authHeader, "Bearer ") {
+		return strings.TrimPrefix(authHeader, "Bearer ")
+	}
+	if cookie, err := r.Cookie("strata_token"); err == nil && cookie.Value != "" {
+		return cookie.Value
+	}
+	return ""
+}
+
+// acceptsHTML returns true if the request's Accept header prefers text/html.
+func acceptsHTML(r *http.Request) bool {
+	accept := r.Header.Get("Accept")
+	return strings.Contains(accept, "text/html")
 }
 
 // RequireAPIKey returns middleware that validates an API key from the X-API-Key header
