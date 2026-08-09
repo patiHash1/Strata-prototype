@@ -39,4 +39,5 @@ node_modules/
 # Editor/IDE
 # .idea/
 # .vscode/
-/tmp
+tmp/
+go.sum
