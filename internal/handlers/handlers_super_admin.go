@@ -3,12 +3,16 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
+	"github.com/patiHash1/Strata-prototype/internal/static"
+	"github.com/patiHash1/Strata-prototype/internal/templates"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
 
@@ -49,6 +53,31 @@ type UserListResponse struct {
 type OrgListResponse struct {
 	Organizations []services.Organization `json:"organizations"`
 	Total         int                     `json:"total"`
+}
+
+// ── GET /api/v1/admin/dashboard ──
+
+// dashboardHandler renders the Super Admin dashboard page.
+//
+//	@Summary		Admin dashboard
+//	@Description	Renders the Super Admin dashboard with system metrics and quick actions.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/admin/dashboard [get]
+func (a *App) dashboardHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.DashboardView()
+	component.Render(r.Context(), w)
+}
+
+// DashboardHandlerForTest exposes the dashboard handler for httptest
+// without the auth middleware chain.
+func (a *App) DashboardHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.dashboardHandler(w, r)
 }
 
 // ── GET /api/v1/super-admin/metrics ──
@@ -598,6 +627,52 @@ func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // ── Helpers ──
+
+// staticHandler serves embedded static assets (CSS, JS, images) with
+// proper MIME types and aggressive caching headers. It strips the
+// "/static/" prefix before looking up files in the embedded filesystem.
+func (a *App) staticHandler() http.Handler {
+	fs := http.FileServer(http.FS(static.Assets))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Strip the /static/ prefix so the embedded FS sees e.g. css/styles.css
+		path := strings.TrimPrefix(r.URL.Path, "/static/")
+		if path == "" || path == "/" {
+			http.NotFound(w, r)
+			return
+		}
+		r.URL.Path = path
+
+		// Set aggressive caching headers for versioned assets.
+		// In production, a reverse proxy or CDN can extend this further.
+		ext := filepath.Ext(path)
+		switch ext {
+		case ".css":
+			w.Header().Set("Content-Type", "text/css; charset=utf-8")
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		case ".js":
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+		case ".svg":
+			w.Header().Set("Content-Type", "image/svg+xml")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		case ".png":
+			w.Header().Set("Content-Type", "image/png")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		case ".jpg", ".jpeg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		case ".ico":
+			w.Header().Set("Content-Type", "image/x-icon")
+			w.Header().Set("Cache-Control", "public, max-age=86400")
+		default:
+			if ct := mime.TypeByExtension(ext); ct != "" {
+				w.Header().Set("Content-Type", ct)
+			}
+		}
+
+		fs.ServeHTTP(w, r)
+	})
+}
 
 // parsePagination extracts offset and limit from query params with defaults.
 func parsePagination(r *http.Request) (int, int) {

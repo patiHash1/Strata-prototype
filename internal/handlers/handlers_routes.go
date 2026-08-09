@@ -16,6 +16,7 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/swagger/index.html", http.StatusFound)
 	})
+	mux.Handle("GET /static/", a.staticHandler())
 	mux.HandleFunc("GET /health", a.healthHandler)
 	mux.HandleFunc("POST /api/v1/auth/register", a.registerHandler)
 	mux.HandleFunc("POST /api/v1/auth/login", a.loginHandler)
@@ -623,6 +624,15 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	// ── Super-Admin: Dashboard (HTML) ──
+	mux.Handle("GET /api/v1/admin/dashboard",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.dashboardHandler),
+			),
+		),
+	)
+
 	// ── Super-Admin: User management ──
 	mux.Handle("GET /api/v1/super-admin/users",
 		utils.RequireAuth(a.Auth)(
@@ -697,4 +707,10 @@ func (a *App) routes() http.Handler {
 	handler = utils.PartitionedMaintenanceMiddleware(a.SuperAdmin)(handler)
 
 	return handler
+}
+
+// RoutesForTest exposes the full route handler for use in httptest-based
+// integration tests without starting a real HTTP server.
+func (a *App) RoutesForTest() http.Handler {
+	return a.routes()
 }
