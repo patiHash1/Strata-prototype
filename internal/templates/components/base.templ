@@ -1,49 +1,29 @@
 package components
 
-// colorClasses maps semantic color names to Tailwind classes.
-var colorClasses = map[string]string{
-	"gray":   "bg-gray-100 text-gray-700",
-	"red":    "bg-red-100 text-red-700",
-	"green":  "bg-green-100 text-green-700",
-	"blue":   "bg-blue-100 text-blue-700",
-	"yellow": "bg-yellow-100 text-yellow-700",
-	"purple": "bg-purple-100 text-purple-700",
-	"strata": "bg-strata-100 text-strata-700",
-}
-
-// badgeClass returns the Tailwind class string for the given color.
-// Falls back to gray if the color is unknown.
-func badgeClass(color string) string {
-	if cls, ok := colorClasses[color]; ok {
-		return cls
-	}
-	return colorClasses["gray"]
-}
-
 templ Card(title string) {
-	<div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+	<div class="card">
 		if title != "" {
-			<div class="px-6 py-4 border-b border-gray-100">
-				<h3 class="text-lg font-semibold text-gray-900">{title}</h3>
+			<div class="card-header">
+				<h3 class="card-header-title">{ title }</h3>
 			</div>
 		}
-		<div class="px-6 py-4">
-			{children...}
+		<div class="card-body">
+			{ children... }
 		</div>
 	</div>
 }
 
 templ Badge(label string, color string) {
-	<span class={ "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium", badgeClass(color) }>
-		{label}
+	<span class={ "badge", "badge-"+color }>
+		{ label }
 	</span>
 }
 
 templ PrimaryButton(label string, attrs templ.Attributes) {
 	<button
-		class="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-strata-600 rounded-lg hover:bg-strata-700 focus:outline-none focus:ring-2 focus:ring-strata-500 focus:ring-offset-2 transition-colors"
+		class="btn-primary"
 		{ attrs... }
 	>
-		{label}
+		{ label }
 	</button>
 }

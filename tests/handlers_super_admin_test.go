@@ -193,6 +193,8 @@ func TestSuperAdminDashboardRedirect(t *testing.T) {
 
 // TestSuperAdminDashboardRendered verifies the dashboard HTML output by
 // calling the templ component directly (bypassing auth middleware).
+// Post-Tailwind removal, we check for semantic HTML elements and
+// content rather than Tailwind utility classes.
 func TestSuperAdminDashboardRendered(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
@@ -227,11 +229,32 @@ func TestSuperAdminDashboardRendered(t *testing.T) {
 	if !strings.Contains(bodyStr, "htmx.org") {
 		t.Error("response body does not contain htmx.org script tag")
 	}
-	if !strings.Contains(bodyStr, "w-64") {
-		t.Error("response body does not contain sidebar width class w-64")
+
+	// Check for semantic HTML elements (navigation, aside, main).
+	if !strings.Contains(bodyStr, "<nav") {
+		t.Error("response body does not contain <nav> element")
 	}
-	if !strings.Contains(bodyStr, "h-[calc(100%-4rem)]") {
-		t.Error("response body does not contain sidebar height class h-[calc(100%-4rem)]")
+	if !strings.Contains(bodyStr, "<aside") {
+		t.Error("response body does not contain <aside> sidebar element")
+	}
+	if !strings.Contains(bodyStr, "<main") {
+		t.Error("response body does not contain <main> content element")
+	}
+
+	// Check for semantic content: dashboard title and sidebar links.
+	if !strings.Contains(bodyStr, "Dashboard") {
+		t.Error("response body does not contain Dashboard title")
+	}
+	if !strings.Contains(bodyStr, "Metrics") {
+		t.Error("response body does not contain Metrics sidebar link")
+	}
+	if !strings.Contains(bodyStr, "Organizations") {
+		t.Error("response body does not contain Organizations sidebar link")
+	}
+
+	// Check that Alpine.js CDN is loaded.
+	if !strings.Contains(bodyStr, "alpinejs") {
+		t.Error("response body does not contain alpinejs script tag")
 	}
 
 	ct := resp.Header.Get("Content-Type")

@@ -6,51 +6,51 @@ import (
 
 templ SuperAdminDashboardView() {
 	@SuperAdminLayout("Dashboard") {
-		<div class="space-y-6">
+		<div class="dashboard-shell">
 			<!-- Page header -->
 			<div>
-				<h1 class="text-2xl font-bold text-gray-900">Dashboard</h1>
-				<p class="mt-1 text-sm text-gray-500">System overview and key metrics at a glance.</p>
+				<h1 class="page-title">Dashboard</h1>
+				<p class="page-subtitle">System overview and key metrics at a glance.</p>
 			</div>
 
 			<!-- Metrics cards row -->
-			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+			<div class="metrics-grid">
 				@components.Card("Total Users") {
-					<div class="flex items-baseline gap-2">
-						<span class="text-3xl font-bold text-gray-900">1,248</span>
+					<div class="stat-container">
+						<span class="stat-number">1,248</span>
 						@components.Badge("+12%", "green")
 					</div>
-					<p class="mt-1 text-sm text-gray-500">Active accounts across all orgs</p>
+					<p class="stat-caption">Active accounts across all orgs</p>
 				}
 				@components.Card("Organizations") {
-					<div class="flex items-baseline gap-2">
-						<span class="text-3xl font-bold text-gray-900">86</span>
+					<div class="stat-container">
+						<span class="stat-number">86</span>
 						@components.Badge("+3", "blue")
 					</div>
-					<p class="mt-1 text-sm text-gray-500">Registered tenants</p>
+					<p class="stat-caption">Registered tenants</p>
 				}
 				@components.Card("API Requests") {
-					<div class="flex items-baseline gap-2">
-						<span class="text-3xl font-bold text-gray-900">42.8k</span>
+					<div class="stat-container">
+						<span class="stat-number">42.8k</span>
 						@components.Badge("Healthy", "strata")
 					</div>
-					<p class="mt-1 text-sm text-gray-500">Last 24 hours</p>
+					<p class="stat-caption">Last 24 hours</p>
 				}
 				@components.Card("System Status") {
-					<div class="flex items-baseline gap-2">
-						<span class="text-3xl font-bold text-gray-900">99.9%</span>
+					<div class="stat-container">
+						<span class="stat-number">99.9%</span>
 						@components.Badge("Uptime", "green")
 					</div>
-					<p class="mt-1 text-sm text-gray-500">30-day rolling average</p>
+					<p class="stat-caption">30-day rolling average</p>
 				}
 			</div>
 
 			<!-- Quick actions -->
-			<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+			<div class="content-grid">
 				@components.Card("Quick Actions") {
-					<div class="space-y-3">
-						<p class="text-sm text-gray-500">Common administrative tasks available to super admins.</p>
-						<div class="flex flex-wrap gap-2">
+					<div>
+						<p class="quick-actions-text">Common administrative tasks available to super admins.</p>
+						<div class="quick-actions-btn-group">
 							@components.PrimaryButton("View Metrics", templ.Attributes{
 								"hx-get":    "/api/v1/super-admin/metrics",
 								"hx-target": "#metrics-output",
@@ -62,25 +62,25 @@ templ SuperAdminDashboardView() {
 								"hx-swap":   "innerHTML",
 							})
 						</div>
-						<div id="metrics-output" class="mt-3 text-sm"></div>
+						<div id="metrics-output" class="metrics-output"></div>
 					</div>
 				}
 				@components.Card("Recent Activity") {
-					<div class="space-y-2">
-						<div class="flex items-center gap-3 text-sm">
+					<div class="activity-list">
+						<div class="activity-item">
 							@components.Badge("Deploy", "purple")
-							<span class="text-gray-600">v0.1.0 deployed to production</span>
-							<span class="text-gray-400 ml-auto">2h ago</span>
+							<span class="activity-text">v0.1.0 deployed to production</span>
+							<span class="activity-time">2h ago</span>
 						</div>
-						<div class="flex items-center gap-3 text-sm">
+						<div class="activity-item">
 							@components.Badge("Alert", "yellow")
-							<span class="text-gray-600">Disk usage at 78% on db-primary</span>
-							<span class="text-gray-400 ml-auto">5h ago</span>
+							<span class="activity-text">Disk usage at 78% on db-primary</span>
+							<span class="activity-time">5h ago</span>
 						</div>
-						<div class="flex items-center gap-3 text-sm">
+						<div class="activity-item">
 							@components.Badge("User", "blue")
-							<span class="text-gray-600">New org registered: Acme Corp</span>
-							<span class="text-gray-400 ml-auto">1d ago</span>
+							<span class="activity-text">New org registered: Acme Corp</span>
+							<span class="activity-time">1d ago</span>
 						</div>
 					</div>
 				}

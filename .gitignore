@@ -33,11 +33,11 @@ go.work.sum
 # Local data (compose volume mount target)
 pgdata/
 
-# Node tools (Tailwind standalone CLI)
-node_modules/
+
 
 # Editor/IDE
 # .idea/
 # .vscode/
 tmp/
 go.sum
+node_modules/.bin/

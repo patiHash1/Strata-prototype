@@ -2,7 +2,7 @@ package templates
 
 templ SuperAdminLoginView() {
 	<!DOCTYPE html>
-	<html lang="en" class="h-full bg-gray-50">
+	<html lang="en" class="login-html">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -11,48 +11,48 @@ templ SuperAdminLoginView() {
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
 		</head>
-		<body class="h-full flex items-center justify-center">
-			<div class="w-full max-w-md mx-auto px-4">
+		<body class="login-body">
+			<div class="login-container">
 				<!-- Brand -->
-				<div class="text-center mb-8">
-					<span class="text-4xl">⛰️</span>
-					<h1 class="mt-3 text-2xl font-bold text-gray-900">Strata Super Admin</h1>
-					<p class="mt-1 text-sm text-gray-500">Sign in to manage your platform</p>
+				<div class="login-brand">
+					<span class="login-brand-emoji">⛰️</span>
+					<h1 class="login-brand-title">Strata Super Admin</h1>
+					<p class="login-brand-subtitle">Sign in to manage your platform</p>
 				</div>
 
 				<!-- Login card -->
-				<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+				<div class="login-card">
 					<form
 						method="POST"
 						action="/api/v1/super-admin/login"
 						x-data="{ loading: false }"
 						@submit="loading = true"
 					>
-						<div class="space-y-4">
+						<div class="login-form-inner">
 							<!-- Email -->
 							<div>
-								<label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+								<label for="email" class="field-label">Email</label>
 								<input
 									type="email"
 									name="email"
 									id="email"
 									required
 									autocomplete="email"
-									class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-strata-500 focus:border-strata-500 transition-colors"
+									class="field-input"
 									placeholder="admin@strata.local"
 								/>
 							</div>
 
 							<!-- Password -->
 							<div>
-								<label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+								<label for="password" class="field-label">Password</label>
 								<input
 									type="password"
 									name="password"
 									id="password"
 									required
 									autocomplete="current-password"
-									class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-strata-500 focus:border-strata-500 transition-colors"
+									class="field-input"
 									placeholder="••••••••"
 								/>
 							</div>
@@ -60,14 +60,14 @@ templ SuperAdminLoginView() {
 							<!-- Submit -->
 							<button
 								type="submit"
-								class="w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-white bg-strata-600 rounded-lg hover:bg-strata-700 focus:outline-none focus:ring-2 focus:ring-strata-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+								class="login-submit"
 								:disabled="loading"
 							>
 								<span x-show="!loading">Sign in</span>
-								<span x-show="loading" class="flex items-center gap-2">
-									<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+								<span x-show="loading" class="spinner-container">
+									<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+										<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
+										<path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
 									</svg>
 									Signing in…
 								</span>
@@ -77,7 +77,7 @@ templ SuperAdminLoginView() {
 				</div>
 
 				<!-- Footer -->
-				<p class="mt-6 text-center text-xs text-gray-400">
+				<p class="login-footer">
 					&copy; 2026 Strata. All rights reserved.
 				</p>
 			</div>
@@ -88,7 +88,7 @@ templ SuperAdminLoginView() {
 // SuperAdminLoginErrorView renders the login page with an error banner.
 templ SuperAdminLoginErrorView(errorMessage string) {
 	<!DOCTYPE html>
-	<html lang="en" class="h-full bg-gray-50">
+	<html lang="en" class="login-html">
 		<head>
 			<meta charset="UTF-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -97,20 +97,20 @@ templ SuperAdminLoginErrorView(errorMessage string) {
 			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
 			<script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
 		</head>
-		<body class="h-full flex items-center justify-center">
-			<div class="w-full max-w-md mx-auto px-4">
+		<body class="login-body">
+			<div class="login-container">
 				<!-- Brand -->
-				<div class="text-center mb-8">
-					<span class="text-4xl">⛰️</span>
-					<h1 class="mt-3 text-2xl font-bold text-gray-900">Strata Super Admin</h1>
-					<p class="mt-1 text-sm text-gray-500">Sign in to manage your platform</p>
+				<div class="login-brand">
+					<span class="login-brand-emoji">⛰️</span>
+					<h1 class="login-brand-title">Strata Super Admin</h1>
+					<p class="login-brand-subtitle">Sign in to manage your platform</p>
 				</div>
 
 				<!-- Login card -->
-				<div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+				<div class="login-card">
 					<!-- Error banner -->
-					<div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-						{errorMessage}
+					<div class="error-banner">
+						{ errorMessage }
 					</div>
 
 					<form
@@ -119,31 +119,31 @@ templ SuperAdminLoginErrorView(errorMessage string) {
 						x-data="{ loading: false }"
 						@submit="loading = true"
 					>
-						<div class="space-y-4">
+						<div class="login-form-inner">
 							<!-- Email -->
 							<div>
-								<label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+								<label for="email" class="field-label">Email</label>
 								<input
 									type="email"
 									name="email"
 									id="email"
 									required
 									autocomplete="email"
-									class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-strata-500 focus:border-strata-500 transition-colors"
+									class="field-input"
 									placeholder="admin@strata.local"
 								/>
 							</div>
 
 							<!-- Password -->
 							<div>
-								<label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+								<label for="password" class="field-label">Password</label>
 								<input
 									type="password"
 									name="password"
 									id="password"
 									required
 									autocomplete="current-password"
-									class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-strata-500 focus:border-strata-500 transition-colors"
+									class="field-input"
 									placeholder="••••••••"
 								/>
 							</div>
@@ -151,14 +151,14 @@ templ SuperAdminLoginErrorView(errorMessage string) {
 							<!-- Submit -->
 							<button
 								type="submit"
-								class="w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-white bg-strata-600 rounded-lg hover:bg-strata-700 focus:outline-none focus:ring-2 focus:ring-strata-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+								class="login-submit"
 								:disabled="loading"
 							>
 								<span x-show="!loading">Sign in</span>
-								<span x-show="loading" class="flex items-center gap-2">
-									<svg class="animate-spin h-4 w-4" viewBox="0 0 24 24">
-										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
-										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+								<span x-show="loading" class="spinner-container">
+									<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+										<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
+										<path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
 									</svg>
 									Signing in…
 								</span>
@@ -168,7 +168,7 @@ templ SuperAdminLoginErrorView(errorMessage string) {
 				</div>
 
 				<!-- Footer -->
-				<p class="mt-6 text-center text-xs text-gray-400">
+				<p class="login-footer">
 					&copy; 2026 Strata. All rights reserved.
 				</p>
 			</div>
