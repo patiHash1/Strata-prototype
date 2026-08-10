@@ -64,11 +64,11 @@ internal/
 │   ├── handlers_hr_extra.go           # Clock-out, shift management, tax profiles, payroll detail
 │   ├── handlers_platform.go           # POST ai/copilot/query, workflows/trigger, bi/dashboards, iot/devices, iot/readings; GET security/audit-anomalies, bi/dashboards, bi/dashboards/{id}/data, iot/devices; iot/readings/batch
 │   ├── handlers_platform_extra.go     # Batch IoT reading ingestion
-│   └── handlers_super_admin.go        # Super-admin: metrics, health, maintenance, SOC SSE stream, user/org CRUD
+├── handlers_super_admin.go        # Super-admin: login, logout, dashboard, metrics, health, maintenance, SOC SSE stream, user/org CRUD
 │
 ├── utils/               # SHARED HELPERS — no business logic
 │   ├── response.go      # WriteJSON, WriteErr, Envelope type
-│   ├── middleware.go     # RequireAuth, RequirePermission, RequireAPIKey, Logging, CORS, Recovery, PartitionedMaintenance
+│   ├── middleware.go     # RequireAuth, RequireAuthCookie, RequirePermission, RequireAPIKey, Logging, CORS, Recovery, PartitionedMaintenance
 │   └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 │
 ├── config/config.go     # App configuration loaded from env vars
@@ -173,6 +173,24 @@ swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency 
 | `REDIS_DB` | `0` | Redis database number |
 | `SUPERADMIN_UNAME` | `admin@strata.local` | Default super-admin email (seeded on first run) |
 | `SUPERADMIN_PWORD` | `SuperAdmin123!` | Default super-admin password (seeded on first run) |
+
+## 🌙 Super Admin Dashboard
+
+The super-admin dashboard provides a browser-based HTML UI for platform administration:
+
+| Route | Method | Description |
+|:---|:---:|:---|
+| `/api/v1/super-admin/login` | GET | Login page (renders HTML form) |
+| `/api/v1/super-admin/login` | POST | Authenticate and set `strata_token` cookie |
+| `/api/v1/super-admin/logout` | POST | Clear session cookie and redirect to login |
+| `/api/v1/super-admin/dashboard` | GET | Protected dashboard (cookie-authenticated) |
+
+**Authentication:** The login flow uses a cookie-based session (`strata_token` HttpOnly JWT cookie). The `RequireAuthCookie` middleware validates JWTs from either the `Authorization` header or the `strata_token` cookie, redirecting unauthenticated browser requests to the login page. API endpoints continue to use `RequireAuth` (header-only).
+
+**Features:**
+- Dark mode toggle (persisted in `localStorage`, applied via `html.dark` class)
+- Collapsible sidebar with hamburger button
+- User menu pop-out card with sign-out option
 
 ---
 
@@ -403,7 +421,7 @@ Shared utilities live in `internal/utils/` and have **no dependencies** on other
 ```
 internal/utils/
 ├── response.go      # WriteJSON, WriteErr, Envelope
-├── middleware.go     # RequireAuth, RequirePermission, RequireAPIKey, Logging, CORS, Recovery, GetClaims
+├── middleware.go     # RequireAuth, RequireAuthCookie, RequirePermission, RequireAPIKey, Logging, CORS, Recovery, GetClaims
 └── validator.go     # IsEmail, IsDomainSlug, NotBlank, MinLen
 ```
 
@@ -457,7 +475,7 @@ func (a *App) routes() http.Handler {
 
 ### 🔐 Per‑Route Middleware
 
-Auth and permission checks are applied per‑route. Strata supports two auth modes:
+Auth and permission checks are applied per‑route. Strata supports three auth modes:
 
 **Bearer token (JWT) auth:**
 
@@ -470,6 +488,20 @@ mux.Handle("POST /api/v1/org/invitations",
     ),
 )
 ```
+
+**Cookie + header auth (for HTML dashboards):**
+
+```go
+mux.Handle("GET /api/v1/super-admin/dashboard",
+    utils.RequireAuthCookie(a.Auth)(
+        utils.RequirePermission(services.PermSuperAdmin)(
+            http.HandlerFunc(a.superAdminDashboardHandler),
+        ),
+    ),
+)
+```
+
+`RequireAuthCookie` validates a JWT from either the `Authorization` header or the `strata_token` cookie. For browser requests without a valid token, it redirects to `/api/v1/super-admin/login` instead of returning a JSON 401.
 
 **API key auth:**
 

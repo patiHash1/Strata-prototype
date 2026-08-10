@@ -77,7 +77,7 @@ Runs on **every incoming HTTP request** and checks the local in-memory maintenan
 
 ## Route-level middleware
 
-Route-level middleware is composed at registration time:
+Route-level middleware is composed at registration time. Strata supports three authentication modes:
 
 **Bearer token (JWT):**
 
@@ -86,6 +86,18 @@ mux.Handle("POST /api/v1/org/invitations",
     utils.RequireAuth(a.Auth)(
         utils.RequirePermission(services.PermUsersInvite)(
             http.HandlerFunc(a.inviteHandler),
+        ),
+    ),
+)
+```
+
+**Cookie + header (for HTML dashboards):**
+
+```go
+mux.Handle("GET /api/v1/super-admin/dashboard",
+    utils.RequireAuthCookie(a.Auth)(
+        utils.RequirePermission(services.PermSuperAdmin)(
+            http.HandlerFunc(a.superAdminDashboardHandler),
         ),
     ),
 )
@@ -121,6 +133,24 @@ if claims == nil {
     // authentication required
 }
 ```
+
+### RequireAuthCookie
+
+```go
+func RequireAuthCookie(authSvc *services.AuthService) func(http.Handler) http.Handler
+```
+
+Validates a JWT from **either** the `Authorization` header **or** the `strata_token` cookie. Token extraction order:
+
+1. Check `Authorization: Bearer <token>` header (same as `RequireAuth`)
+2. Fall back to `strata_token` cookie
+3. If neither is present or valid:
+   - **Browser requests** (Accept header contains `text/html`): redirects to `/api/v1/super-admin/login` (302)
+   - **API requests**: returns `401 Unauthorized` (JSON)
+
+Claims are injected into the request context identically to `RequireAuth`, so handlers can use `utils.GetClaims(r)` regardless of which middleware was used.
+
+**Usage:** Use `RequireAuthCookie` for HTML pages served via the super-admin dashboard. Use `RequireAuth` for JSON API endpoints.
 
 ### RequirePermission
 
@@ -244,4 +274,4 @@ The order of middleware composition matters:
 3. `LoggingMiddleware` — logs request + records latency metrics
 4. `CORSMiddleware` — sets CORS headers (innermost global)
 
-For route-level middleware, `RequireAuth` must always come before `RequirePermission` because the permission check depends on claims being present in the context.
+For route-level middleware, `RequireAuth` (or `RequireAuthCookie`) must always come before `RequirePermission` because the permission check depends on claims being present in the context.

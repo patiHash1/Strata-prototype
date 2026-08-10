@@ -1,16 +1,45 @@
 # Super Admin API
 
-The Super Admin subsystem provides centralized platform observability, real-time security monitoring (SOC), partitioned maintenance control, CI health ingestion, and platform-wide user/organization CRUD operations. All endpoints require a valid JWT with the `super_admin.access` permission.
+The Super Admin subsystem provides centralized platform observability, real-time security monitoring (SOC), partitioned maintenance control, CI health ingestion, and platform-wide user/organization CRUD operations. All API endpoints require a valid JWT with the `super_admin.access` permission.
 
 ## Authentication
 
-All super-admin endpoints are protected by Bearer token authentication with the `super_admin.access` permission:
+The super-admin UI uses a cookie-based session flow:
+
+1. **Login** (`POST /api/v1/super-admin/login`) authenticates with email/password, sets an `strata_token` HttpOnly cookie with a signed JWT, and redirects to the dashboard.
+2. **Dashboard** (`GET /api/v1/super-admin/dashboard`) validates the JWT from either the `Authorization` header or the `strata_token` cookie via `RequireAuthCookie` middleware.
+3. **Logout** (`POST /api/v1/super-admin/logout`) clears the `strata_token` cookie (sets `MaxAge: -1`) and redirects to the login page.
+
+API endpoints (metrics, health, users, organizations, etc.) use standard Bearer token authentication:
 
 ```http
 Authorization: Bearer <super-admin-jwt>
 ```
 
 The default super-admin user is seeded on first run from `SUPERADMIN_UNAME` / `SUPERADMIN_PWORD` environment variables (default: `admin@strata.local` / `SuperAdmin123!`).
+
+## Dashboard (HTML)
+
+### GET `/api/v1/super-admin/login`
+
+Renders the super-admin login page as an HTML form. Accepts `GET` to display the form.
+
+### POST `/api/v1/super-admin/login`
+
+Authenticates with `email` and `password` form fields, checks for `super_admin.access` permission, and sets a `strata_token` HttpOnly cookie. On success redirects to `/api/v1/super-admin/dashboard`. On failure re-renders the login page with an error message.
+
+### POST `/api/v1/super-admin/logout`
+
+Clears the `strata_token` session cookie and redirects to the login page. This is a public endpoint (no authentication required — logout must work even if the token is expired).
+
+### GET `/api/v1/super-admin/dashboard`
+
+Renders the super-admin dashboard as an HTML page. Protected by `RequireAuthCookie` + `RequirePermission(services.PermSuperAdmin)`.
+
+**Features:**
+- Dark mode toggle (persisted in `localStorage`, applied via `html.dark` CSS class)
+- Collapsible sidebar with hamburger button (works on all screen sizes)
+- User menu pop-out card with sign-out option (Alpine.js)
 
 ## Metrics
 

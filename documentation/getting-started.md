@@ -77,7 +77,7 @@ internal/
 	│   └── handlers_super_admin.go        # Super-admin: metrics, health, maintenance, SOC SSE, user/org CRUD
 └── utils/
     ├── response.go          # WriteJSON, WriteErr, Envelope
-    ├── middleware.go         # RequireAuth, RequirePermission, etc.
+    ├── middleware.go         # RequireAuth, RequireAuthCookie, RequirePermission, etc.
     └── validator.go          # Email, slug, string validators
 
 docs/                        # Auto-generated Swagger (gitignored)

@@ -81,6 +81,7 @@ services_accounting.go  → AccountingService: journal entries, OCR, expenses, b
 services_supplychain.go → SupplyChainService: fleet, telematics, inventory levels per warehouse, stock movements, routes
 services_hr.go          → HRService: attendance, resume parsing, knowledge search, shift management, AI shift prediction, payroll tax withholding
 services_platform.go    → PlatformService: text-to-SQL, workflows, audit anomalies, batch IoT ingestion
+services_super_admin.go → SuperAdminService: observability, SOC events, maintenance locks, CI health, user/org CRUD
 services_mailer.go      → Mailer: transactional email (stub)
 ```
 
@@ -89,7 +90,7 @@ services_mailer.go      → Mailer: transactional email (stub)
 Pure functions with no dependency on other project packages:
 
 - **response.go** — `WriteJSON`, `WriteErr`, `Envelope`
-- **middleware.go** — `RequireAuth`, `RequirePermission`, `RequireAPIKey`, `LoggingMiddleware`, `CORSMiddleware`, `RecoveryMiddleware`, `GetClaims`, `GetAPIKeyClaims`
+- **middleware.go** — `RequireAuth`, `RequireAuthCookie`, `RequirePermission`, `RequireAPIKey`, `LoggingMiddleware`, `CORSMiddleware`, `RecoveryMiddleware`, `GetClaims`, `GetAPIKeyClaims`
 - **validator.go** — `IsEmail`, `IsDomainSlug`, `NotBlank`, `MinLen`
 
 ### `internal/config` & `internal/env`
@@ -142,6 +143,15 @@ Route-level middleware wraps individual handlers:
 utils.RequireAuth(a.Auth)(                 // outermost
     utils.RequirePermission(services.PermUsersManage)(
         http.HandlerFunc(a.updateMemberHandler),
+    ),
+)
+```
+
+**Cookie + header (for HTML dashboards):**
+```go
+utils.RequireAuthCookie(a.Auth)(           // validates header OR cookie
+    utils.RequirePermission(services.PermSuperAdmin)(
+        http.HandlerFunc(a.superAdminDashboardHandler),
     ),
 )
 ```

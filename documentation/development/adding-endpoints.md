@@ -115,12 +115,17 @@ Access path parameters with `r.PathValue("name")`.
 
 ### Authentication modes
 
-Strata supports two authentication modes at the route level:
+Strata supports three authentication modes at the route level:
 
-| Mode | Middleware | Header | Claims Helper |
+| Mode | Middleware | Header / Cookie | Claims Helper |
 |---|---|---|---|
 | Bearer token (JWT) | `RequireAuth` + `RequirePermission` | `Authorization: Bearer <jwt>` | `utils.GetClaims(r)` |
+| Cookie + header | `RequireAuthCookie` + `RequirePermission` | `strata_token` cookie OR `Authorization: Bearer <jwt>` | `utils.GetClaims(r)` |
 | API key | `RequireAPIKey` | `X-API-Key: <key>` | `utils.GetAPIKeyClaims(r)` |
+
+**For HTML dashboard pages** (like the super-admin dashboard):
+- Use `RequireAuthCookie` instead of `RequireAuth` — it validates JWTs from both the `Authorization` header and the `strata_token` cookie
+- Unauthenticated browser requests are redirected to the login page (302) instead of receiving a JSON 401
 
 **For API key endpoints:**
 - Use `RequireAPIKey` instead of `RequireAuth`/`RequirePermission`
