@@ -196,6 +196,36 @@ func (a *App) SuperAdminDashboardHandlerForTest(w http.ResponseWriter, r *http.R
 	a.superAdminDashboardHandler(w, r)
 }
 
+// ── POST /api/v1/super-admin/logout ──
+
+// superAdminLogoutHandler clears the super-admin session cookie and the
+// client-side Bearer token, then redirects to the login page.
+//
+//	@Summary		Super Admin logout
+//	@Description	Invalidates the super-admin session by clearing the strata_token cookie and redirects to the login page.
+//	@Tags			Super Admin
+//	@Produce		html
+//	@Success		302	{string}	string	"Redirect to login"
+//	@Router			/api/v1/super-admin/logout [post]
+func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// Clear the session cookie by setting an immediate expiry and an empty
+	// value. MaxAge < 0 instructs the browser to delete the cookie immediately.
+	http.SetCookie(w, &http.Cookie{
+		Name:     "strata_token",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	// Tell any API clients holding a Bearer token in JS state to drop it.
+	w.Header().Set("Clear-Site-Data", "\"cookies\"")
+
+	http.Redirect(w, r, "/api/v1/super-admin/login", http.StatusFound)
+}
+
 // ── GET /api/v1/super-admin/metrics ──
 
 // getSuperAdminMetricsHandler returns system telemetry in JSON format.

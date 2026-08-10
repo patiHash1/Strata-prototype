@@ -105,7 +105,20 @@ table { border-collapse: collapse; }
 	border: none; background: none; cursor: pointer; font: inherit;
 }
 .hamburger-btn:hover { background-color: var(--color-gray-100); }
-@media (min-width: 1024px) { .hamburger-btn { display: none; } }
+
+/* Theme toggle */
+.theme-toggle {
+	padding: 0.5rem;
+	border-radius: var(--radius-lg);
+	color: var(--color-gray-500);
+	border: none; background: none; cursor: pointer; font: inherit;
+	transition: color 0.15s var(--ease-out), background-color 0.15s var(--ease-out);
+}
+.theme-toggle:hover { background-color: var(--color-gray-100); color: var(--color-gray-700); }
+.theme-toggle:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--color-white), 0 0 0 4px var(--color-strata-500);
+}
 
 /* Brand */
 .brand-link       { display: flex; align-items: center; gap: 0.5rem; }
@@ -119,6 +132,60 @@ table { border-collapse: collapse; }
 	background-color: var(--color-strata-500);
 	display: flex; align-items: center; justify-content: center;
 	color: var(--color-white); font-size: 0.875rem; font-weight: 600;
+}
+
+/* Avatar button + pop-out card (user menu) */
+.avatar-wrapper { position: relative; }
+.avatar-btn {
+	border: none; cursor: pointer; font: inherit;
+	transition: background-color 0.15s var(--ease-out);
+}
+.avatar-btn:hover { background-color: var(--color-strata-600); }
+.avatar-btn:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--color-white), 0 0 0 4px var(--color-strata-500);
+}
+.avatar-lg { width: 2.5rem; height: 2.5rem; font-size: 1rem; }
+
+.user-popout {
+	position: absolute;
+	top: calc(100% + 0.5rem);
+	right: 0;
+	z-index: 50;
+	min-width: 14rem;
+	background-color: var(--color-white);
+	border: 1px solid var(--color-gray-200);
+	border-radius: var(--radius-xl);
+	box-shadow: var(--shadow-sm);
+	padding: 0.75rem;
+	transform-origin: top right;
+}
+.user-popout-header {
+	display: flex; align-items: center; gap: 0.75rem;
+	padding-bottom: 0.75rem;
+	border-bottom: 1px solid var(--color-gray-200);
+}
+.user-popout-name { font-size: 0.875rem; font-weight: 600; color: var(--color-gray-900); }
+.user-popout-role { font-size: 0.75rem; color: var(--color-gray-500); }
+.user-popout-form { margin-top: 0.5rem; }
+.user-popout-signout {
+	width: 100%;
+	display: inline-flex; align-items: center; gap: 0.5rem;
+	padding: 0.5rem 0.75rem;
+	font-size: 0.875rem; font-weight: 500;
+	color: var(--color-gray-700);
+	background-color: transparent;
+	border: none; border-radius: var(--radius-lg);
+	cursor: pointer;
+	transition: color 0.15s var(--ease-out), background-color 0.15s var(--ease-out);
+}
+.user-popout-signout:hover {
+	color: var(--color-red-700);
+	background-color: var(--color-red-50);
+}
+.user-popout-signout:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 2px var(--color-white), 0 0 0 4px var(--color-strata-500);
 }
 
 /* Sidebar */
@@ -335,3 +402,61 @@ table { border-collapse: collapse; }
 .spinner { animation: spin 1s linear infinite; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Dark Mode ────────────────────────────────────────────────── */
+
+html.dark {
+	--color-white:    #1e293b;
+	--color-black:    #f1f5f9;
+
+	--color-gray-50:  #0f172a;
+	--color-gray-100: #1e293b;
+	--color-gray-200: #334155;
+	--color-gray-300: #475569;
+	--color-gray-400: #94a3b8;
+	--color-gray-500: #94a3b8;
+	--color-gray-600: #cbd5e1;
+	--color-gray-700: #e2e8f0;
+	--color-gray-900: #f8fafc;
+
+	--color-strata-50:  #0c4a6e;
+	--color-strata-100: #075985;
+	--color-strata-500: #38bdf8;
+	--color-strata-600: #7dd3fc;
+	--color-strata-700: #bae6fd;
+
+	--color-red-50:  #450a0a;
+	--color-red-100: #7f1d1d;
+	--color-red-200: #991b1b;
+	--color-red-700: #fca5a5;
+
+	--color-green-100: #14532d;
+	--color-green-700: #86efac;
+
+	--color-blue-100: #1e3a5f;
+	--color-blue-700: #93c5fd;
+
+	--color-yellow-100: #713f12;
+	--color-yellow-700: #fde047;
+
+	--color-purple-100: #581c87;
+	--color-purple-700: #d8b4fe;
+
+	--shadow-sm: 0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.3);
+}
+
+html.dark .login-body,
+html.dark .page-html {
+	background-color: var(--color-gray-50);
+}
+
+/* In dark mode, card header borders adapt */
+html.dark .card-header {
+	border-bottom-color: var(--color-gray-200);
+}
+
+/* ── Responsive: sidebar always accessible via hamburger ─────── */
+
+@media (min-width: 1024px) {
+	.sidebar-overlay { display: none; }
+}

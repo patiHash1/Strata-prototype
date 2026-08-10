@@ -628,6 +628,9 @@ func (a *App) routes() http.Handler {
 	mux.HandleFunc("GET /api/v1/super-admin/login", a.superAdminLoginPageHandler)
 	mux.HandleFunc("POST /api/v1/super-admin/login", a.superAdminLoginHandler)
 
+	// ── Super-Admin: Logout (clears cookie, redirects to login) ──
+	mux.HandleFunc("POST /api/v1/super-admin/logout", a.superAdminLogoutHandler)
+
 	// ── Super-Admin: Dashboard (HTML, protected, cookie+header auth) ──
 	mux.Handle("GET /api/v1/super-admin/dashboard",
 		utils.RequireAuthCookie(a.Auth)(

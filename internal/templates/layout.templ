@@ -12,7 +12,27 @@ templ SuperAdminLayout(title string) {
 			<script src="https://unpkg.com/htmx-ext-sse@2.2.3/sse.js" defer></script>
 			<script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
 		</head>
-		<body class="page-body" x-data="{ sidebarOpen: window.innerWidth >= 1024 }">
+		<body
+			class="page-body"
+			x-data="{
+				sidebarOpen: window.innerWidth >= 1024,
+				darkMode: localStorage.getItem('theme') === 'dark',
+				toggleDark() {
+					this.darkMode = !this.darkMode;
+					localStorage.setItem('theme', this.darkMode ? 'dark' : 'light');
+					document.documentElement.classList.toggle('dark', this.darkMode);
+				},
+				htmlClass() {
+					return (this.darkMode ? 'dark ' : '') + (this.sidebarOpen ? '' : 'sidebar-collapsed');
+				}
+			}"
+			x-init="
+				if (darkMode) document.documentElement.classList.add('dark');
+				window.addEventListener('resize', () => {
+					if (window.innerWidth >= 1024) sidebarOpen = true;
+				});
+			"
+		>
 			<!-- Top Navbar -->
 			<nav class="topnav">
 				<div class="topnav-inner">
@@ -33,7 +53,61 @@ templ SuperAdminLayout(title string) {
 					</div>
 					<div class="topnav-right">
 						<span class="brand-subtext">Super Admin</span>
-						<div class="avatar">SA</div>
+						<!-- Dark mode toggle -->
+						<button
+							type="button"
+							class="theme-toggle"
+							aria-label="Toggle dark mode"
+							@click="toggleDark()"
+						>
+							<svg x-show="!darkMode" class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+							</svg>
+							<svg x-show="darkMode" x-cloak class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+							</svg>
+						</button>
+						<div
+							class="avatar-wrapper"
+							x-data="{ open: false }"
+							@click.outside="open = false"
+						>
+							<button
+								type="button"
+								class="avatar avatar-btn"
+								aria-label="User menu"
+								@click="open = !open"
+							>
+								SA
+							</button>
+							<div
+								x-show="open"
+								x-transition:enter="transition ease-out duration-150"
+								x-transition:enter-start="opacity-0 scale-95"
+								x-transition:enter-end="opacity-100 scale-100"
+								x-transition:leave="transition ease-in duration-100"
+								x-transition:leave-start="opacity-100 scale-100"
+								x-transition:leave-end="opacity-0 scale-95"
+								x-cloak
+								class="user-popout"
+							>
+								<div class="user-popout-header">
+									<div class="avatar avatar-lg">SA</div>
+									<div>
+										<p class="user-popout-name">Super Admin</p>
+										<p class="user-popout-role">Platform administrator</p>
+									</div>
+								</div>
+								<form method="POST" action="/api/v1/super-admin/logout" class="user-popout-form">
+									<button type="submit" class="user-popout-signout">
+										<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+										</svg>
+										Sign out
+									</button>
+								</form>
+							</div>
+						</div>
 					</div>
 				</div>
 			</nav>
