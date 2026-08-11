@@ -1,4 +1,4 @@
-.PHONY: dev build test clean install-tools
+.PHONY: dev build test clean install-tools check-redis
 
 # ── Tool versions / paths ──
 AIR       := $(shell command -v air 2>/dev/null || echo "$(shell go env GOPATH)/bin/air")
@@ -25,6 +25,20 @@ install-tools:
 		echo "  ✓ templ found at $(TEMPL)"; \
 	fi
 
+# ── Check Redis connection ──
+check-redis:
+	@echo "==> Checking Redis connection…"
+	@REDIS_ADDR=$${REDIS_ADDR:-localhost:6379}; \
+	if command -v redis-cli >/dev/null 2>&1; then \
+		if redis-cli -h $$(echo $$REDIS_ADDR | cut -d: -f1) -p $$(echo $$REDIS_ADDR | cut -d: -f2) ping >/dev/null 2>&1; then \
+			echo "  ✓ Redis connected at $$REDIS_ADDR"; \
+		else \
+			echo "  ⚠ Redis not reachable at $$REDIS_ADDR (SSE fan-out disabled)"; \
+		fi; \
+	else \
+		echo "  ⚠ redis-cli not found — skipping Redis check"; \
+	fi
+
 # ── Generate Templ files ──
 templ-generate:
 	@echo "==> Generating Templ files…"
@@ -46,7 +60,7 @@ clean:
 	rm -rf ./tmp
 
 # ── Development server (hot-reload) ──
-# Runs templ generate once, then starts air for hot-reload.
-dev: install-tools templ-generate
+# Runs templ generate once, checks Redis, then starts air for hot-reload.
+dev: install-tools templ-generate check-redis
 	@echo "==> Starting development server with hot-reload…"
 	$(AIR)

@@ -568,6 +568,14 @@ func (a *App) routes() http.Handler {
 	}
 
 	// ── Super-Admin routes ──
+	mux.Handle("GET /api/v1/super-admin/metrics/fragment",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.getSuperAdminMetricsFragmentHandler),
+			),
+		),
+	)
+
 	mux.Handle("GET /api/v1/super-admin/metrics",
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(

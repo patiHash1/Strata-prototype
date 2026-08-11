@@ -354,8 +354,10 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 	}
 
 	// Load initial maintenance rules into cache.
-	if err := svc.reloadCache(context.Background()); err != nil {
-		log.Printf("[super-admin] initial cache load failed: %v", err)
+	if svc.pool != nil {
+		if err := svc.reloadCache(context.Background()); err != nil {
+			log.Printf("[super-admin] initial cache load failed: %v", err)
+		}
 	}
 
 	// Start Redis subscriber for cache invalidation.
@@ -682,6 +684,17 @@ func (s *SuperAdminService) fanoutSSE(data []byte) {
 			// Subscriber too slow, drop message.
 		}
 	}
+}
+
+// FanoutSSEForTest exposes fanoutSSE for use in httptest-based SSE tests.
+// It marshals the given SOCEvent to JSON and fans it out to local subscribers
+// without requiring a Redis connection.
+func (s *SuperAdminService) FanoutSSEForTest(event SOCEvent) {
+	data, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+	s.fanoutSSE(data)
 }
 
 // ── CI Health ──

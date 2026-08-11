@@ -244,6 +244,53 @@ func (a *App) getSuperAdminMetricsHandler(w http.ResponseWriter, r *http.Request
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"metrics": snapshot})
 }
 
+// ── GET /api/v1/super-admin/metrics/fragment ──
+
+// getSuperAdminMetricsFragmentHandler returns the MetricsGrid HTML fragment
+// for HTMX polling. It renders only the grid component, not the full layout.
+//
+//	@Summary		Metrics grid fragment (HTML)
+//	@Description	Returns the MetricsGrid Templ component as an HTML fragment for HTMX polling.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML fragment"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/metrics/fragment [get]
+func (a *App) getSuperAdminMetricsFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	var metrics templates.SystemMetricsView
+
+	if a.SuperAdmin != nil {
+		snapshot := a.SuperAdmin.CollectSnapshot()
+		metrics = templates.SystemMetricsView{
+			AllocatedMB:   snapshot.Runtime.AllocatedMB,
+			GCRuns:        snapshot.Runtime.GCRuns,
+			Goroutines:    snapshot.Runtime.Goroutines,
+			HeapObjects:   snapshot.Runtime.HeapObjects,
+			AcquiredConns: snapshot.DB.AcquiredConns,
+			IdleConns:     snapshot.DB.IdleConns,
+			TotalConns:    snapshot.DB.TotalConns,
+			MaxConns:      snapshot.DB.MaxConns,
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.MetricsGrid(metrics).Render(r.Context(), w)
+}
+
+// MetricsFragmentHandlerForTest exposes the metrics fragment handler for
+// httptest without the auth middleware chain.
+func (a *App) MetricsFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.getSuperAdminMetricsFragmentHandler(w, r)
+}
+
+// SecurityStreamHandlerForTest exposes the SSE security stream handler for
+// httptest without the auth middleware chain.
+func (a *App) SecurityStreamHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.securityStreamHandler(w, r)
+}
+
 // ── GET /api/v1/super-admin/metrics/prometheus ──
 
 // getSuperAdminMetricsPrometheusHandler returns system telemetry in Prometheus text format.
@@ -426,9 +473,29 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				return
 			}
-			// Escape newlines in data for SSE format.
-			payload := strings.ReplaceAll(string(data), "\n", " ")
-			fmt.Fprintf(w, "event: security\ndata: %s\n\n", payload)
+			// Parse the JSON SOC event and render it as an HTML fragment.
+			var socEvent services.SOCEvent
+			if err := json.Unmarshal(data, &socEvent); err != nil {
+				continue
+			}
+
+			// Build the Templ SecurityEvent for rendering.
+			event := templates.SecurityEvent{
+				ID:        socEvent.ID,
+				Type:      socEvent.Type,
+				Severity:  socEvent.Severity,
+				Message:   socEvent.Message,
+				IPAddress: socEvent.IPAddress,
+				Timestamp: socEvent.Timestamp,
+			}
+
+			// Render the SecurityLogEntry component to a buffer.
+			var buf strings.Builder
+			templates.SecurityLogEntry(event).Render(r.Context(), &buf)
+			html := buf.String()
+
+			// Write as SSE: event: security-event, data: <div>...</div>
+			fmt.Fprintf(w, "event: security-event\ndata: %s\n\n", html)
 			flusher.Flush()
 		}
 	}
