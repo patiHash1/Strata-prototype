@@ -628,11 +628,14 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 	defer s.wg.Done()
 
 	if s.rdb == nil {
+		log.Println("[super-admin] Redis unavailable, SOC subscriber disabled")
 		return
 	}
 
 	pubsub := s.rdb.Subscribe(s.ctx, RedisChannelSecuritySOC)
 	defer pubsub.Close()
+
+	log.Printf("[super-admin] subscribed to Redis channel %s", RedisChannelSecuritySOC)
 
 	ch := pubsub.Channel()
 	for {
@@ -643,6 +646,7 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 			if !ok {
 				return
 			}
+			log.Printf("[super-admin] SOC event received from Redis, fan-out to %d subscribers", len(s.sseSubs))
 			s.fanoutSSE([]byte(msg.Payload))
 		}
 	}

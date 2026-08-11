@@ -81,6 +81,13 @@ func (lw *loggingResponseWriter) WriteHeader(code int) {
 	lw.ResponseWriter.WriteHeader(code)
 }
 
+// Flush delegates to the underlying ResponseWriter if it supports Flusher.
+func (lw *loggingResponseWriter) Flush() {
+	if f, ok := lw.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
 // RecoveryMiddleware catches panics and returns 500.
 // If an adminSvc is provided via the closure, panic traces are recorded
 // into the ring buffer and persisted asynchronously.

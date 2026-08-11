@@ -1,4 +1,4 @@
-.PHONY: dev build test clean install-tools check-redis
+.PHONY: dev build test clean install-tools check-redis testsoc
 
 # ── Tool versions / paths ──
 AIR       := $(shell command -v air 2>/dev/null || echo "$(shell go env GOPATH)/bin/air")
@@ -64,3 +64,9 @@ clean:
 dev: install-tools templ-generate check-redis
 	@echo "==> Starting development server with hot-reload…"
 	$(AIR)
+
+# ── Publish mock SOC events to Redis ──
+testsoc:
+	@echo "==> Publishing mock SOC events to Redis…"
+	REDIS_ADDR=$${REDIS_ADDR:-localhost:6379}; \
+	go run ./cmd/cli/publish-soc-events -count 5 -redis $$REDIS_ADDR

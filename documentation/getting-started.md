@@ -35,7 +35,8 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 ```
 cmd/
 ├── api/main.go              # Entry point — wires everything
-└── cli/                     # (future) CLI commands
+└── cli/
+    └── publish-soc-events/main.go   # Publish mock SOC events to Redis for testing
 
 internal/
 ├── config/config.go         # Configuration loaded from env vars

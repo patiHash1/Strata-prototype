@@ -79,6 +79,27 @@ Returns aggregated system telemetry in JSON format including runtime stats, data
 }
 ```
 
+### GET `/api/v1/super-admin/metrics/fragment`
+
+Returns the MetricsGrid as an HTML fragment (no layout shell) for HTMX polling. The dashboard's metrics grid polls this endpoint every 5 seconds.
+
+**Response (200):** `text/html`
+```html
+<div id="metrics-grid" class="metrics-grid">
+  <div class="card">...</div>  <!-- Runtime Memory -->
+  <div class="card">...</div>  <!-- DB Connections -->
+  <div class="card">...</div>  <!-- Goroutines -->
+  <div class="card">...</div>  <!-- System Status -->
+</div>
+```
+
+**Client usage (HTMX):**
+```html
+<div hx-get="/api/v1/super-admin/metrics/fragment" hx-trigger="load, every 5s" hx-swap="outerHTML">
+  <!-- MetricsGrid renders here -->
+</div>
+```
+
 ### GET `/api/v1/super-admin/metrics/prometheus`
 
 Returns the same telemetry in [Prometheus exposition format](https://prometheus.io/docs/instrumenting/exposition_formats/) suitable for scraping by Prometheus or Grafana.
@@ -213,7 +234,9 @@ Activates or deactivates a partitioned maintenance lock. Publishes a cache-inval
 
 ### GET `/api/v1/super-admin/security/stream`
 
-Opens a Server-Sent Events (SSE) connection that streams real-time SOC security events. Events are fanned out across all server nodes via Redis Pub/Sub channel `strata:events:security-soc`.
+Opens a Server-Sent Events (SSE) connection that streams real-time SOC security events as HTML fragments. Events are fanned out across all server nodes via Redis Pub/Sub channel `strata:events:security-soc`.
+
+**Authentication:** Requires `strata_token` cookie (browser) or `Authorization: Bearer <token>` header. Uses `RequireAuthCookie` middleware so HTMX SSE extension connections work with session cookies.
 
 **Event types:**
 - `user.banned` — User banned platform-wide
@@ -226,16 +249,29 @@ Opens a Server-Sent Events (SSE) connection that streams real-time SOC security 
 event: connected
 data: {"status":"connected"}
 
-event: security
-data: {"id":"abc123...","type":"user.banned","severity":"high","message":"User user@example.com banned: Policy violation","user_id":"uuid","timestamp":"..."}
+event: security-event
+data: <div class="sse-entry sse-severity-high"><div class="sse-entry-header"><span class="sse-entry-type">user.banned</span><span class="badge badge-high">high</span><span class="sse-entry-ip">192.168.1.100</span><span class="sse-entry-time">12:34:56</span></div><p class="sse-entry-message">User user@example.com banned: Policy violation</p></div>
+```
 
-event: security
-data: {"id":"def456...","type":"org.suspended","severity":"high","message":"Organization Acme Corp (acme) suspended","org_id":"uuid","timestamp":"..."}
+**Client usage (HTMX SSE extension):**
+```html
+<div hx-ext="sse" sse-connect="/api/v1/super-admin/security/stream" sse-swap="security-event" hx-swap="afterbegin">
+  <!-- New log entries appear at the top -->
+</div>
 ```
 
 **Client usage (curl):**
 ```bash
 curl -N -H "Authorization: Bearer <token>" http://localhost:8080/api/v1/super-admin/security/stream
+```
+
+**Testing with mock events:**
+```sh
+# Publish 5 mock SOC events to Redis
+go run ./cmd/cli/publish-soc-events -count 5 -redis localhost:6379
+
+# Or using make:
+make testsoc
 ```
 
 The connection is automatically cleaned up when the HTTP request context is cancelled (client disconnects).

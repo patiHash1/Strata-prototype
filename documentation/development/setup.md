@@ -9,13 +9,13 @@
 
 ## Quick start
 
-### 1. Clone and start PostgreSQL
+### 1. Clone and start PostgreSQL + Redis
 
 ```bash
 git clone https://github.com/patiHash1/Strata-prototype.git
 cd Strata-prototype
 
-# Start PostgreSQL (Docker)
+# Start PostgreSQL and Redis (Docker)
 docker compose up -d
 ```
 
@@ -25,6 +25,7 @@ docker compose up -d
 # .env
 PORT=8080
 DATABASE_URL=postgres://strata-user:strata-pass@localhost:5432/strata-db-beta?sslmode=disable
+REDIS_ADDR=localhost:6379
 JWT_SECRET=change-this-to-a-secure-secret-in-production
 JWT_ISSUER=strata
 ENABLE_SWAGGER=true

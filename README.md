@@ -30,7 +30,8 @@
 ```
 cmd/
 ├── api/main.go          # Entry point. Wires config, database, services, and starts the server.
-└── cli/                 # CLI commands (future — admin tasks, data imports, etc.)
+└── cli/
+    └── publish-soc-events/main.go   # Publish mock SOC security events to Redis for testing
 
 internal/
 ├── services/            # BUSINESS LAYER — service + repository per domain
@@ -176,7 +177,9 @@ swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency 
 
 ## 🌙 Super Admin Dashboard
 
-The super-admin dashboard provides a browser-based HTML UI for platform administration:
+The super-admin dashboard provides a browser-based HTML UI for platform administration with real-time observability.
+
+### Routes
 
 | Route | Method | Description |
 |:---|:---:|:---|
@@ -184,13 +187,49 @@ The super-admin dashboard provides a browser-based HTML UI for platform administ
 | `/api/v1/super-admin/login` | POST | Authenticate and set `strata_token` cookie |
 | `/api/v1/super-admin/logout` | POST | Clear session cookie and redirect to login |
 | `/api/v1/super-admin/dashboard` | GET | Protected dashboard (cookie-authenticated) |
+| `/api/v1/super-admin/metrics` | GET | System telemetry (JSON) |
+| `/api/v1/super-admin/metrics/fragment` | GET | Metrics grid HTML fragment (HTMX polling) |
+| `/api/v1/super-admin/metrics/prometheus` | GET | System telemetry (Prometheus text format) |
+| `/api/v1/super-admin/health` | GET | Module health scores (JSON) |
+| `/api/v1/super-admin/security/stream` | GET | Real-time SOC events (SSE stream) |
+| `/api/v1/super-admin/users` | GET | List all users across all orgs |
+| `/api/v1/super-admin/organizations` | GET | List all organizations |
 
 **Authentication:** The login flow uses a cookie-based session (`strata_token` HttpOnly JWT cookie). The `RequireAuthCookie` middleware validates JWTs from either the `Authorization` header or the `strata_token` cookie, redirecting unauthenticated browser requests to the login page. API endpoints continue to use `RequireAuth` (header-only).
 
-**Features:**
-- Dark mode toggle (persisted in `localStorage`, applied via `html.dark` class)
-- Collapsible sidebar with hamburger button
-- User menu pop-out card with sign-out option
+### Features
+
+- **Dark mode toggle** — persisted in `localStorage`, applied via `html.dark` class
+- **Collapsible sidebar** with hamburger button
+- **User menu pop-out card** with sign-out option
+- **Real-time metrics grid** — HTMX polls `/api/v1/super-admin/metrics/fragment` every 5 seconds, displaying runtime memory, DB connection pool stats, goroutines, and system status
+- **ApexCharts line graph** — Alpine.js component that listens to HTMX `afterSwap` events to dynamically update chart data series without redrawing
+- **Live security feed** — SSE stream via HTMX `hx-ext="sse"` that connects to `/api/v1/super-admin/security/stream` and injects new SOC alerts at the top of the feed in real-time
+
+### How to Test the Super Admin Dashboard
+
+```sh
+# 1. Start infrastructure (PostgreSQL + Redis)
+docker compose up -d
+
+# 2. Set Redis address in .env (add this line)
+echo 'REDIS_ADDR=localhost:6379' >> .env
+
+# 3. Start the server
+go run ./cmd/api
+
+# 4. Open the dashboard
+open http://localhost:8080/api/v1/super-admin/login
+# Login with credentials from .env (SUPERADMIN_UNAME / SUPERADMIN_PWORD)
+
+# 5. Test real-time metrics — observe the metrics grid updates every 5s
+# 6. Test live security feed — publish mock SOC events:
+go run ./cmd/cli/publish-soc-events -count 5 -redis localhost:6379
+# Or using make:
+make testsoc
+```
+
+> **Note:** Redis is required for the live security feed. Without `REDIS_ADDR` configured, the SSE connection works but no events will be delivered.
 
 ---
 
@@ -679,7 +718,7 @@ func Load() Config {
 ## 🚀 Running the Project
 
 ```sh
-# Start PostgreSQL
+# Start infrastructure (PostgreSQL + Redis)
 docker compose up -d
 
 # Standard (reads PORT from env, defaults to 8080)
@@ -700,6 +739,35 @@ open http://localhost:8080/swagger/
 
 > ☁️ **Cloud deployment:** The server binds to `$PORT` (default `8080`). Railway and similar platforms set `PORT` automatically — no hardcoded port strings.
 
+### CLI Commands
+
+The project ships with CLI tools under `cmd/cli/`:
+
+| Command | Description |
+|:---|:---|
+| `go run ./cmd/cli/publish-soc-events` | Publish mock SOC security events to Redis for testing the live feed |
+
+```sh
+# Publish 5 mock security events to Redis
+go run ./cmd/cli/publish-soc-events -count 5 -redis localhost:6379
+
+# Publish 20 events with custom Redis instance
+go run ./cmd/cli/publish-soc-events -count 20 -redis localhost:6379 -redis-pass mypassword
+```
+
+### Make Targets
+
+| Target | Description |
+|:---|:---|
+| `make dev` | Start dev server with hot-reload (installs tools, generates templ, checks Redis, runs air) |
+| `make build` | Build the Go binary to `./tmp/main` |
+| `make test` | Run all tests |
+| `make testsoc` | Publish mock SOC events to Redis (useful for testing the live security feed) |
+| `make clean` | Remove build artifacts |
+| `make install-tools` | Install air + templ if missing |
+| `make check-redis` | Verify Redis connectivity |
+| `make templ-generate` | Regenerate Templ Go files |
+
 ---
 
 ## 🗺️ Roadmap
@@ -708,7 +776,7 @@ open http://localhost:8080/swagger/
 
 | Status | What's Next |
 |:---:|:---|
-| 🚧 | **`cmd/cli/`** — standalone CLI commands (user creation, data exports, cron jobs) |
+| ✅ | **`cmd/cli/`** — standalone CLI commands (`publish-soc-events` for testing live security feed) |
 | 🚧 | **`internal/services/services_events.go`** — background job queue (async email, webhooks, reports) |
 | 🚧 | **`internal/test/`** — shared test fixtures, factories, and helpers |
 | 🚧 | **Real AI/ML integration** — replace simulated AI with real ML service calls |

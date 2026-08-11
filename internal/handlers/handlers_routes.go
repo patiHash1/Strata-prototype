@@ -625,7 +625,7 @@ func (a *App) routes() http.Handler {
 	)
 
 	mux.Handle("GET /api/v1/super-admin/security/stream",
-		utils.RequireAuth(a.Auth)(
+		utils.RequireAuthCookie(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.securityStreamHandler),
 			),
