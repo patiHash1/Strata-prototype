@@ -48,6 +48,7 @@ type APIKey struct {
 	OrgID      uuid.UUID  `json:"org_id"`
 	Name       string     `json:"name"`
 	KeyHash    string     `json:"-"`
+	KeyPrefix  string     `json:"-"`
 	Scopes     []string   `json:"scopes"`
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
@@ -121,9 +122,9 @@ func (r *orgRepository) CreateAPIKey(ctx context.Context, key *APIKey) error {
 	key.ID = uuid.New()
 	key.CreatedAt = time.Now()
 	_, err := r.pool.Exec(ctx, `
-		INSERT INTO api_keys (id, org_id, name, key_hash, scopes, expires_at, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`, key.ID, key.OrgID, key.Name, key.KeyHash, key.Scopes, key.ExpiresAt, key.CreatedAt)
+		INSERT INTO api_keys (id, org_id, name, key_hash, key_prefix, scopes, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`, key.ID, key.OrgID, key.Name, key.KeyHash, key.KeyPrefix, key.Scopes, key.ExpiresAt, key.CreatedAt)
 	return err
 }
 

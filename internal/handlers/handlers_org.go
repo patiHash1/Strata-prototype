@@ -80,7 +80,6 @@ func (a *App) inviteHandler(w http.ResponseWriter, r *http.Request) {
 
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
 		"invitation_id": inv.ID.String(),
-		"token":         invToken,
 		"expires_at":    inv.ExpiresAt.Format(time.RFC3339),
 	})
 }
@@ -440,7 +439,10 @@ func (a *App) createAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rawSecret := uuid.New().String() + uuid.New().String()
+	// Generate a prefixed API key: strata_<12-char-prefix>_<random-secret>
+	keyPrefix := uuid.New().String()[:12]
+	randomSuffix := uuid.New().String() + uuid.New().String()
+	rawSecret := "strata_" + keyPrefix + "_" + randomSuffix
 	hash, err := a.Auth.HashPassword(rawSecret)
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "could not generate key")
@@ -452,10 +454,11 @@ func (a *App) createAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	key := &services.APIKey{
-		OrgID:   orgID,
-		Name:    req.Name,
-		KeyHash: hash,
-		Scopes:  req.Scopes,
+		OrgID:     orgID,
+		Name:      req.Name,
+		KeyHash:   hash,
+		KeyPrefix: keyPrefix,
+		Scopes:    req.Scopes,
 	}
 
 	if req.ExpiresInDays > 0 {

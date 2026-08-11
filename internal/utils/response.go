@@ -12,7 +12,7 @@ type Envelope map[string]any
 func WriteJSON(w http.ResponseWriter, status int, data Envelope) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data) // nolint: errcheck
+	json.NewEncoder(w).Encode(data)
 }
 
 // WriteErr sends a JSON error response.

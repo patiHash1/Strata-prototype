@@ -1,6 +1,8 @@
 package config
 
 import (
+	"log"
+
 	"github.com/patiHash1/Strata-prototype/internal/env"
 )
 
@@ -26,12 +28,22 @@ type Config struct {
 	JWTIssuer       string
 	SuperAdminUname string
 	SuperAdminPword string
+	AllowedOrigins  string
 }
 
 // Load reads configuration from environment variables.
 // It loads the .env file before reading so local development works.
+// It fatally exits if required security-sensitive variables are missing.
 func Load() Config {
 	env.LoadDotenv()
+
+	jwtSecret := env.GetString("JWT_SECRET", "")
+	if jwtSecret == "" {
+		log.Fatal("FATAL: JWT_SECRET environment variable is required")
+	}
+
+	superAdminUname := env.GetString("SUPERADMIN_UNAME", "")
+	superAdminPword := env.GetString("SUPERADMIN_PWORD", "")
 
 	return Config{
 		Port:          env.GetInt("PORT", 8080),
@@ -44,9 +56,10 @@ func Load() Config {
 			Password: env.GetString("REDIS_PASSWORD", ""),
 			DB:       env.GetInt("REDIS_DB", 0),
 		},
-		JWTSecret:       env.GetString("JWT_SECRET", "dev-secret-change-in-production"),
+		JWTSecret:       jwtSecret,
 		JWTIssuer:       env.GetString("JWT_ISSUER", "strata"),
-		SuperAdminUname: env.GetString("SUPERADMIN_UNAME", "admin@strata.local"),
-		SuperAdminPword: env.GetString("SUPERADMIN_PWORD", "SuperAdmin123!"),
+		SuperAdminUname: superAdminUname,
+		SuperAdminPword: superAdminPword,
+		AllowedOrigins:  env.GetString("ALLOWED_ORIGINS", ""),
 	}
 }

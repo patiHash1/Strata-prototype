@@ -6,8 +6,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/database"
 	"github.com/patiHash1/Strata-prototype/internal/handlers"
@@ -105,7 +103,8 @@ func main() {
 
 	// ── Seed super admin (idempotent) ──
 	if cfg.SuperAdminUname != "" && cfg.SuperAdminPword != "" {
-		if err := seedSuperAdmin(ctx, db.Pool, cfg, authSvc, userSvc, orgSvc, rbacSvc); err != nil {
+		seedSvc := services.NewSeedService(db.Pool, authSvc, userSvc, orgSvc, rbacSvc)
+		if err := seedSvc.SeedSuperAdmin(ctx, cfg.SuperAdminUname, cfg.SuperAdminPword); err != nil {
 			log.Printf("WARNING: super admin seeding failed (continuing): %v", err)
 		} else {
 			log.Println("super admin seeded")
@@ -133,8 +132,10 @@ func main() {
 	superAdminSvc := services.NewSuperAdminService(db.Pool, rdb)
 	defer superAdminSvc.Shutdown()
 
+	registrationSvc := services.NewRegistrationService(db.Pool)
+
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, superAdminSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, superAdminSvc, registrationSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -145,88 +146,4 @@ func main() {
 	if err := app.Serve(sigCtx); err != nil {
 		log.Fatalf("server exited: %v", err)
 	}
-}
-
-// seedSuperAdmin creates the default super-admin organization, role, and user
-// if they do not already exist. The super-admin role is granted the
-// super_admin.access permission.
-func seedSuperAdmin(
-	ctx context.Context,
-	pool *pgxpool.Pool,
-	cfg config.Config,
-	authSvc *services.AuthService,
-	userSvc *services.UserService,
-	orgSvc *services.OrgService,
-	rbacSvc *services.RBACService,
-) error {
-	const superAdminOrgSlug = "strata-system"
-
-	// Check if super-admin org already exists.
-	org, _ := orgSvc.GetByDomainSlug(ctx, superAdminOrgSlug)
-	if org == nil {
-		var createErr error
-		org, createErr = orgSvc.Create(ctx, superAdminOrgSlug, "Strata System")
-		if createErr != nil {
-			return createErr
-		}
-		log.Printf("  created super-admin org: %s", org.ID)
-	}
-
-	// Check if super-admin user already exists.
-	user, _ := userSvc.GetByEmail(ctx, cfg.SuperAdminUname)
-	if user == nil {
-		hash, err := authSvc.HashPassword(cfg.SuperAdminPword)
-		if err != nil {
-			return err
-		}
-		user, err = userSvc.Create(ctx, cfg.SuperAdminUname, hash, "Super Admin")
-		if err != nil {
-			return err
-		}
-		log.Printf("  created super-admin user: %s", user.ID)
-	}
-
-	// Check if super-admin role already exists in the org.
-	roles, err := rbacSvc.ListRolesByOrg(ctx, org.ID)
-	if err != nil {
-		return err
-	}
-	var superAdminRole *services.Role
-	for i := range roles {
-		if roles[i].Name == "Super Admin" {
-			superAdminRole = &roles[i]
-			break
-		}
-	}
-	if superAdminRole == nil {
-		permID, err := rbacSvc.GetPermissionIDByKey(ctx, services.PermSuperAdmin)
-		if err != nil {
-			return err
-		}
-		var permIDs []uuid.UUID
-		if permID != uuid.Nil {
-			permIDs = []uuid.UUID{permID}
-		}
-		superAdminRole, err = rbacSvc.CreateRole(ctx, org.ID, "Super Admin", nil, permIDs)
-		if err != nil {
-			return err
-		}
-		log.Printf("  created super-admin role: %s", superAdminRole.ID)
-	}
-
-	// Check if user is already a member of the org.
-	member, _ := userSvc.GetMember(ctx, org.ID, user.ID)
-	if member == nil {
-		if err := userSvc.AddMember(ctx, &services.OrganizationMember{
-			OrgID:    org.ID,
-			UserID:   user.ID,
-			RoleID:   superAdminRole.ID,
-			IsActive: true,
-		}); err != nil {
-			return err
-		}
-		log.Printf("  added super-admin user to org")
-	}
-
-	return nil
 }

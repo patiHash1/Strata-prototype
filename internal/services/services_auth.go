@@ -39,6 +39,7 @@ func (s *AuthService) CreateToken(userID, orgID, roleID uuid.UUID, permissions [
 		Permissions: permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    s.issuer,
+			Audience:  jwt.ClaimStrings{"strata-api"},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(24 * time.Hour)),
 		},

@@ -8,7 +8,7 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-func SuperAdminLoginView() templ.Component {
+func SuperAdminLoginView(csrfToken string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -29,7 +29,33 @@ func SuperAdminLoginView() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<!doctype html><html lang=\"en\" class=\"login-html\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Super Admin Login — Strata</title><link rel=\"stylesheet\" href=\"/static/css/styles.css\"><script src=\"https://unpkg.com/htmx.org@2.0.4\" defer></script><script src=\"https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js\" defer></script></head><body class=\"login-body\"><div class=\"login-container\"><!-- Brand --><div class=\"login-brand\"><span class=\"login-brand-emoji\">⛰️</span><h1 class=\"login-brand-title\">Strata Super Admin</h1><p class=\"login-brand-subtitle\">Sign in to manage your platform</p></div><!-- Login card --><div class=\"login-card\"><form method=\"POST\" action=\"/api/v1/super-admin/login\" x-data=\"{ loading: false }\" @submit=\"loading = true\"><div class=\"login-form-inner\"><!-- Email --><div><label for=\"email\" class=\"field-label\">Email</label> <input type=\"email\" name=\"email\" id=\"email\" required autocomplete=\"email\" class=\"field-input\" placeholder=\"admin@strata.local\"></div><!-- Password --><div><label for=\"password\" class=\"field-label\">Password</label> <input type=\"password\" name=\"password\" id=\"password\" required autocomplete=\"current-password\" class=\"field-input\" placeholder=\"••••••••\"></div><!-- Submit --><button type=\"submit\" class=\"login-submit\" :disabled=\"loading\"><span x-show=\"!loading\">Sign in</span> <span x-show=\"loading\" class=\"spinner-container\"><svg class=\"spinner\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\" opacity=\"0.25\"></circle> <path fill=\"currentColor\" opacity=\"0.75\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z\"></path></svg> Signing in…</span></button></div></form></div><!-- Footer --><p class=\"login-footer\">&copy; 2026 Strata. All rights reserved.</p></div></body></html>")
+		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"login-card\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = loginForm(csrfToken).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = loginPageLayout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -37,8 +63,7 @@ func SuperAdminLoginView() templ.Component {
 	})
 }
 
-// SuperAdminLoginErrorView renders the login page with an error banner.
-func SuperAdminLoginErrorView(errorMessage string) templ.Component {
+func SuperAdminLoginErrorView(csrfToken string, errorMessage string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -54,25 +79,130 @@ func SuperAdminLoginErrorView(errorMessage string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var2 == nil {
-			templ_7745c5c3_Var2 = templ.NopComponent
+		templ_7745c5c3_Var3 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var3 == nil {
+			templ_7745c5c3_Var3 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<!doctype html><html lang=\"en\" class=\"login-html\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Super Admin Login — Strata</title><link rel=\"stylesheet\" href=\"/static/css/styles.css\"><script src=\"https://unpkg.com/htmx.org@2.0.4\" defer></script><script src=\"https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js\" defer></script></head><body class=\"login-body\"><div class=\"login-container\"><!-- Brand --><div class=\"login-brand\"><span class=\"login-brand-emoji\">⛰️</span><h1 class=\"login-brand-title\">Strata Super Admin</h1><p class=\"login-brand-subtitle\">Sign in to manage your platform</p></div><!-- Login card --><div class=\"login-card\"><!-- Error banner --><div class=\"error-banner\">")
+		templ_7745c5c3_Var4 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+			if !templ_7745c5c3_IsBuffer {
+				defer func() {
+					templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+					if templ_7745c5c3_Err == nil {
+						templ_7745c5c3_Err = templ_7745c5c3_BufErr
+					}
+				}()
+			}
+			ctx = templ.InitializeContext(ctx)
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"login-card\"><div class=\"error-banner\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(errorMessage)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin_login.templ`, Line: 15, Col: 18}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = loginForm(csrfToken).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			return nil
+		})
+		templ_7745c5c3_Err = loginPageLayout().Render(templ.WithChildren(ctx, templ_7745c5c3_Var4), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(errorMessage)
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin_login.templ`, Line: 113, Col: 20}
+		return nil
+	})
+}
+
+func loginPageLayout() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var6 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var6 == nil {
+			templ_7745c5c3_Var6 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<!doctype html><html lang=\"en\" class=\"login-html\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>Super Admin Login — Strata</title><link rel=\"stylesheet\" href=\"/static/css/styles.css\"><script src=\"https://unpkg.com/htmx.org@2.0.4\" defer></script><script src=\"https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js\" defer></script></head><body class=\"login-body\"><div class=\"login-container\"><!-- Brand --><div class=\"login-brand\"><span class=\"login-brand-emoji\">⛰️</span><h1 class=\"login-brand-title\">Strata Super Admin</h1><p class=\"login-brand-subtitle\">Sign in to manage your platform</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><form method=\"POST\" action=\"/api/v1/super-admin/login\" x-data=\"{ loading: false }\" @submit=\"loading = true\"><div class=\"login-form-inner\"><!-- Email --><div><label for=\"email\" class=\"field-label\">Email</label> <input type=\"email\" name=\"email\" id=\"email\" required autocomplete=\"email\" class=\"field-input\" placeholder=\"admin@strata.local\"></div><!-- Password --><div><label for=\"password\" class=\"field-label\">Password</label> <input type=\"password\" name=\"password\" id=\"password\" required autocomplete=\"current-password\" class=\"field-input\" placeholder=\"••••••••\"></div><!-- Submit --><button type=\"submit\" class=\"login-submit\" :disabled=\"loading\"><span x-show=\"!loading\">Sign in</span> <span x-show=\"loading\" class=\"spinner-container\"><svg class=\"spinner\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\" opacity=\"0.25\"></circle> <path fill=\"currentColor\" opacity=\"0.75\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z\"></path></svg> Signing in…</span></button></div></form></div><!-- Footer --><p class=\"login-footer\">&copy; 2026 Strata. All rights reserved.</p></div></body></html>")
+		templ_7745c5c3_Err = templ_7745c5c3_Var6.Render(ctx, templ_7745c5c3_Buffer)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<!-- Footer --><p class=\"login-footer\">&copy; 2026 Strata. All rights reserved.</p></div></body></html>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+func loginForm(csrfToken string) templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var7 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var7 == nil {
+			templ_7745c5c3_Var7 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<form method=\"POST\" action=\"/api/v1/super-admin/login\" x-data=\"{ loading: false }\" @submit=\"loading = true\"><div class=\"login-form-inner\"><input type=\"hidden\" name=\"csrf_token\" value=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var8 string
+		templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.ResolveAttributeValue(csrfToken)
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin_login.templ`, Line: 59, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var8)
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><!-- Email --><div><label for=\"email\" class=\"field-label\">Email</label> <input type=\"email\" name=\"email\" id=\"email\" required autocomplete=\"email\" class=\"field-input\" placeholder=\"admin@strata.local\"></div><!-- Password --><div><label for=\"password\" class=\"field-label\">Password</label> <input type=\"password\" name=\"password\" id=\"password\" required autocomplete=\"current-password\" class=\"field-input\" placeholder=\"••••••••\"></div><!-- Submit --><button type=\"submit\" class=\"login-submit\" :disabled=\"loading\"><span x-show=\"!loading\">Sign in</span> <span x-show=\"loading\" class=\"spinner-container\"><svg class=\"spinner\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\"><circle cx=\"12\" cy=\"12\" r=\"10\" stroke=\"currentColor\" stroke-width=\"4\" opacity=\"0.25\"></circle> <path fill=\"currentColor\" opacity=\"0.75\" d=\"M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z\"></path></svg> Signing in…</span></button></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

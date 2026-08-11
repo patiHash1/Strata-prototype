@@ -1,6 +1,9 @@
 package utils
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
@@ -25,7 +28,7 @@ func IsDomainSlug(s string) bool {
 
 // NotBlank returns true if the trimmed string is non-empty.
 func NotBlank(s string) bool {
-	return len(s) > 0
+	return len(strings.TrimSpace(s)) > 0
 }
 
 // MinLen returns true if the string has at least n characters.

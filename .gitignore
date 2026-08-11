@@ -39,5 +39,5 @@ pgdata/
 # .idea/
 # .vscode/
 tmp/
-go.sum
+
 node_modules/.bin/

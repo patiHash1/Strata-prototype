@@ -66,57 +66,42 @@ func (a *App) registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	org, err := a.Orgs.Create(r.Context(), req.DomainSlug, req.CompanyName)
-	if err != nil {
-		if errors.Is(err, services.ErrOrgAlreadyExists) {
-			utils.WriteErr(w, http.StatusConflict, err.Error())
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not create organization")
-		return
-	}
-
 	hash, err := a.Auth.HashPassword(req.OwnerPassword)
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "could not process password")
 		return
 	}
 
-	user, err := a.Users.Create(r.Context(), req.OwnerEmail, hash, req.OwnerFullName)
+	result, err := a.Registration.RegisterWithOwner(
+		r.Context(),
+		req.DomainSlug,
+		req.CompanyName,
+		req.OwnerEmail,
+		hash,
+		req.OwnerFullName,
+	)
 	if err != nil {
+		if errors.Is(err, services.ErrOrgAlreadyExists) {
+			utils.WriteErr(w, http.StatusConflict, err.Error())
+			return
+		}
 		if errors.Is(err, services.ErrEmailAlreadyExists) {
 			utils.WriteErr(w, http.StatusConflict, err.Error())
 			return
 		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not create user")
+		utils.WriteErr(w, http.StatusInternalServerError, "could not complete registration")
 		return
 	}
 
-	adminRole, err := a.RBAC.CreateRole(r.Context(), org.ID, "Admin", nil, nil)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not create default role")
-		return
-	}
-
-	if err := a.Users.AddMember(r.Context(), &services.OrganizationMember{
-		OrgID:    org.ID,
-		UserID:   user.ID,
-		RoleID:   adminRole.ID,
-		IsActive: true,
-	}); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not add member")
-		return
-	}
-
-	token, err := a.Auth.CreateToken(user.ID, org.ID, adminRole.ID, nil)
+	token, err := a.Auth.CreateToken(result.User.ID, result.Org.ID, result.Role.ID, nil)
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "could not generate token")
 		return
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{
-		"org_id":       org.ID.String(),
-		"user_id":      user.ID.String(),
+		"org_id":       result.Org.ID.String(),
+		"user_id":      result.User.ID.String(),
 		"access_token": token,
 	})
 }
@@ -161,11 +146,7 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user, err := a.Users.GetByEmail(r.Context(), req.Email)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not look up user")
-		return
-	}
-	if user == nil {
+	if err != nil || user == nil {
 		utils.WriteErr(w, http.StatusUnauthorized, "invalid email or password")
 		return
 	}
@@ -181,6 +162,16 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 				"mfa_required": true,
 				"message":      "MFA code required",
 			})
+			return
+		}
+
+		// Validate the TOTP code against the user's stored MFA secret.
+		if user.MFASecret == nil || *user.MFASecret == "" {
+			utils.WriteErr(w, http.StatusInternalServerError, "MFA is enabled but not configured")
+			return
+		}
+		if !utils.ValidateTOTP(*req.MFACode, *user.MFASecret) {
+			utils.WriteErr(w, http.StatusUnauthorized, "invalid MFA code")
 			return
 		}
 	}
@@ -205,11 +196,8 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	refreshToken := a.Auth.GenerateRefreshToken()
-
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
-		"access_token":  token,
-		"refresh_token": refreshToken,
+		"access_token": token,
 		"user_profile": utils.Envelope{
 			"id":        user.ID.String(),
 			"email":     user.Email,

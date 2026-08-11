@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -76,7 +77,7 @@ func (a *App) clockInHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.HR.ClockIn(r.Context(), orgID, userID, req.Latitude, req.Longitude)
 	if err != nil {
-		if err == services.ErrEmployeeNotFound {
+		if errors.Is(err, services.ErrEmployeeNotFound) {
 			utils.WriteErr(w, http.StatusNotFound, "no employee record found for this user. Contact your HR administrator.")
 			return
 		}

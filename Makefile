@@ -47,7 +47,12 @@ templ-generate:
 # ── Build the Go binary ──
 build:
 	@echo "==> Building Go binary…"
-	go build -o ./tmp/main ./cmd/api
+	go build -ldflags="-s -w" -o ./tmp/main ./cmd/api
+
+# ── Regenerate Swagger docs ──
+swagger:
+	@echo "==> Regenerating Swagger docs…"
+	/home/shino/go/bin/swag init -g cmd/api/main.go -o docs
 
 # ── Run tests ──
 test:

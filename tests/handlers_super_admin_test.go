@@ -22,7 +22,7 @@ import (
 func TestStaticCSSHandler(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -50,7 +50,7 @@ func TestStaticCSSHandler(t *testing.T) {
 func TestStaticCSSNotFound(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -73,7 +73,7 @@ func TestStaticCSSNotFound(t *testing.T) {
 func TestSuperAdminLoginPage(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -123,13 +123,12 @@ func TestSuperAdminLoginPage(t *testing.T) {
 	}
 }
 
-// TestSuperAdminLoginPostInvalid verifies that POST with bad credentials
-// returns the login page with an error message. With nil services it
-// returns a "service unavailable" error.
+// TestSuperAdminLoginPostInvalid verifies that POST without a valid CSRF token
+// returns the login page with a CSRF error message.
 func TestSuperAdminLoginPostInvalid(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -158,9 +157,9 @@ func TestSuperAdminLoginPostInvalid(t *testing.T) {
 
 	bodyStr := string(body)
 
-	// With nil services, the handler returns a service-unavailable error.
-	if !strings.Contains(bodyStr, "Service unavailable") {
-		t.Error("response body does not contain error message")
+	// Without a valid CSRF token, the handler returns a CSRF validation error.
+	if !strings.Contains(bodyStr, "Invalid or expired session") {
+		t.Error("response body does not contain CSRF error message")
 	}
 }
 
@@ -170,7 +169,7 @@ func TestSuperAdminLoginPostInvalid(t *testing.T) {
 func TestSuperAdminDashboardRedirect(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -202,7 +201,7 @@ func TestSuperAdminDashboardRedirect(t *testing.T) {
 func TestSuperAdminDashboardRendered(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	mux := http.NewServeMux()
@@ -278,7 +277,7 @@ func TestSuperAdminDashboardRendered(t *testing.T) {
 func TestMetricsFragmentHandler(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	mux := http.NewServeMux()
@@ -355,6 +354,7 @@ func TestSecuritySSEStream(t *testing.T) {
 		config.Config{Port: 8080},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
+		nil,
 	)
 
 	// Use a pipe to capture the streamed output.

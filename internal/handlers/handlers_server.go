@@ -14,21 +14,23 @@ import (
 
 // App is the top-level application container.
 type App struct {
-	Config      config.Config
-	DB          *database.DB
-	Auth        *services.AuthService
-	Users       *services.UserService
-	Orgs        *services.OrgService
-	RBAC        *services.RBACService
-	Billing     *services.BillingService
-	Mailer      *services.Mailer
-	CRM         *services.CRMService
-	Accounting  *services.AccountingService
-	SupplyChain *services.SupplyChainService
-	HR          *services.HRService
-	Platform    *services.PlatformService
-	SuperAdmin  *services.SuperAdminService
-	server      *http.Server
+	Config       config.Config
+	DB           *database.DB
+	Auth         *services.AuthService
+	Users        *services.UserService
+	Orgs         *services.OrgService
+	RBAC         *services.RBACService
+	Billing      *services.BillingService
+	Mailer       *services.Mailer
+	CRM          *services.CRMService
+	Accounting   *services.AccountingService
+	SupplyChain  *services.SupplyChainService
+	HR           *services.HRService
+	Platform     *services.PlatformService
+	SuperAdmin   *services.SuperAdminService
+	Registration *services.RegistrationService
+	startedAt    time.Time
+	server       *http.Server
 }
 
 // New creates and wires an App with all dependencies.
@@ -47,22 +49,25 @@ func New(
 	hrSvc *services.HRService,
 	platformSvc *services.PlatformService,
 	superAdminSvc *services.SuperAdminService,
+	registrationSvc *services.RegistrationService,
 ) *App {
 	return &App{
-		Config:      cfg,
-		DB:          db,
-		Auth:        authSvc,
-		Users:       userSvc,
-		Orgs:        orgSvc,
-		RBAC:        rbacSvc,
-		Billing:     billingSvc,
-		Mailer:      mailerSvc,
-		CRM:         crmSvc,
-		Accounting:  accountingSvc,
-		SupplyChain: supplyChainSvc,
-		HR:          hrSvc,
-		Platform:    platformSvc,
-		SuperAdmin:  superAdminSvc,
+		Config:       cfg,
+		DB:           db,
+		Auth:         authSvc,
+		Users:        userSvc,
+		Orgs:         orgSvc,
+		RBAC:         rbacSvc,
+		Billing:      billingSvc,
+		Mailer:       mailerSvc,
+		CRM:          crmSvc,
+		Accounting:   accountingSvc,
+		SupplyChain:  supplyChainSvc,
+		HR:           hrSvc,
+		Platform:     platformSvc,
+		SuperAdmin:   superAdminSvc,
+		Registration: registrationSvc,
+		startedAt:    time.Now(),
 	}
 }
 

@@ -155,9 +155,7 @@ definitions:
   handlers.DashboardResponse:
     properties:
       config:
-        items:
-          type: integer
-        type: array
+        type: object
       created_at:
         type: string
       id:
@@ -541,9 +539,7 @@ definitions:
   handlers.createDashboardRequest:
     properties:
       config:
-        items:
-          type: integer
-        type: array
+        type: object
       name:
         example: Executive Overview
         type: string
@@ -3739,6 +3735,30 @@ paths:
       summary: Fetch security audit anomalies
       tags:
       - AI & Platform
+  /api/v1/super-admin/dashboard:
+    get:
+      description: Renders the Super Admin dashboard with system metrics and quick
+        actions.
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Super Admin dashboard
+      tags:
+      - Super Admin
   /api/v1/super-admin/health:
     get:
       description: Returns composite health scores (0-100%) for all modules factoring
@@ -3765,6 +3785,62 @@ paths:
       security:
       - BearerAuth: []
       summary: Module health scores
+      tags:
+      - Super Admin
+  /api/v1/super-admin/login:
+    get:
+      description: Renders the Super Admin login form.
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+      summary: Super Admin login page
+      tags:
+      - Super Admin
+    post:
+      consumes:
+      - application/x-www-form-urlencoded
+      description: Authenticates a super admin and redirects to the dashboard.
+      parameters:
+      - description: Email
+        in: formData
+        name: email
+        required: true
+        type: string
+      - description: Password
+        in: formData
+        name: password
+        required: true
+        type: string
+      produces:
+      - text/html
+      responses:
+        "302":
+          description: Redirect to dashboard
+          schema:
+            type: string
+        "401":
+          description: HTML login page with error
+          schema:
+            type: string
+      summary: Super Admin login
+      tags:
+      - Super Admin
+  /api/v1/super-admin/logout:
+    post:
+      description: Invalidates the super-admin session by clearing the strata_token
+        cookie and redirects to the login page.
+      produces:
+      - text/html
+      responses:
+        "302":
+          description: Redirect to login
+          schema:
+            type: string
+      summary: Super Admin logout
       tags:
       - Super Admin
   /api/v1/super-admin/maintenance:
@@ -3859,6 +3935,30 @@ paths:
       security:
       - BearerAuth: []
       summary: System telemetry (JSON)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/metrics/fragment:
+    get:
+      description: Returns the MetricsGrid Templ component as an HTML fragment for
+        HTMX polling.
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Metrics grid fragment (HTML)
       tags:
       - Super Admin
   /api/v1/super-admin/metrics/prometheus:

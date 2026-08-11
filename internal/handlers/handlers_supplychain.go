@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -80,7 +81,7 @@ func (a *App) ingestTelemetryHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.SupplyChain.IngestTelemetry(r.Context(), orgID, input)
 	if err != nil {
-		if err == services.ErrVehicleNotFound {
+		if errors.Is(err, services.ErrVehicleNotFound) {
 			utils.WriteErr(w, http.StatusNotFound, "vehicle not found")
 			return
 		}
@@ -175,11 +176,11 @@ func (a *App) optimizeRoutesHandler(w http.ResponseWriter, r *http.Request) {
 
 	plan, err := a.SupplyChain.OptimizeRoutes(r.Context(), orgID, shipmentIDs, vehicleIDs)
 	if err != nil {
-		if err == services.ErrNoShipmentsProvided || err == services.ErrNoVehiclesProvided {
+		if errors.Is(err, services.ErrNoShipmentsProvided) || errors.Is(err, services.ErrNoVehiclesProvided) {
 			utils.WriteErr(w, http.StatusBadRequest, err.Error())
 			return
 		}
-		if err == services.ErrShipmentsNotFound || err == services.ErrVehiclesNotFound {
+		if errors.Is(err, services.ErrShipmentsNotFound) || errors.Is(err, services.ErrVehiclesNotFound) {
 			utils.WriteErr(w, http.StatusNotFound, err.Error())
 			return
 		}

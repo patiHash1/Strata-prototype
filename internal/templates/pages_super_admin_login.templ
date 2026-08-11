@@ -1,6 +1,25 @@
 package templates
 
-templ SuperAdminLoginView() {
+templ SuperAdminLoginView(csrfToken string) {
+	@loginPageLayout() {
+		<div class="login-card">
+			@loginForm(csrfToken)
+		</div>
+	}
+}
+
+templ SuperAdminLoginErrorView(csrfToken string, errorMessage string) {
+	@loginPageLayout() {
+		<div class="login-card">
+			<div class="error-banner">
+				{ errorMessage }
+			</div>
+			@loginForm(csrfToken)
+		</div>
+	}
+}
+
+templ loginPageLayout() {
 	<!DOCTYPE html>
 	<html lang="en" class="login-html">
 		<head>
@@ -19,63 +38,7 @@ templ SuperAdminLoginView() {
 					<h1 class="login-brand-title">Strata Super Admin</h1>
 					<p class="login-brand-subtitle">Sign in to manage your platform</p>
 				</div>
-
-				<!-- Login card -->
-				<div class="login-card">
-					<form
-						method="POST"
-						action="/api/v1/super-admin/login"
-						x-data="{ loading: false }"
-						@submit="loading = true"
-					>
-						<div class="login-form-inner">
-							<!-- Email -->
-							<div>
-								<label for="email" class="field-label">Email</label>
-								<input
-									type="email"
-									name="email"
-									id="email"
-									required
-									autocomplete="email"
-									class="field-input"
-									placeholder="admin@strata.local"
-								/>
-							</div>
-
-							<!-- Password -->
-							<div>
-								<label for="password" class="field-label">Password</label>
-								<input
-									type="password"
-									name="password"
-									id="password"
-									required
-									autocomplete="current-password"
-									class="field-input"
-									placeholder="••••••••"
-								/>
-							</div>
-
-							<!-- Submit -->
-							<button
-								type="submit"
-								class="login-submit"
-								:disabled="loading"
-							>
-								<span x-show="!loading">Sign in</span>
-								<span x-show="loading" class="spinner-container">
-									<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
-										<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
-										<path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-									</svg>
-									Signing in…
-								</span>
-							</button>
-						</div>
-					</form>
-				</div>
-
+				{ children... }
 				<!-- Footer -->
 				<p class="login-footer">
 					&copy; 2026 Strata. All rights reserved.
@@ -85,93 +48,56 @@ templ SuperAdminLoginView() {
 	</html>
 }
 
-// SuperAdminLoginErrorView renders the login page with an error banner.
-templ SuperAdminLoginErrorView(errorMessage string) {
-	<!DOCTYPE html>
-	<html lang="en" class="login-html">
-		<head>
-			<meta charset="UTF-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-			<title>Super Admin Login — Strata</title>
-			<link rel="stylesheet" href="/static/css/styles.css"/>
-			<script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
-			<script src="https://unpkg.com/alpinejs@3.14.9/dist/cdn.min.js" defer></script>
-		</head>
-		<body class="login-body">
-			<div class="login-container">
-				<!-- Brand -->
-				<div class="login-brand">
-					<span class="login-brand-emoji">⛰️</span>
-					<h1 class="login-brand-title">Strata Super Admin</h1>
-					<p class="login-brand-subtitle">Sign in to manage your platform</p>
-				</div>
-
-				<!-- Login card -->
-				<div class="login-card">
-					<!-- Error banner -->
-					<div class="error-banner">
-						{ errorMessage }
-					</div>
-
-					<form
-						method="POST"
-						action="/api/v1/super-admin/login"
-						x-data="{ loading: false }"
-						@submit="loading = true"
-					>
-						<div class="login-form-inner">
-							<!-- Email -->
-							<div>
-								<label for="email" class="field-label">Email</label>
-								<input
-									type="email"
-									name="email"
-									id="email"
-									required
-									autocomplete="email"
-									class="field-input"
-									placeholder="admin@strata.local"
-								/>
-							</div>
-
-							<!-- Password -->
-							<div>
-								<label for="password" class="field-label">Password</label>
-								<input
-									type="password"
-									name="password"
-									id="password"
-									required
-									autocomplete="current-password"
-									class="field-input"
-									placeholder="••••••••"
-								/>
-							</div>
-
-							<!-- Submit -->
-							<button
-								type="submit"
-								class="login-submit"
-								:disabled="loading"
-							>
-								<span x-show="!loading">Sign in</span>
-								<span x-show="loading" class="spinner-container">
-									<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
-										<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
-										<path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-									</svg>
-									Signing in…
-								</span>
-							</button>
-						</div>
-					</form>
-				</div>
-
-				<!-- Footer -->
-				<p class="login-footer">
-					&copy; 2026 Strata. All rights reserved.
-				</p>
+templ loginForm(csrfToken string) {
+	<form
+		method="POST"
+		action="/api/v1/super-admin/login"
+		x-data="{ loading: false }"
+		@submit="loading = true"
+	>
+		<div class="login-form-inner">
+			<input type="hidden" name="csrf_token" value={ csrfToken }/>
+			<!-- Email -->
+			<div>
+				<label for="email" class="field-label">Email</label>
+				<input
+					type="email"
+					name="email"
+					id="email"
+					required
+					autocomplete="email"
+					class="field-input"
+					placeholder="admin@strata.local"
+				/>
 			</div>
-		</body>
-	</html>
+			<!-- Password -->
+			<div>
+				<label for="password" class="field-label">Password</label>
+				<input
+					type="password"
+					name="password"
+					id="password"
+					required
+					autocomplete="current-password"
+					class="field-input"
+					placeholder="••••••••"
+				/>
+			</div>
+			<!-- Submit -->
+			<button
+				type="submit"
+				class="login-submit"
+				:disabled="loading"
+			>
+				<span x-show="!loading">Sign in</span>
+				<span x-show="loading" class="spinner-container">
+					<svg class="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none">
+						<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" opacity="0.25"/>
+						<path fill="currentColor" opacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+					</svg>
+					Signing in…
+				</span>
+			</button>
+		</div>
+	</form>
 }

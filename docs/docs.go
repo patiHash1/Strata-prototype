@@ -3811,6 +3811,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/super-admin/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Renders the Super Admin dashboard with system metrics and quick actions.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Super Admin dashboard",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/super-admin/health": {
             "get": {
                 "security": [
@@ -3849,6 +3886,89 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/login": {
+            "get": {
+                "description": "Renders the Super Admin login form.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Super Admin login page",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Authenticates a super admin and redirects to the dashboard.",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Super Admin login",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Email",
+                        "name": "email",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Password",
+                        "name": "password",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to dashboard",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "HTML login page with error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/logout": {
+            "post": {
+                "description": "Invalidates the super-admin session by clearing the strata_token cookie and redirects to the login page.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Super Admin logout",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to login",
+                        "schema": {
+                            "type": "string"
                         }
                     }
                 }
@@ -3980,6 +4100,43 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/handlers.MetricsResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/metrics/fragment": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the MetricsGrid Templ component as an HTML fragment for HTMX polling.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Metrics grid fragment (HTML)",
+                "responses": {
+                    "200": {
+                        "description": "HTML fragment",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "401": {
@@ -4918,10 +5075,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "object"
                 },
                 "created_at": {
                     "type": "string"
@@ -5496,10 +5650,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "config": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
+                    "type": "object"
                 },
                 "name": {
                     "type": "string",

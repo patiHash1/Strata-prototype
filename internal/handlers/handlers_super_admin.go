@@ -67,7 +67,16 @@ type OrgListResponse struct {
 //	@Router			/api/v1/super-admin/login [get]
 func (a *App) superAdminLoginPageHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	component := templates.SuperAdminLoginView()
+
+	// Generate and set a CSRF token for the login form.
+	csrfToken, err := utils.GenerateCSRFToken()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	utils.SetCSRFCookie(w, csrfToken)
+
+	component := templates.SuperAdminLoginView(csrfToken)
 	component.Render(r.Context(), w)
 }
 
@@ -91,42 +100,53 @@ func (a *App) superAdminLoginPageHandler(w http.ResponseWriter, r *http.Request)
 func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginView().Render(r.Context(), w)
+		templates.SuperAdminLoginView("").Render(r.Context(), w)
 		return
+	}
+
+	// CSRF validation (double-submit cookie pattern).
+	if !utils.ValidateCSRF(r) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView("", "Invalid or expired session. Please try again.").Render(r.Context(), w)
+		return
+	}
+
+	// renderLoginError generates a fresh CSRF token and renders the error login page.
+	renderLoginError := func(msg string) {
+		tok, _ := utils.GenerateCSRFToken()
+		utils.SetCSRFCookie(w, tok)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.SuperAdminLoginErrorView(tok, msg).Render(r.Context(), w)
 	}
 
 	email := r.FormValue("email")
 	password := r.FormValue("password")
 
 	if !utils.NotBlank(email) || !utils.NotBlank(password) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("Email and password are required.").Render(r.Context(), w)
+		renderLoginError("Email and password are required.")
 		return
 	}
 
 	if a.Users == nil || a.RBAC == nil || a.Auth == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("Service unavailable. Please try again later.").Render(r.Context(), w)
+		renderLoginError("Service unavailable. Please try again later.")
 		return
 	}
 
 	user, err := a.Users.GetByEmail(r.Context(), email)
 	if err != nil || user == nil {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("Invalid email or password.").Render(r.Context(), w)
+		renderLoginError("Invalid email or password.")
 		return
 	}
 
 	if !a.Auth.VerifyPassword(user.PasswordHash, password) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("Invalid email or password.").Render(r.Context(), w)
+		renderLoginError("Invalid email or password.")
 		return
 	}
 
 	members, err := a.Users.ListMembersByUser(r.Context(), user.ID)
 	if err != nil || len(members) == 0 {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("No organization membership found.").Render(r.Context(), w)
+		renderLoginError("No organization membership found.")
 		return
 	}
 
@@ -147,14 +167,14 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if !hasSuperAdmin {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("Access denied. Super admin privileges required.").Render(r.Context(), w)
+		renderLoginError("Access denied. Super admin privileges required.")
 		return
 	}
 
 	token, err := a.Auth.CreateToken(user.ID, orgID, roleID, perms)
 	if err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		templates.SuperAdminLoginErrorView("Could not generate session. Please try again.").Render(r.Context(), w)
+		renderLoginError("Could not generate session. Please try again.")
 		return
 	}
 
@@ -185,6 +205,13 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/dashboard [get]
 func (a *App) superAdminDashboardHandler(w http.ResponseWriter, r *http.Request) {
+	// Prevent browser caching of authenticated pages so that after logout
+	// or session expiry, the back button cannot reveal cached content.
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Surrogate-Control", "no-store")
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	component := templates.SuperAdminDashboardView()
 	component.Render(r.Context(), w)

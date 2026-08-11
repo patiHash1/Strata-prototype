@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -201,9 +203,10 @@ type RoutePlan struct {
 
 // APIKeyRecord represents a stored API key row for validation purposes.
 type apiKeyRecord struct {
-	OrgID   uuid.UUID
-	KeyHash string
-	Scopes  []string
+	OrgID     uuid.UUID
+	KeyPrefix string
+	KeyHash   string
+	Scopes    []string
 }
 
 // ---- Repository ----
@@ -284,6 +287,19 @@ func (r *supplyChainRepository) GetVehiclesByIDs(ctx context.Context, orgID uuid
 		vehicles = append(vehicles, v)
 	}
 	return vehicles, rows.Err()
+}
+
+// GetAPIKeyByPrefix fetches an active API key record by its prefix.
+func (r *supplyChainRepository) GetAPIKeyByPrefix(ctx context.Context, prefix string) (*apiKeyRecord, error) {
+	k := &apiKeyRecord{}
+	err := r.pool.QueryRow(ctx, `
+		SELECT org_id, key_prefix, key_hash, COALESCE(scopes, '{}') FROM api_keys
+		WHERE key_prefix = $1 AND (expires_at IS NULL OR expires_at > NOW())
+	`, prefix).Scan(&k.OrgID, &k.KeyPrefix, &k.KeyHash, &k.Scopes)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	return k, err
 }
 
 // GetActiveAPIKeyRecords fetches all non-expired API keys for bcrypt verification.
@@ -637,21 +653,46 @@ func (s *SupplyChainService) GetReorderPredictions(ctx context.Context, orgID uu
 // ValidateAPIKey checks the raw API key against stored bcrypt hashes and returns
 // the org ID and scopes if a match is found.
 func (s *SupplyChainService) ValidateAPIKey(ctx context.Context, rawKey string) (uuid.UUID, []string, error) {
-	keys, err := s.repo.GetActiveAPIKeyRecords(ctx)
+	// API keys are in the format "strata_<prefix>_<random>".
+	// We extract the prefix for O(1) DB lookup, then bcrypt-compare only that one hash.
+	prefix := extractAPIKeyPrefix(rawKey)
+	if prefix == "" {
+		return uuid.Nil, nil, ErrAPIKeyInvalid
+	}
+
+	k, err := s.repo.GetAPIKeyByPrefix(ctx, prefix)
 	if err != nil {
 		return uuid.Nil, nil, err
 	}
-
-	for _, k := range keys {
-		if s.authSvc.VerifyPassword(k.KeyHash, rawKey) {
-			if k.Scopes == nil {
-				k.Scopes = []string{}
-			}
-			return k.OrgID, k.Scopes, nil
-		}
+	if k == nil {
+		return uuid.Nil, nil, ErrAPIKeyInvalid
 	}
 
-	return uuid.Nil, nil, ErrAPIKeyInvalid
+	if !s.authSvc.VerifyPassword(k.KeyHash, rawKey) {
+		return uuid.Nil, nil, ErrAPIKeyInvalid
+	}
+
+	if k.Scopes == nil {
+		k.Scopes = []string{}
+	}
+	return k.OrgID, k.Scopes, nil
+}
+
+// extractAPIKeyPrefix extracts the prefix portion from an API key.
+// Keys are formatted as "strata_<12-char-prefix>_<rest>".
+// Returns empty string if the format is invalid.
+func extractAPIKeyPrefix(rawKey string) string {
+	// Expected format: strata_<prefix>_<random>
+	const prefix = "strata_"
+	if !strings.HasPrefix(rawKey, prefix) {
+		return ""
+	}
+	rest := rawKey[len(prefix):]
+	// The prefix is the first 12 alphanumeric characters after "strata_"
+	if len(rest) < 12 {
+		return ""
+	}
+	return rest[:12]
 }
 
 // ---- BOM & Work Orders ----

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -408,7 +409,7 @@ func (a *App) getDepreciationHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.Accounting.CalculateDepreciation(r.Context(), assetID, fromDate, toDate)
 	if err != nil {
-		if err == services.ErrAssetNotFound {
+		if errors.Is(err, services.ErrAssetNotFound) {
 			utils.WriteErr(w, http.StatusNotFound, err.Error())
 			return
 		}

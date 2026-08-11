@@ -244,7 +244,7 @@ func (a *App) auditAnomaliesHandler(w http.ResponseWriter, r *http.Request) {
 
 type createDashboardRequest struct {
 	Name   string          `json:"name" example:"Executive Overview"`
-	Config json.RawMessage `json:"config"`
+	Config json.RawMessage `json:"config" swaggertype:"object"`
 }
 
 // DashboardResponse represents a BI dashboard in API responses.
@@ -252,7 +252,7 @@ type DashboardResponse struct {
 	ID        uuid.UUID       `json:"id"`
 	OrgID     uuid.UUID       `json:"org_id"`
 	Name      string          `json:"name"`
-	Config    json.RawMessage `json:"config"`
+	Config    json.RawMessage `json:"config" swaggertype:"object"`
 	IsActive  bool            `json:"is_active"`
 	CreatedAt time.Time       `json:"created_at"`
 	UpdatedAt time.Time       `json:"updated_at"`

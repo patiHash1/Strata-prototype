@@ -18,8 +18,11 @@ func (a *App) routes() http.Handler {
 	})
 	mux.Handle("GET /static/", a.staticHandler())
 	mux.HandleFunc("GET /health", a.healthHandler)
-	mux.HandleFunc("POST /api/v1/auth/register", a.registerHandler)
-	mux.HandleFunc("POST /api/v1/auth/login", a.loginHandler)
+
+	// ── Auth routes (rate-limited) ──
+	limiter := utils.RateLimitMiddleware(20) // 20 requests per minute per IP
+	mux.Handle("POST /api/v1/auth/register", limiter(http.HandlerFunc(a.registerHandler)))
+	mux.Handle("POST /api/v1/auth/login", limiter(http.HandlerFunc(a.loginHandler)))
 
 	// ── Protected routes (JWT + permission gates) ──
 	mux.Handle("POST /api/v1/org/invitations",
@@ -625,23 +628,23 @@ func (a *App) routes() http.Handler {
 	)
 
 	mux.Handle("GET /api/v1/super-admin/security/stream",
-		utils.RequireAuthCookie(a.Auth)(
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.securityStreamHandler),
 			),
 		),
 	)
 
-	// ── Super-Admin: Login page (public) ──
+	// ── Super-Admin: Login page (public, rate-limited) ──
 	mux.HandleFunc("GET /api/v1/super-admin/login", a.superAdminLoginPageHandler)
-	mux.HandleFunc("POST /api/v1/super-admin/login", a.superAdminLoginHandler)
+	mux.Handle("POST /api/v1/super-admin/login", limiter(http.HandlerFunc(a.superAdminLoginHandler)))
 
 	// ── Super-Admin: Logout (clears cookie, redirects to login) ──
 	mux.HandleFunc("POST /api/v1/super-admin/logout", a.superAdminLogoutHandler)
 
 	// ── Super-Admin: Dashboard (HTML, protected, cookie+header auth) ──
 	mux.Handle("GET /api/v1/super-admin/dashboard",
-		utils.RequireAuthCookie(a.Auth)(
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.superAdminDashboardHandler),
 			),
@@ -716,7 +719,8 @@ func (a *App) routes() http.Handler {
 
 	// ── Global middleware stack (outermost first) ──
 	var handler http.Handler = mux
-	handler = utils.CORSMiddleware(handler)
+	handler = utils.MaxBodySizeMiddleware(1 << 20)(handler)
+	handler = utils.CORSMiddleware(a.Config.AllowedOrigins)(handler)
 	handler = utils.LoggingMiddleware(a.SuperAdmin)(handler)
 	handler = utils.RecoveryMiddleware(a.SuperAdmin)(handler)
 	handler = utils.PartitionedMaintenanceMiddleware(a.SuperAdmin)(handler)

@@ -1025,11 +1025,13 @@ func (s *HRService) SearchKnowledge(ctx context.Context, orgID uuid.UUID, query 
 // simulateGeofence returns whether the given coordinates are within a simulated
 // geofenced office location. In production this would query the org's configured
 // office locations and use a point-in-polygon algorithm.
+// simulateGeofence checks if the given coordinates are within a geofence.
+// TODO: Replace hardcoded coordinates with per-organization office location from DB.
 func simulateGeofence(lat, lng float64) bool {
 	// Simulated office center (San Francisco downtown area)
-	const officeLat = 37.7749
-	const officeLng = -122.4194
-	const radiusDeg = 0.01 // ~1.1 km
+	const officeLat = 37.7749   // TODO: load from org config
+	const officeLng = -122.4194 // TODO: load from org config
+	const radiusDeg = 0.01      // ~1.1 km
 
 	latDiff := lat - officeLat
 	lngDiff := lng - officeLng

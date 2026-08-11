@@ -59,17 +59,56 @@ func (db *DB) Close() {
 	db.Pool.Close()
 }
 
-// Migrate runs the schema migration — creates all tables if they don't exist.
+// Migrate runs schema migrations idempotently — only applies migrations
+// not yet recorded in the schema_migrations table.
 func (db *DB) Migrate(ctx context.Context) error {
+	// Ensure the tracking table exists.
+	if _, err := db.Pool.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version VARCHAR(255) PRIMARY KEY,
+			applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		)
+	`); err != nil {
+		return fmt.Errorf("create schema_migrations table: %w", err)
+	}
+
 	migrations, err := loadMigrations()
 	if err != nil {
 		return fmt.Errorf("load migrations: %w", err)
 	}
 
 	for _, m := range migrations {
+		// Skip the schema_migrations table creation itself — it was already handled above.
+		if m.name == "create_schema_migrations" {
+			continue
+		}
+
+		// Check if already applied.
+		var alreadyApplied bool
+		err := db.Pool.QueryRow(ctx,
+			`SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`,
+			m.name,
+		).Scan(&alreadyApplied)
+		if err != nil {
+			return fmt.Errorf("check migration %q: %w", m.name, err)
+		}
+		if alreadyApplied {
+			continue
+		}
+
+		// Apply the migration.
 		if _, err := db.Pool.Exec(ctx, m.sql); err != nil {
 			return fmt.Errorf("migration %q: %w", m.name, err)
 		}
+
+		// Record it.
+		if _, err := db.Pool.Exec(ctx,
+			`INSERT INTO schema_migrations (version, applied_at) VALUES ($1, NOW())`,
+			m.name,
+		); err != nil {
+			return fmt.Errorf("record migration %q: %w", m.name, err)
+		}
+
 		fmt.Printf("  ✓ %s\n", m.name)
 	}
 

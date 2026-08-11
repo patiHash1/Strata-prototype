@@ -111,20 +111,46 @@ func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler)
 	}
 }
 
-// CORSMiddleware adds permissive CORS headers.
-func CORSMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-Domain, X-API-Key")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
+// CORSMiddleware adds CORS headers based on a configurable list of allowed origins.
+// If allowedOrigins is empty, no Access-Control-Allow-Origin header is set,
+// which effectively blocks all cross-origin requests.
+// Credentials (cookies) are supported for matching origins.
+func CORSMiddleware(allowedOrigins string) func(http.Handler) http.Handler {
+	var origins []string
+	if allowedOrigins != "" {
+		for _, o := range strings.Split(allowedOrigins, ",") {
+			trimmed := strings.TrimSpace(o)
+			if trimmed != "" {
+				origins = append(origins, trimmed)
+			}
 		}
+	}
 
-		next.ServeHTTP(w, r)
-	})
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
+			if origin != "" && len(origins) > 0 {
+				for _, allowed := range origins {
+					if origin == allowed {
+						w.Header().Set("Access-Control-Allow-Origin", origin)
+						w.Header().Set("Vary", "Origin")
+						w.Header().Set("Access-Control-Allow-Credentials", "true")
+						break
+					}
+				}
+			}
+
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Tenant-Domain, X-API-Key")
+
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // RequireAuth is middleware that validates a Bearer JWT and injects claims.
@@ -152,7 +178,9 @@ func RequireAuth(authSvc *services.AuthService) func(http.Handler) http.Handler 
 // RequireAuthCookie validates a JWT from either the Authorization header
 // or the strata_token cookie. For browser (HTML) requests without a valid
 // token, it redirects to /api/v1/super-admin/login instead of returning JSON.
-func RequireAuthCookie(authSvc *services.AuthService) func(http.Handler) http.Handler {
+// If issuedAfter is non-zero, tokens with IssuedAt before that time are rejected
+// (used to invalidate pre-existing tokens after a server restart).
+func RequireAuthCookie(authSvc *services.AuthService, issuedAfter time.Time) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tokenStr := extractToken(r)
@@ -172,6 +200,16 @@ func RequireAuthCookie(authSvc *services.AuthService) func(http.Handler) http.Ha
 					return
 				}
 				WriteErr(w, http.StatusUnauthorized, "invalid or expired token")
+				return
+			}
+
+			// Reject tokens issued before the server started (e.g. after restart).
+			if !issuedAfter.IsZero() && claims.IssuedAt != nil && claims.IssuedAt.Time.Before(issuedAfter) {
+				if acceptsHTML(r) {
+					http.Redirect(w, r, "/api/v1/super-admin/login", http.StatusFound)
+					return
+				}
+				WriteErr(w, http.StatusUnauthorized, "session expired, please log in again")
 				return
 			}
 
@@ -276,6 +314,22 @@ func RequirePermission(perms ...string) func(http.Handler) http.Handler {
 			}
 
 			WriteErr(w, http.StatusForbidden, "insufficient permissions")
+		})
+	}
+}
+
+// MaxBodySizeMiddleware limits the maximum request body size to prevent
+// memory exhaustion from oversized payloads. The limit is applied per-request.
+func MaxBodySizeMiddleware(maxBytes int64) func(http.Handler) http.Handler {
+	if maxBytes <= 0 {
+		maxBytes = 1 << 20 // 1 MiB default
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Body != nil {
+				r.Body = http.MaxBytesReader(w, r.Body, maxBytes)
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }
