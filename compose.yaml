@@ -23,8 +23,11 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    command: redis-server --requirepass ${REDIS_PASSWORD:-strata-redis-pass}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-strata-redis-pass}
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "$${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5

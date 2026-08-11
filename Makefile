@@ -71,7 +71,8 @@ dev: install-tools templ-generate check-redis
 	$(AIR)
 
 # ── Publish mock SOC events to Redis ──
-testsoc:
+	testsoc:
 	@echo "==> Publishing mock SOC events to Redis…"
 	REDIS_ADDR=$${REDIS_ADDR:-localhost:6379}; \
-	go run ./cmd/cli/publish-soc-events -count 5 -redis $$REDIS_ADDR
+	REDIS_PASS=$${REDIS_PASSWORD:-strata-redis-pass}; \
+	go run ./cmd/cli/publish-soc-events -count 5 -redis $$REDIS_ADDR -redis-pass $$REDIS_PASS
