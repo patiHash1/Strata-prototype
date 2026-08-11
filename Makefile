@@ -70,8 +70,8 @@ dev: install-tools templ-generate check-redis
 	@echo "==> Starting development server with hot-reload…"
 	$(AIR)
 
-# ── Publish mock SOC events to Redis ──
-	testsoc:
+	# ── Publish mock SOC events to Redis ──
+testsoc:
 	@echo "==> Publishing mock SOC events to Redis…"
 	REDIS_ADDR=$${REDIS_ADDR:-localhost:6379}; \
 	REDIS_PASS=$${REDIS_PASSWORD:-strata-redis-pass}; \
