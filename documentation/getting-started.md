@@ -12,7 +12,7 @@ Strata is a multi-tenant ERP-CRM platform designed as a modern, API-first altern
 - **Supply Chain & Inventory** with multi-warehouse stock tracking, receive/issue/transfer/snapshot, BOM, work orders, fleet telematics, and route optimization
 - **HR & Workforce** with time & attendance, shift management & AI prediction, payroll with per-employee tax withholding, ATS candidate matching, and knowledge base RAG
 - **Platform & AI** with text-to-SQL copilot, BI dashboards, low-code workflows, IoT gateway with batch ingestion, and security audit
-- **Super Admin** with system observability, real-time SOC monitoring (SSE), partitioned maintenance, CI health ingestion, and platform-wide user/org CRUD
+- **Super Admin** with system observability, real-time SOC monitoring (SSE), partitioned maintenance control panel (UI), per-module health endpoints, SOC event persistence with 25-day retention, CI health ingestion, and platform-wide user/org CRUD
 - **Billing/subscription management** with Stripe integration
 - **API key authentication** for machine-to-machine integrations
 

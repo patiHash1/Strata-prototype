@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -188,6 +189,17 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 	})
 
+	// Publish SOC event for super-admin login.
+	if a.SuperAdmin != nil {
+		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+			Type:      "super_admin.login",
+			Severity:  "info",
+			Message:   fmt.Sprintf("Super admin logged in: %s", email),
+			IPAddress: r.RemoteAddr,
+			UserID:    user.ID.String(),
+		})
+	}
+
 	http.Redirect(w, r, "/api/v1/super-admin/dashboard", http.StatusFound)
 }
 
@@ -235,6 +247,12 @@ func (a *App) SuperAdminDashboardHandlerForTest(w http.ResponseWriter, r *http.R
 //	@Success		302	{string}	string	"Redirect to login"
 //	@Router			/api/v1/super-admin/logout [post]
 func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// Extract user info before clearing the cookie for the SOC event.
+	var userID string
+	if claims := utils.GetClaims(r); claims != nil {
+		userID = claims.UserID
+	}
+
 	// Clear the session cookie by setting an immediate expiry and an empty
 	// value. MaxAge < 0 instructs the browser to delete the cookie immediately.
 	http.SetCookie(w, &http.Cookie{
@@ -249,6 +267,17 @@ func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Tell any API clients holding a Bearer token in JS state to drop it.
 	w.Header().Set("Clear-Site-Data", "\"cookies\"")
+
+	// Publish SOC event for super-admin logout.
+	if a.SuperAdmin != nil {
+		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+			Type:      "super_admin.logout",
+			Severity:  "info",
+			Message:   "Super admin logged out",
+			IPAddress: r.RemoteAddr,
+			UserID:    userID,
+		})
+	}
 
 	http.Redirect(w, r, "/api/v1/super-admin/login", http.StatusFound)
 }
@@ -361,6 +390,42 @@ func (a *App) getSuperAdminHealthHandler(w http.ResponseWriter, r *http.Request)
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"modules": health})
 }
 
+// ── GET /api/v1/{module}/health ──
+
+// getModuleHealthHandler returns the current state of a module including
+// maintenance status, CI health, and HTTP metrics.
+func (a *App) getModuleHealthHandler(w http.ResponseWriter, r *http.Request) {
+	module := r.PathValue("module")
+	if module == "" {
+		utils.WriteErr(w, http.StatusBadRequest, "module is required")
+		return
+	}
+
+	if a.SuperAdmin == nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "super admin service not available")
+		return
+	}
+
+	status, err := a.SuperAdmin.GetModuleStatus(r.Context(), module)
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module status: "+err.Error())
+		return
+	}
+
+	// If the module is under maintenance, return 503.
+	if status["status"] == "maintenance" {
+		utils.WriteJSON(w, http.StatusServiceUnavailable, status)
+		return
+	}
+
+	utils.WriteJSON(w, http.StatusOK, status)
+}
+
+// GetModuleHealthHandlerForTest exposes the module health handler for httptest.
+func (a *App) GetModuleHealthHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.getModuleHealthHandler(w, r)
+}
+
 // ── POST /api/v1/super-admin/telemetry/ci-health ──
 
 // ingestCIHealthHandler ingests CI health data.
@@ -399,65 +464,156 @@ func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusCreated, utils.Envelope{"report": report})
 }
 
-// ── GET /api/v1/super-admin/maintenance ──
+// ── GET /api/v1/super-admin/maintenance/rules ──
 
-// listMaintenanceHandler lists all active maintenance partitions.
-//
-//	@Summary		List active maintenance rules
-//	@Description	Returns all currently active partitioned maintenance locks (by module, tenant, or feature).
-//	@Tags			Super Admin
-//	@Security		BearerAuth
-//	@Produce		json
-//	@Success		200	{object}	MaintenanceListResponse
-//	@Failure		401	{object}	utils.Envelope
-//	@Failure		403	{object}	utils.Envelope
-//	@Failure		500	{object}	utils.Envelope
-//	@Router			/api/v1/super-admin/maintenance [get]
-func (a *App) listMaintenanceHandler(w http.ResponseWriter, r *http.Request) {
-	rules, err := a.SuperAdmin.ListMaintenanceRules(r.Context())
+// listMaintenanceRulesPageHandler renders the full maintenance rules table
+// inside the dashboard layout.
+func (a *App) listMaintenanceRulesPageHandler(w http.ResponseWriter, r *http.Request) {
+	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules: "+err.Error())
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"rules": rules})
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.MaintenancePage(rules).Render(r.Context(), w)
 }
 
-// ── POST /api/v1/super-admin/maintenance/toggle ──
+// ListMaintenanceRulesPageHandlerForTest exposes the page handler for httptest.
+func (a *App) ListMaintenanceRulesPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.listMaintenanceRulesPageHandler(w, r)
+}
 
-// toggleMaintenanceHandler activates or deactivates a maintenance partition.
-//
-//	@Summary		Toggle maintenance mode
-//	@Description	Activates or deactivates a partitioned maintenance lock for a given scope (module, tenant_id, feature) and target. Publishes cache-invalidation via Redis Pub/Sub for multi-node sync.
-//	@Tags			Super Admin
-//	@Security		BearerAuth
-//	@Accept			json
-//	@Produce		json
-//	@Param			body	body	services.MaintenanceToggleRequest	true	"Maintenance toggle payload"
-//	@Success		200	{object}	MaintenanceToggleResponse
-//	@Failure		400	{object}	utils.Envelope
-//	@Failure		401	{object}	utils.Envelope
-//	@Failure		403	{object}	utils.Envelope
-//	@Failure		500	{object}	utils.Envelope
-//	@Router			/api/v1/super-admin/maintenance/toggle [post]
-func (a *App) toggleMaintenanceHandler(w http.ResponseWriter, r *http.Request) {
-	var req services.MaintenanceToggleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+// ── GET /api/v1/super-admin/maintenance/fragment ──
+
+// listMaintenanceRulesFragmentHandler returns an HTML table body fragment
+// for HTMX partial swaps.
+func (a *App) listMaintenanceRulesFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
+	if err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules: "+err.Error())
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.MaintenanceRulesTableBody(rules).Render(r.Context(), w)
+}
+
+// ListMaintenanceRulesFragmentHandlerForTest exposes the fragment handler for httptest.
+func (a *App) ListMaintenanceRulesFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.listMaintenanceRulesFragmentHandler(w, r)
+}
+
+// ── POST /api/v1/super-admin/maintenance ──
+
+// createMaintenanceRuleHandler creates a new maintenance rule and returns
+// an HTMX out-of-band swap HTML fragment to append the row to the table.
+func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		templates.MaintenanceValidationError("Invalid form data").Render(r.Context(), w)
+		return
+	}
+
+	req := services.MaintenanceToggleRequest{
+		Scope:        r.FormValue("scope"),
+		TargetID:     r.FormValue("target_id"),
+		Reason:       r.FormValue("reason"),
+		AllowedRoles: []string{},
+	}
+
+	log.Printf("[maintenance] create request: scope=%q target_id=%q reason=%q", req.Scope, req.TargetID, req.Reason)
+
+	// Validate required fields.
 	if req.Scope == "" || req.TargetID == "" {
-		utils.WriteErr(w, http.StatusBadRequest, "scope and target_id are required")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		templates.MaintenanceValidationError("Scope and Target ID are required").Render(r.Context(), w)
 		return
 	}
+
+	// Force is_active = TRUE on creation.
+	req.IsActive = true
 
 	rule, err := a.SuperAdmin.ToggleMaintenance(r.Context(), req)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to toggle maintenance: "+err.Error())
+		log.Printf("[maintenance] create error: %v", err)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		templates.MaintenanceValidationError("Failed to create rule: "+err.Error()).Render(r.Context(), w)
 		return
 	}
 
-	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"rule": rule})
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	templates.MaintenanceRuleRowOOB(*rule).Render(r.Context(), w)
+
+	// Publish SOC event for maintenance rule creation.
+	if a.SuperAdmin != nil {
+		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+			Type:      "maintenance.created",
+			Severity:  "warning",
+			Message:   fmt.Sprintf("Maintenance rule created: %s/%s — %s", req.Scope, req.TargetID, req.Reason),
+			IPAddress: r.RemoteAddr,
+			Metadata: map[string]any{
+				"scope":     req.Scope,
+				"target_id": req.TargetID,
+				"reason":    req.Reason,
+			},
+		})
+	}
+}
+
+// CreateMaintenanceRuleHandlerForTest exposes the create handler for httptest.
+func (a *App) CreateMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.createMaintenanceRuleHandler(w, r)
+}
+
+// ── DELETE /api/v1/super-admin/maintenance/{id} ──
+
+// deleteMaintenanceRuleHandler soft-deactivates a maintenance rule and returns
+// an empty HTML fragment so the row is replaced with nothing (fade-out effect).
+func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	if idStr == "" {
+		utils.WriteErr(w, http.StatusBadRequest, "missing rule id")
+		return
+	}
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		utils.WriteErr(w, http.StatusBadRequest, "invalid rule id")
+		return
+	}
+
+	if err := a.SuperAdmin.DeleteMaintenanceRule(r.Context(), id); err != nil {
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to delete maintenance rule: "+err.Error())
+		return
+	}
+
+	// Return an empty <tr> so hx-swap="outerHTML swap:1s" replaces the row
+	// and the swap:1s delay allows the CSS fade-out transition to play.
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.MaintenanceRuleRowDeleted().Render(r.Context(), w)
+
+	// Publish SOC event for maintenance rule revocation.
+	if a.SuperAdmin != nil {
+		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+			Type:      "maintenance.revoked",
+			Severity:  "warning",
+			Message:   fmt.Sprintf("Maintenance rule revoked (id=%d)", id),
+			IPAddress: r.RemoteAddr,
+			Metadata: map[string]any{
+				"rule_id": id,
+			},
+		})
+	}
+}
+
+// DeleteMaintenanceRuleHandlerForTest exposes the delete handler for httptest.
+func (a *App) DeleteMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.deleteMaintenanceRuleHandler(w, r)
 }
 
 // ── GET /api/v1/super-admin/security/stream ──
@@ -490,6 +646,23 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Send initial connection event.
 	fmt.Fprintf(w, "event: connected\ndata: {\"status\":\"connected\"}\n\n")
+	flusher.Flush()
+
+	// Replay recent SOC events from the in-memory ring buffer so the client
+	// sees events that occurred between page load and SSE connection open.
+	for _, evt := range a.SuperAdmin.RecentSOCEvents() {
+		event := templates.SecurityEvent{
+			ID:        evt.ID,
+			Type:      evt.Type,
+			Severity:  evt.Severity,
+			Message:   evt.Message,
+			IPAddress: evt.IPAddress,
+			Timestamp: evt.Timestamp,
+		}
+		var buf strings.Builder
+		templates.SecurityLogEntry(event).Render(r.Context(), &buf)
+		fmt.Fprintf(w, "event: security-event\ndata: %s\n\n", buf.String())
+	}
 	flusher.Flush()
 
 	for {

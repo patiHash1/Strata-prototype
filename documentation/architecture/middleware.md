@@ -69,11 +69,14 @@ Runs on **every incoming HTTP request** and checks the local in-memory maintenan
 
 **Bypass rules:**
 - All routes matching `/api/v1/super-admin/*` are always accessible
+- Module health endpoints (`GET /api/v1/{module}/health`) are registered before the maintenance middleware and return the current maintenance state rather than being blocked by it
 - Users with the `super_admin.access` permission bypass all maintenance checks
 
 **Performance:** The in-memory cache read is O(1) with sub-microsecond overhead — no database queries or allocations on the hot path.
 
 **Multi-node sync:** When a maintenance rule is toggled via the API, a cache-invalidation message is published to Redis channel `strata:events:maintenance-sync`. All connected nodes reload their cache from PostgreSQL within milliseconds.
+
+**SOC events:** Maintenance create and revoke actions automatically publish `maintenance.created` and `maintenance.revoked` SOC events. These are persisted to `super_admin_soc_events`, buffered in a 50-slot in-memory ring buffer for SSE replay, and fanned out via Redis Pub/Sub.
 
 ## Route-level middleware
 

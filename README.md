@@ -194,6 +194,39 @@ The super-admin dashboard provides a browser-based HTML UI for platform administ
 | `/api/v1/super-admin/security/stream` | GET | Real-time SOC events (SSE stream) |
 | `/api/v1/super-admin/users` | GET | List all users across all orgs |
 | `/api/v1/super-admin/organizations` | GET | List all organizations |
+| `/api/v1/super-admin/maintenance/rules` | GET | Maintenance rules management page (HTML) |
+| `/api/v1/super-admin/maintenance/fragment` | GET | Maintenance rules table fragment (HTMX polling) |
+| `/api/v1/super-admin/maintenance` | POST | Create a new maintenance rule (form → OOB swap) |
+| `/api/v1/super-admin/maintenance/{id}` | DELETE | Revoke/deactivate a maintenance rule |
+
+### Module Health Endpoints
+
+Every module exposes a public health endpoint at `GET /api/v1/{module}/health`. This endpoint returns the current operational state of the module, including:
+
+- **Maintenance status** — whether the module or any of its features are under maintenance
+- **CI health** — test coverage, linter issues, and vulnerability counts from the latest CI report
+- **HTTP metrics** — total requests, 5xx error count, and error rate
+
+| Status | HTTP Code | Meaning |
+|:---|:---:|:---|
+| `operational` | `200` | Module is healthy and serving requests normally |
+| `degraded` | `200` | Module is operational but one or more features are under maintenance |
+| `maintenance` | `503` | The entire module is under maintenance |
+
+**Example:**
+```sh
+# Check if the CRM module is healthy
+curl http://localhost:8080/api/v1/crm/health
+
+# Response when operational:
+# {"module":"crm","status":"operational","healthy":true}
+
+# Response when under maintenance:
+# {"module":"crm","status":"maintenance","healthy":false,
+#  "maintenance":{"scope":"module","target":"crm","reason":"database migration","since":"2026-08-12T09:20:00Z"}}
+```
+
+**Available modules:** `crm`, `accounting`, `hr`, `billing`, `account`, `org`, `ai`, `bi`, `workflows`, `fleet`, `inventory`, `manufacturing`, `procurement`, `iot`, `security`
 
 **Authentication:** The login flow uses a cookie-based session (`strata_token` HttpOnly JWT cookie). The `RequireAuthCookie` middleware validates JWTs from either the `Authorization` header or the `strata_token` cookie, redirecting unauthenticated browser requests to the login page. API endpoints continue to use `RequireAuth` (header-only).
 
@@ -205,6 +238,8 @@ The super-admin dashboard provides a browser-based HTML UI for platform administ
 - **Real-time metrics grid** — HTMX polls `/api/v1/super-admin/metrics/fragment` every 5 seconds, displaying runtime memory, DB connection pool stats, goroutines, and system status
 - **ApexCharts line graph** — Alpine.js component that listens to HTMX `afterSwap` events to dynamically update chart data series without redrawing
 - **Live security feed** — SSE stream via HTMX `hx-ext="sse"` that connects to `/api/v1/super-admin/security/stream` and injects new SOC alerts at the top of the feed in real-time
+- **Partitioned maintenance control panel** — create, toggle, and delete maintenance rules for modules, tenants, and features via an Alpine.js modal and HTMX out-of-band swaps
+- **SOC event persistence & replay** — all security events (login, logout, maintenance create/revoke, ban/suspend) are persisted to the database and buffered in a 50-slot in-memory ring buffer; SSE clients replay buffered events on connect, and a 25-day sliding-window cleanup prunes stale records
 
 ### How to Test the Super Admin Dashboard
 
@@ -227,6 +262,18 @@ open http://localhost:8080/api/v1/super-admin/login
 go run ./cmd/cli/publish-soc-events -count 5 -redis localhost:6379
 # Or using make:
 make testsoc
+
+# 7. Test maintenance control panel — click "Add Rule" in the sidebar
+# 8. Test module health endpoints:
+curl http://localhost:8080/api/v1/crm/health
+curl http://localhost:8080/api/v1/accounting/health
+curl http://localhost:8080/api/v1/hr/health
+# 9. SOC events are automatically published on:
+#    - Super admin login (super_admin.login, severity: info)
+#    - Super admin logout (super_admin.logout, severity: info)
+#    - Maintenance rule created (maintenance.created, severity: warning)
+#    - Maintenance rule revoked (maintenance.revoked, severity: warning)
+#    These appear in the Live Security Feed and are persisted to the DB.
 ```
 
 > **Note:** Redis is required for the live security feed. Without `REDIS_ADDR` configured, the SSE connection works but no events will be delivered.
@@ -676,7 +723,7 @@ func Load() Config {
 
 <div align="center">
 
-### 🟢 **27 / 27 Modules Implemented**
+### 🟢 **30 / 30 Modules Implemented**
 
 </div>
 
@@ -712,6 +759,9 @@ func Load() Config {
 | 6.2 | ⚪ Super Admin | Partitioned Maintenance | ✅ |
 | 6.3 | ⚪ Super Admin | CI Health & Module Scores | ✅ |
 | 6.4 | ⚪ Super Admin | User & Org CRUD (Ban/Suspend) | ✅ |
+| 6.5 | ⚪ Super Admin | Module Health Endpoints (`GET /api/v1/{module}/health`) | ✅ |
+| 6.6 | ⚪ Super Admin | Partitioned Maintenance Control Panel (UI) | ✅ |
+| 6.7 | ⚪ Super Admin | SOC Event Persistence & Sliding-Window Retention | ✅ |
 
 ---
 
@@ -800,6 +850,9 @@ go run ./cmd/cli/publish-soc-events -count 20 -redis localhost:6379 -redis-pass 
 - ~~Shift management & AI prediction~~ — shift templates, assignments, scheduling, and AI‑driven predictions
 - ~~Payroll tax withholding per employee~~ — per‑employee tax profiles, withholding calculations, and payroll detail
 - ~~Super‑admin subsystem~~ — system observability, SOC security monitoring, partitioned maintenance, CI health ingestion, user/org CRUD
+- ~~Module health endpoints~~ — per‑module `/health` endpoints with maintenance state, CI health, and HTTP metrics
+- ~~Maintenance control panel UI~~ — Alpine.js modal, HTMX OOB swaps, fade‑out revoke transitions, sidebar integration
+- ~~SOC event persistence & retention~~ — security events persisted to `super_admin_soc_events`, 50‑slot ring buffer for SSE replay on connect, 25‑day sliding‑window cleanup
 
 </details>
 

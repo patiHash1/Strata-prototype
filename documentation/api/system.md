@@ -52,3 +52,15 @@ This provides an interactive API documentation explorer. The OpenAPI spec is aut
 ```bash
 swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency --parseInternal
 ```
+
+### Module Health Endpoints
+
+Each module exposes a public health endpoint at `GET /api/v1/{module}/health`. These endpoints do not require authentication and are designed for load balancers, uptime monitors, and client-side health checks.
+
+The response includes the module's operational status, active maintenance rules, CI health data, and HTTP metrics. See [Super Admin — Module Health](super-admin.md#get-apiv1modulehealth) for full documentation.
+
+**Example:**
+```sh
+curl http://localhost:8080/api/v1/crm/health
+# {"module":"crm","status":"operational","healthy":true}
+```

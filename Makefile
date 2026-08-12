@@ -29,14 +29,18 @@ install-tools:
 check-redis:
 	@echo "==> Checking Redis connection…"
 	@REDIS_ADDR=$${REDIS_ADDR:-localhost:6379}; \
+	REDIS_HOST=$$(echo $$REDIS_ADDR | cut -d: -f1); \
+	REDIS_PORT=$$(echo $$REDIS_ADDR | cut -d: -f2); \
 	if command -v redis-cli >/dev/null 2>&1; then \
-		if redis-cli -h $$(echo $$REDIS_ADDR | cut -d: -f1) -p $$(echo $$REDIS_ADDR | cut -d: -f2) ping >/dev/null 2>&1; then \
+		if redis-cli -h $$REDIS_HOST -p $$REDIS_PORT ping >/dev/null 2>&1; then \
 			echo "  ✓ Redis connected at $$REDIS_ADDR"; \
 		else \
 			echo "  ⚠ Redis not reachable at $$REDIS_ADDR (SSE fan-out disabled)"; \
 		fi; \
+	elif (echo >/dev/tcp/$$REDIS_HOST/$$REDIS_PORT) 2>/dev/null; then \
+		echo "  ✓ Redis reachable at $$REDIS_ADDR"; \
 	else \
-		echo "  ⚠ redis-cli not found — skipping Redis check"; \
+		echo "  ⚠ Redis not reachable at $$REDIS_ADDR (SSE fan-out disabled)"; \
 	fi
 
 # ── Generate Templ files ──

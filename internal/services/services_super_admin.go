@@ -188,13 +188,13 @@ func newSuperAdminRepository(pool *pgxpool.Pool) *superAdminRepository {
 }
 
 func (r *superAdminRepository) UpsertMaintenanceRule(ctx context.Context, rule *MaintenanceRule) error {
-	_, err := r.pool.Exec(ctx, `
+	return r.pool.QueryRow(ctx, `
 		INSERT INTO super_admin_maintenance_rules (scope, target_id, is_active, reason, allowed_roles, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW())
 		ON CONFLICT (scope, target_id)
 		DO UPDATE SET is_active = $3, reason = $4, allowed_roles = $5, updated_at = NOW()
-	`, rule.Scope, rule.TargetID, rule.IsActive, rule.Reason, rule.AllowedRoles)
-	return err
+		RETURNING id, created_at, updated_at
+	`, rule.Scope, rule.TargetID, rule.IsActive, rule.Reason, rule.AllowedRoles).Scan(&rule.ID, &rule.CreatedAt, &rule.UpdatedAt)
 }
 
 func (r *superAdminRepository) ListActiveRules(ctx context.Context) ([]MaintenanceRule, error) {
@@ -255,6 +255,38 @@ func (r *superAdminRepository) GetLatestCIHealthByModule(ctx context.Context, mo
 	return &report, nil
 }
 
+func (r *superAdminRepository) DeleteMaintenanceRule(ctx context.Context, id int64) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE super_admin_maintenance_rules
+		SET is_active = FALSE, updated_at = NOW()
+		WHERE id = $1
+	`, id)
+	return err
+}
+
+func (r *superAdminRepository) ListAllMaintenanceRules(ctx context.Context) ([]MaintenanceRule, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, scope, target_id, is_active, reason, allowed_roles, created_at, updated_at
+		FROM super_admin_maintenance_rules
+		ORDER BY scope, target_id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rules []MaintenanceRule
+	for rows.Next() {
+		var rule MaintenanceRule
+		if err := rows.Scan(&rule.ID, &rule.Scope, &rule.TargetID, &rule.IsActive,
+			&rule.Reason, &rule.AllowedRoles, &rule.CreatedAt, &rule.UpdatedAt); err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	return rules, rows.Err()
+}
+
 func (r *superAdminRepository) GetAllLatestCIHealth(ctx context.Context) ([]CIHealthReport, error) {
 	rows, err := r.pool.Query(ctx, `
 		SELECT DISTINCT ON (module) id, module, coverage_percent, linter_issues, vulnerabilities_count, commit_sha, created_at
@@ -276,6 +308,66 @@ func (r *superAdminRepository) GetAllLatestCIHealth(ctx context.Context) ([]CIHe
 		reports = append(reports, report)
 	}
 	return reports, rows.Err()
+}
+
+// InsertSOCEvent persists a security event to the database.
+func (r *superAdminRepository) InsertSOCEvent(ctx context.Context, event *SOCEvent) error {
+	var metadataJSON []byte
+	if event.Metadata != nil {
+		var err error
+		metadataJSON, err = json.Marshal(event.Metadata)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err := r.pool.Exec(ctx, `
+		INSERT INTO super_admin_soc_events (id, event_type, severity, message, ip_address, user_id, org_id, metadata, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, event.ID, event.Type, event.Severity, event.Message,
+		event.IPAddress, event.UserID, event.OrgID, metadataJSON, event.Timestamp)
+	return err
+}
+
+// PruneSOCEvents deletes SOC events older than the given duration.
+func (r *superAdminRepository) PruneSOCEvents(ctx context.Context, maxAge time.Duration) (int64, error) {
+	tag, err := r.pool.Exec(ctx, `
+		DELETE FROM super_admin_soc_events
+		WHERE created_at < NOW() - $1::interval
+	`, fmt.Sprintf("%d seconds", int(maxAge.Seconds())))
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
+// ListRecentSOCEvents returns the most recent SOC events (for paginated audit views).
+func (r *superAdminRepository) ListRecentSOCEvents(ctx context.Context, limit int) ([]SOCEvent, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT id, event_type, severity, message, ip_address, user_id, org_id, metadata, created_at
+		FROM super_admin_soc_events
+		ORDER BY created_at DESC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var events []SOCEvent
+	for rows.Next() {
+		var e SOCEvent
+		var metadataJSON []byte
+		if err := rows.Scan(&e.ID, &e.Type, &e.Severity, &e.Message,
+			&e.IPAddress, &e.UserID, &e.OrgID, &metadataJSON, &e.Timestamp); err != nil {
+			return nil, err
+		}
+		if metadataJSON != nil {
+			json.Unmarshal(metadataJSON, &e.Metadata)
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
 }
 
 // ── SSE Subscriber ──
@@ -302,6 +394,7 @@ type SuperAdminService struct {
 	panicBuffer     *RingBuffer[SystemError]
 	latencyBuffer   *RingBuffer[HTTPLatencyRecord]
 	telemetryBuffer *RingBuffer[TelemetrySnapshot]
+	socBuffer       *RingBuffer[SOCEvent]
 
 	// HTTP metrics aggregation
 	httpMu      sync.Mutex
@@ -345,6 +438,7 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 		panicBuffer:     NewRingBuffer[SystemError](100),
 		latencyBuffer:   NewRingBuffer[HTTPLatencyRecord](100),
 		telemetryBuffer: NewRingBuffer[TelemetrySnapshot](100),
+		socBuffer:       NewRingBuffer[SOCEvent](50),
 		httpMetrics: HTTPMetrics{
 			PerModule: make(map[string]*ModuleHTTPMetrics),
 		},
@@ -367,6 +461,12 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 	// Start Redis subscriber for SOC events → SSE fan-out.
 	svc.wg.Add(1)
 	go svc.subscribeSOCEvents()
+
+	// Start sliding-window cleanup for stale SOC events (25 days).
+	if svc.pool != nil {
+		svc.wg.Add(1)
+		go svc.pruneSOCEventsLoop()
+	}
 
 	return svc
 }
@@ -451,6 +551,145 @@ func (s *SuperAdminService) ToggleMaintenance(ctx context.Context, req Maintenan
 // ListMaintenanceRules returns all active maintenance rules.
 func (s *SuperAdminService) ListMaintenanceRules(ctx context.Context) ([]MaintenanceRule, error) {
 	return s.repo.ListActiveRules(ctx)
+}
+
+// ListAllMaintenanceRules returns all maintenance rules (active and inactive).
+func (s *SuperAdminService) ListAllMaintenanceRules(ctx context.Context) ([]MaintenanceRule, error) {
+	if s.pool == nil {
+		return []MaintenanceRule{}, nil
+	}
+	return s.repo.ListAllMaintenanceRules(ctx)
+}
+
+// GetModuleStatus returns the current health and maintenance state for a given module.
+// It includes CI health data, HTTP metrics, and active maintenance rules
+// targeting the module or any of its features.
+func (s *SuperAdminService) GetModuleStatus(ctx context.Context, module string) (map[string]any, error) {
+	status := map[string]any{
+		"module":  module,
+		"status":  "operational",
+		"healthy": true,
+	}
+
+	// Check if the module itself is under maintenance.
+	if rule, ok := s.IsUnderMaintenance("module", module); ok {
+		status["status"] = "maintenance"
+		status["healthy"] = false
+		status["maintenance"] = map[string]any{
+			"scope":  rule.Scope,
+			"target": rule.TargetID,
+			"reason": rule.Reason,
+			"since":  rule.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		}
+	}
+
+	// Find feature-level maintenance rules targeting this module's features.
+	s.cacheMu.RLock()
+	var features []map[string]any
+	for _, rule := range s.cacheRules {
+		if rule.Scope == "feature" && rule.IsActive {
+			matched := false
+			featureSlug := rule.TargetID
+
+			// Convention 1: target_id is "module:feature-slug"
+			if strings.HasPrefix(rule.TargetID, module+":") {
+				matched = true
+				featureSlug = strings.TrimPrefix(rule.TargetID, module+":")
+			}
+
+			// Convention 2: target_id is "module/feature-slug"
+			if strings.HasPrefix(rule.TargetID, module+"/") {
+				matched = true
+				featureSlug = strings.TrimPrefix(rule.TargetID, module+"/")
+			}
+
+			// Convention 3: target_id is just "feature-slug" (bare slug)
+			// We include it unconditionally since bare slugs are not
+			// namespaced — the caller can filter by relevance if needed.
+			if !matched && !strings.Contains(rule.TargetID, ":") && !strings.Contains(rule.TargetID, "/") {
+				matched = true
+				featureSlug = rule.TargetID
+			}
+
+			if matched {
+				features = append(features, map[string]any{
+					"feature": featureSlug,
+					"target":  rule.TargetID,
+					"reason":  rule.Reason,
+					"since":   rule.CreatedAt.Format("2006-01-02T15:04:05Z"),
+				})
+			}
+		}
+	}
+	s.cacheMu.RUnlock()
+
+	if len(features) > 0 {
+		status["features_under_maintenance"] = features
+		if status["status"] == "operational" {
+			status["status"] = "degraded"
+		}
+	}
+
+	// Include CI health data if available.
+	if s.pool != nil {
+		report, err := s.repo.GetLatestCIHealthByModule(ctx, module)
+		if err == nil && report != nil {
+			ci := map[string]any{
+				"coverage_percent":      report.CoveragePercent,
+				"linter_issues":         report.LinterIssues,
+				"vulnerabilities_count": report.VulnerabilitiesCount,
+				"commit_sha":            report.CommitSHA,
+			}
+			status["ci_health"] = ci
+		}
+	}
+
+	// Include HTTP metrics for this module.
+	s.httpMu.Lock()
+	if pm, ok := s.httpMetrics.PerModule[module]; ok {
+		http := map[string]any{
+			"total_requests": pm.Requests,
+			"errors_5xx":     pm.Errors5xx,
+		}
+		if pm.Requests > 0 {
+			http["error_rate_5xx"] = fmt.Sprintf("%.2f%%", float64(pm.Errors5xx)/float64(pm.Requests)*100)
+		} else {
+			http["error_rate_5xx"] = "0.00%"
+		}
+		status["http_metrics"] = http
+	}
+	s.httpMu.Unlock()
+
+	return status, nil
+}
+
+// DeleteMaintenanceRule soft-deactivates a maintenance rule by ID and publishes
+// a cache-invalidation event via Redis.
+func (s *SuperAdminService) DeleteMaintenanceRule(ctx context.Context, id int64) error {
+	if s.pool == nil {
+		return fmt.Errorf("database not available")
+	}
+	if err := s.repo.DeleteMaintenanceRule(ctx, id); err != nil {
+		return fmt.Errorf("delete maintenance rule: %w", err)
+	}
+
+	// Publish cache invalidation event.
+	msg, _ := json.Marshal(map[string]string{
+		"action": "delete",
+		"id":     fmt.Sprintf("%d", id),
+	})
+	if s.rdb != nil {
+		if err := s.rdb.Publish(ctx, RedisChannelMaintenanceSync, msg).Err(); err != nil {
+			log.Printf("[super-admin] failed to publish maintenance sync: %v", err)
+		}
+	}
+
+	// Reload local cache immediately.
+	if err := s.reloadCache(ctx); err != nil {
+		log.Printf("[super-admin] cache reload after delete failed: %v", err)
+	}
+
+	return nil
 }
 
 // subscribeMaintenanceSync listens for Redis cache-invalidation messages.
@@ -612,6 +851,21 @@ func (s *SuperAdminService) PublishSOCEvent(ctx context.Context, event SOCEvent)
 		return
 	}
 
+	// Buffer for recent-event replay.
+	s.socBuffer.Push(event)
+
+	// Persist to database (async, non-blocking).
+	if s.pool != nil {
+		evt := event
+		go func() {
+			dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := s.repo.InsertSOCEvent(dbCtx, &evt); err != nil {
+				log.Printf("[super-admin] failed to persist SOC event: %v", err)
+			}
+		}()
+	}
+
 	// Publish to Redis for multi-node fan-out.
 	if s.rdb != nil {
 		if err := s.rdb.Publish(ctx, RedisChannelSecuritySOC, data).Err(); err != nil {
@@ -621,6 +875,13 @@ func (s *SuperAdminService) PublishSOCEvent(ctx context.Context, event SOCEvent)
 
 	// Fan out to local SSE subscribers.
 	s.fanoutSSE(data)
+}
+
+// RecentSOCEvents returns a snapshot of the most recent SOC events from the
+// in-memory ring buffer. Used by the SSE handler to replay events that
+// occurred before the client connected.
+func (s *SuperAdminService) RecentSOCEvents() []SOCEvent {
+	return s.socBuffer.Snapshot()
 }
 
 // subscribeSOCEvents listens for SOC events from Redis and fans out to local SSE subscribers.
@@ -649,6 +910,46 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 			log.Printf("[super-admin] SOC event received from Redis, fan-out to %d subscribers", len(s.sseSubs))
 			s.fanoutSSE([]byte(msg.Payload))
 		}
+	}
+}
+
+// ── SOC Event Persistence ──
+
+const socEventRetentionDays = 25
+
+// pruneSOCEventsLoop runs a sliding-window delete every 6 hours, removing
+// SOC events older than 25 days from the database.
+func (s *SuperAdminService) pruneSOCEventsLoop() {
+	defer s.wg.Done()
+
+	ticker := time.NewTicker(6 * time.Hour)
+	defer ticker.Stop()
+
+	// Run once on startup after a short delay.
+	time.Sleep(30 * time.Second)
+	s.pruneSOCEvents()
+
+	for {
+		select {
+		case <-s.ctx.Done():
+			return
+		case <-ticker.C:
+			s.pruneSOCEvents()
+		}
+	}
+}
+
+func (s *SuperAdminService) pruneSOCEvents() {
+	ctx, cancel := context.WithTimeout(s.ctx, 30*time.Second)
+	defer cancel()
+
+	rows, err := s.repo.PruneSOCEvents(ctx, socEventRetentionDays*24*time.Hour)
+	if err != nil {
+		log.Printf("[super-admin] SOC event pruning failed: %v", err)
+		return
+	}
+	if rows > 0 {
+		log.Printf("[super-admin] pruned %d stale SOC events (>%d days)", rows, socEventRetentionDays)
 	}
 }
 

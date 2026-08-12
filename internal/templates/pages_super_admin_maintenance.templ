@@ -1,0 +1,270 @@
+package templates
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/patiHash1/Strata-prototype/internal/services"
+	"github.com/patiHash1/Strata-prototype/internal/templates/components"
+)
+
+// MaintenancePage renders the full maintenance rules management page inside
+// the super-admin dashboard layout.
+templ MaintenancePage(rules []services.MaintenanceRule) {
+	@SuperAdminLayout("Maintenance") {
+		<div class="dashboard-shell">
+			<!-- Page header with Add Rule button -->
+			<div class="maintenance-header">
+				<div>
+					<h1 class="page-title">Partitioned Maintenance</h1>
+					<p class="page-subtitle">Create and manage maintenance partitions for modules, tenants, and features.</p>
+				</div>
+				@AddMaintenanceRuleButton()
+			</div>
+			<!-- Rules table card -->
+			@components.Card("") {
+				<div class="maintenance-table-wrapper">
+					<table class="maintenance-table">
+						<thead>
+							<tr>
+								<th>Scope</th>
+								<th>Target ID</th>
+								<th>Reason</th>
+								<th>Status</th>
+								<th>Created</th>
+								<th class="maintenance-th-actions">Actions</th>
+							</tr>
+						</thead>
+						<tbody id="rules-table">
+							for _, rule := range rules {
+								@MaintenanceRuleRow(rule)
+							}
+							if len(rules) == 0 {
+								<tr id="rules-empty">
+									<td colspan="6" class="maintenance-empty">No maintenance rules configured.</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			}
+		</div>
+		@MaintenanceModal()
+	}
+}
+
+// MaintenanceRulesTableBody renders only the <tbody> rows for HTMX fragment swaps.
+templ MaintenanceRulesTableBody(rules []services.MaintenanceRule) {
+	<tbody id="rules-table">
+		for _, rule := range rules {
+			@MaintenanceRuleRow(rule)
+		}
+		if len(rules) == 0 {
+			<tr id="rules-empty">
+				<td colspan="6" class="maintenance-empty">No maintenance rules configured.</td>
+			</tr>
+		}
+	</tbody>
+}
+
+// AddMaintenanceRuleButton renders the "Add Rule" button that opens the
+// Alpine.js modal.
+templ AddMaintenanceRuleButton() {
+	<button
+		type="button"
+		class="btn-primary"
+		@click="$dispatch('open-maintenance-modal')"
+	>
+		+ Add Rule
+	</button>
+}
+
+// MaintenanceModal renders a purely client-side Alpine.js modal for creating
+// a new maintenance rule.
+templ MaintenanceModal() {
+	<div
+		x-data="{ open: false }"
+		@open-maintenance-modal.window="open = true"
+		@close-maintenance-modal.window="open = false"
+		@keydown.escape.window="open = false"
+		x-cloak
+	>
+		<!-- Backdrop -->
+		<div
+			x-show="open"
+			x-transition:enter="transition ease-out duration-200"
+			x-transition:enter-start="opacity-0"
+			x-transition:enter-end="opacity-100"
+			x-transition:leave="transition ease-in duration-150"
+			x-transition:leave-start="opacity-100"
+			x-transition:leave-end="opacity-0"
+			class="modal-backdrop"
+			@click="open = false"
+		></div>
+		<!-- Modal panel -->
+		<div
+			x-show="open"
+			x-transition:enter="transition ease-out duration-200"
+			x-transition:enter-start="opacity-0 scale-95"
+			x-transition:enter-end="opacity-100 scale-100"
+			x-transition:leave="transition ease-in duration-150"
+			x-transition:leave-start="opacity-100 scale-100"
+			x-transition:leave-end="opacity-0 scale-95"
+			class="modal-panel"
+			@click.outside="open = false"
+		>
+			<div class="modal-header">
+				<h3 class="modal-title">Add Maintenance Rule</h3>
+				<button type="button" class="modal-close" @click="open = false">
+					<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+			<form
+				class="modal-form"
+				hx-post="/api/v1/super-admin/maintenance"
+				hx-swap-oob="beforeend:#rules-table"
+				hx-on::after-request="
+					if (event.detail.successful) {
+						$dispatch('close-maintenance-modal');
+						const empty = document.getElementById('rules-empty');
+						if (empty) empty.remove();
+					}
+				"
+			>
+				<div id="modal-validation" class="modal-validation-container"></div>
+				<div class="modal-form-fields">
+					<div>
+						<label for="scope" class="field-label">Scope</label>
+						<select name="scope" id="scope" class="field-input" required>
+							<option value="">Select scope…</option>
+							<option value="module">Module</option>
+							<option value="tenant_id">Tenant</option>
+							<option value="feature">Feature</option>
+						</select>
+					</div>
+					<div>
+						<label for="target_id" class="field-label">Target ID</label>
+						<input
+							type="text"
+							name="target_id"
+							id="target_id"
+							class="field-input"
+							placeholder="e.g. crm, org-uuid, feature-slug"
+							required
+						/>
+					</div>
+					<div>
+						<label for="reason" class="field-label">Reason</label>
+						<textarea
+							name="reason"
+							id="reason"
+							class="field-input"
+							rows="3"
+							placeholder="Describe why this partition is being put under maintenance…"
+						></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn-secondary" @click="open = false">Cancel</button>
+					<button type="submit" class="btn-primary">Create Rule</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+// MaintenanceRuleRow renders a single maintenance rule as a table row.
+templ MaintenanceRuleRow(rule services.MaintenanceRule) {
+	<tr id={ fmt.Sprintf("rule-row-%d", rule.ID) } class={ "maintenance-row", templ.KV("maintenance-row-inactive", !rule.IsActive) }>
+		<td>
+			@components.Badge(rule.Scope, scopeBadgeColor(rule.Scope))
+		</td>
+		<td class="maintenance-target-id">{ rule.TargetID }</td>
+		<td class="maintenance-reason">{ rule.Reason }</td>
+		<td>
+			if rule.IsActive {
+				@components.Badge("Active", "red")
+			} else {
+				@components.Badge("Inactive", "gray")
+			}
+		</td>
+		<td class="maintenance-time">{ rule.CreatedAt.Format("Jan 02, 15:04") }</td>
+		<td class="maintenance-actions">
+			if rule.IsActive {
+				<button
+					type="button"
+					class="btn-revoke"
+					hx-delete={ fmt.Sprintf("/api/v1/super-admin/maintenance/%d", rule.ID) }
+					hx-target="closest tr"
+					hx-swap="outerHTML swap:1s"
+					hx-confirm="Revoke this maintenance rule?"
+				>
+					Revoke
+				</button>
+			}
+		</td>
+	</tr>
+}
+
+// MaintenanceRuleRowOOB renders a new rule row with hx-swap-oob attribute
+// so HTMX can append it to the rules table out-of-band.
+templ MaintenanceRuleRowOOB(rule services.MaintenanceRule) {
+	<tr
+		id={ fmt.Sprintf("rule-row-%d", rule.ID) }
+		class="maintenance-row"
+		hx-swap-oob="beforeend:#rules-table"
+	>
+		<td>
+			@components.Badge(rule.Scope, scopeBadgeColor(rule.Scope))
+		</td>
+		<td class="maintenance-target-id">{ rule.TargetID }</td>
+		<td class="maintenance-reason">{ rule.Reason }</td>
+		<td>
+			@components.Badge("Active", "red")
+		</td>
+		<td class="maintenance-time">{ rule.CreatedAt.Format("Jan 02, 15:04") }</td>
+		<td class="maintenance-actions">
+			<button
+				type="button"
+				class="btn-revoke"
+				hx-delete={ fmt.Sprintf("/api/v1/super-admin/maintenance/%d", rule.ID) }
+				hx-target="closest tr"
+				hx-swap="outerHTML swap:1s"
+				hx-confirm="Revoke this maintenance rule?"
+			>
+				Revoke
+			</button>
+		</td>
+	</tr>
+}
+
+// MaintenanceRuleRowDeleted renders an empty <tr> that replaces a deleted row.
+// The hx-swap="outerHTML swap:1s" on the Revoke button triggers a 1-second
+// CSS fade-out transition before this empty row is swapped in.
+templ MaintenanceRuleRowDeleted() {
+	<tr class="maintenance-row-deleted"></tr>
+}
+
+// MaintenanceValidationError renders an inline validation error banner
+// suitable for HTMX error responses targeting #modal-validation.
+templ MaintenanceValidationError(message string) {
+	<div class="error-banner" hx-swap-oob="innerHTML:#modal-validation">
+		{ message }
+	</div>
+}
+
+// scopeBadgeColor returns a badge color variant for the given maintenance scope.
+func scopeBadgeColor(scope string) string {
+	switch strings.ToLower(scope) {
+	case "module":
+		return "blue"
+	case "tenant_id":
+		return "purple"
+	case "feature":
+		return "yellow"
+	default:
+		return "gray"
+	}
+}

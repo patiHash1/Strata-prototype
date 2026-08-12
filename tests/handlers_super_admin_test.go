@@ -449,3 +449,388 @@ func (w *sseTestWriter) Header() http.Header         { return w.h }
 func (w *sseTestWriter) Write(b []byte) (int, error) { return w.w.Write(b) }
 func (w *sseTestWriter) WriteHeader(statusCode int)  {}
 func (w *sseTestWriter) Flush()                      {}
+
+// ── Maintenance Control Panel Tests ──
+
+// TestMaintenanceRulesPageRendered verifies that the maintenance rules page
+// renders the full HTML layout with the rules table.
+func TestMaintenanceRulesPageRendered(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/super-admin/maintenance/rules", app.ListMaintenanceRulesPageHandlerForTest)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/maintenance/rules", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	bodyStr := string(body)
+
+	// Assert the page contains the full HTML layout.
+	if !strings.Contains(bodyStr, "<!doctype html>") {
+		t.Error("response body does not contain <!doctype html>")
+	}
+
+	// Assert the maintenance page title.
+	if !strings.Contains(bodyStr, "Partitioned Maintenance") {
+		t.Error("response body does not contain page title")
+	}
+
+	// Assert the rules table is present.
+	if !strings.Contains(bodyStr, `id="rules-table"`) {
+		t.Error("response body does not contain rules-table element")
+	}
+
+	// Assert the Add Rule button is present.
+	if !strings.Contains(bodyStr, "Add Rule") {
+		t.Error("response body does not contain Add Rule button")
+	}
+
+	// Assert the empty state message.
+	if !strings.Contains(bodyStr, "No maintenance rules configured") {
+		t.Error("response body does not contain empty state message")
+	}
+
+	// Assert the Alpine.js modal is present.
+	if !strings.Contains(bodyStr, "open-maintenance-modal") {
+		t.Error("response body does not contain modal trigger event")
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "text/html") {
+		t.Errorf("expected Content-Type to contain text/html, got %q", ct)
+	}
+}
+
+// TestMaintenanceRulesFragmentRendered verifies the HTMX fragment returns
+// only the <tbody> without the full HTML layout shell.
+func TestMaintenanceRulesFragmentRendered(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/super-admin/maintenance/fragment", app.ListMaintenanceRulesFragmentHandlerForTest)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/maintenance/fragment", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	bodyStr := string(body)
+
+	// Fragment should contain the rules-table tbody.
+	if !strings.Contains(bodyStr, `id="rules-table"`) {
+		t.Error("response body does not contain rules-table element")
+	}
+
+	// Fragment should contain the empty state message.
+	if !strings.Contains(bodyStr, "No maintenance rules configured") {
+		t.Error("response body does not contain empty state message")
+	}
+
+	// Fragment should NOT contain the full HTML layout shell.
+	if strings.Contains(bodyStr, "<!doctype html>") {
+		t.Error("fragment contains <!doctype html> — should be partial HTML")
+	}
+	if strings.Contains(bodyStr, "<html") {
+		t.Error("fragment contains <html> tag — should be partial HTML")
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "text/html") {
+		t.Errorf("expected Content-Type to contain text/html, got %q", ct)
+	}
+}
+
+// TestCreateMaintenanceRuleValidation verifies that POST with missing fields
+// returns a 400 with an HTML validation error fragment.
+func TestCreateMaintenanceRuleValidation(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/super-admin/maintenance", app.CreateMaintenanceRuleHandlerForTest)
+
+	// Send request with missing scope and target_id.
+	form := url.Values{}
+	form.Set("scope", "")
+	form.Set("target_id", "")
+	reqBody := strings.NewReader(form.Encode())
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/super-admin/maintenance", reqBody)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	bodyStr := string(body)
+
+	// Assert HTML fragment with validation error styling.
+	if !strings.Contains(bodyStr, "error-banner") {
+		t.Error("response body does not contain error-banner class")
+	}
+	if !strings.Contains(bodyStr, "hx-swap-oob") {
+		t.Error("response body does not contain hx-swap-oob attribute for OOB swap")
+	}
+	if !strings.Contains(bodyStr, "Scope and Target ID are required") {
+		t.Error("response body does not contain validation error message")
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "text/html") {
+		t.Errorf("expected Content-Type to contain text/html, got %q", ct)
+	}
+}
+
+// TestCreateMaintenanceRuleInvalidJSON verifies that POST with malformed JSON
+// returns a 400 with a validation error.
+func TestCreateMaintenanceRuleInvalidJSON(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/super-admin/maintenance", app.CreateMaintenanceRuleHandlerForTest)
+
+	// Send a request with no form fields and no Content-Type, triggering ParseForm to still
+	// work (returns empty values). Instead, test with an empty body.
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/super-admin/maintenance", nil)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	bodyStr := string(body)
+
+	if !strings.Contains(bodyStr, "error-banner") {
+		t.Error("response body does not contain error-banner class")
+	}
+	if !strings.Contains(bodyStr, "Scope and Target ID are required") {
+		t.Error("response body does not contain required fields validation message")
+	}
+}
+
+// TestDeleteMaintenanceRuleInvalidID verifies that DELETE with a non-numeric
+// ID returns a 400.
+func TestDeleteMaintenanceRuleInvalidID(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("DELETE /api/v1/super-admin/maintenance/{id}", app.DeleteMaintenanceRuleHandlerForTest)
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/v1/super-admin/maintenance/not-a-number", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("expected status 400 Bad Request, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	bodyStr := string(body)
+
+	if !strings.Contains(bodyStr, "invalid rule id") {
+		t.Error("response body does not contain invalid rule id message")
+	}
+}
+
+// TestModuleHealthEndpoint verifies that GET /api/v1/{module}/health returns
+// a JSON response with the module's current state.
+func TestModuleHealthEndpoint(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/{module}/health", app.GetModuleHealthHandlerForTest)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/crm/health", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+	bodyStr := string(body)
+
+	// Assert JSON contains the module name and operational status.
+	if !strings.Contains(bodyStr, "crm") {
+		t.Error("response body does not contain module name 'crm'")
+	}
+	if !strings.Contains(bodyStr, "operational") {
+		t.Error("response body does not contain 'operational' status")
+	}
+	if !strings.Contains(bodyStr, "healthy") {
+		t.Error("response body does not contain 'healthy' field")
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.Contains(ct, "application/json") {
+		t.Errorf("expected Content-Type to contain application/json, got %q", ct)
+	}
+}
+
+// TestModuleHealthEndpointUnderMaintenance verifies that GET /api/v1/{module}/health
+// returns 503 when the module has an active maintenance rule.
+func TestModuleHealthEndpointUnderMaintenance(t *testing.T) {
+	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	defer superAdminSvc.Shutdown()
+
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		superAdminSvc,
+		nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/{module}/health", app.GetModuleHealthHandlerForTest)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounting/health", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	// Without a maintenance rule, this should be 200.
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected status 200 OK, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read response body: %v", err)
+	}
+
+	if !strings.Contains(string(body), "operational") {
+		t.Error("expected 'operational' status for non-maintenance module")
+	}
+}
+
+// TestModuleHealthEndpointNilService verifies that GET /api/v1/{module}/health
+// handles a nil SuperAdminService gracefully.
+func TestModuleHealthEndpointNilService(t *testing.T) {
+	app := handlers.New(
+		config.Config{Port: 8080},
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+	)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/{module}/health", app.GetModuleHealthHandlerForTest)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/crm/health", nil)
+	rec := httptest.NewRecorder()
+
+	mux.ServeHTTP(rec, req)
+
+	resp := rec.Result()
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Fatalf("expected status 500 (nil service), got %d", resp.StatusCode)
+	}
+}

@@ -18,6 +18,7 @@ func (a *App) routes() http.Handler {
 	})
 	mux.Handle("GET /static/", a.staticHandler())
 	mux.HandleFunc("GET /health", a.healthHandler)
+	mux.HandleFunc("GET /api/v1/{module}/health", a.getModuleHealthHandler)
 
 	// ── Auth routes (rate-limited) ──
 	limiter := utils.RateLimitMiddleware(20) // 20 requests per minute per IP
@@ -611,18 +612,34 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
-	mux.Handle("GET /api/v1/super-admin/maintenance",
-		utils.RequireAuth(a.Auth)(
+	mux.Handle("GET /api/v1/super-admin/maintenance/rules",
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
 			utils.RequirePermission(services.PermSuperAdmin)(
-				http.HandlerFunc(a.listMaintenanceHandler),
+				http.HandlerFunc(a.listMaintenanceRulesPageHandler),
 			),
 		),
 	)
 
-	mux.Handle("POST /api/v1/super-admin/maintenance/toggle",
+	mux.Handle("GET /api/v1/super-admin/maintenance/fragment",
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(
-				http.HandlerFunc(a.toggleMaintenanceHandler),
+				http.HandlerFunc(a.listMaintenanceRulesFragmentHandler),
+			),
+		),
+	)
+
+	mux.Handle("POST /api/v1/super-admin/maintenance",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.createMaintenanceRuleHandler),
+			),
+		),
+	)
+
+	mux.Handle("DELETE /api/v1/super-admin/maintenance/{id}",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.deleteMaintenanceRuleHandler),
 			),
 		),
 	)

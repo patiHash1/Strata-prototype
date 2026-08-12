@@ -50,7 +50,10 @@ The project is in early prototype stage. The API is under active development and
 - [Super Admin API](api/super-admin.md)
 - [System Metrics & Health](api/super-admin.md#metrics)
 - [Partitioned Maintenance](api/super-admin.md#maintenance)
+- [Module Health Endpoints](api/super-admin.md#get-apiv1modulehealth)
 - [SOC Security Stream (SSE)](api/super-admin.md#security-stream)
+- [SOC Event Types](api/super-admin.md#soc-event-types)
+- [SOC Event Retention](api/super-admin.md#soc-event-retention)
 - [User & Organization CRUD](api/super-admin.md#user--organization-management)
 
 ### Architecture
