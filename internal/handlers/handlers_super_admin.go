@@ -1039,6 +1039,96 @@ func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"message": "organization activated"})
 }
 
+// ── GET /api/v1/super-admin/metrics (HTML page) ──
+
+// superAdminMetricsPageHandler renders the Metrics page with runtime telemetry.
+//
+//	@Summary		Metrics page (HTML)
+//	@Description	Renders the Metrics page showing runtime telemetry and infrastructure profiling.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/metrics [get]
+func (a *App) superAdminMetricsPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Surrogate-Control", "no-store")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.SuperAdminMetricsView()
+	component.Render(r.Context(), w)
+}
+
+// MetricsPageHandlerForTest exposes the metrics page handler for httptest
+// without the auth middleware chain.
+func (a *App) MetricsPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.superAdminMetricsPageHandler(w, r)
+}
+
+// ── GET /api/v1/super-admin/security (HTML page) ──
+
+// superAdminSecurityPageHandler renders the Security & Audit page with live streaming events.
+//
+//	@Summary		Security & Audit page (HTML)
+//	@Description	Renders the Security page showing live streaming security events and audit trails.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/security [get]
+func (a *App) superAdminSecurityPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Surrogate-Control", "no-store")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.SuperAdminSecurityView()
+	component.Render(r.Context(), w)
+}
+
+// SecurityPageHandlerForTest exposes the security page handler for httptest
+// without the auth middleware chain.
+func (a *App) SecurityPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.superAdminSecurityPageHandler(w, r)
+}
+
+// ── GET /api/v1/super-admin/settings (HTML page) ──
+
+// superAdminSettingsPageHandler renders the Settings page for global configuration.
+//
+//	@Summary		Settings page (HTML)
+//	@Description	Renders the Settings page for global environment config, API keys, and webhook setups.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/settings [get]
+func (a *App) superAdminSettingsPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Surrogate-Control", "no-store")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.SuperAdminSettingsView()
+	component.Render(r.Context(), w)
+}
+
+// SettingsPageHandlerForTest exposes the settings page handler for httptest
+// without the auth middleware chain.
+func (a *App) SettingsPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.superAdminSettingsPageHandler(w, r)
+}
+
 // ── Helpers ──
 
 // staticHandler serves embedded static assets (CSS, JS, images) with

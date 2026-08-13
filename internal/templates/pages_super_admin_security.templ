@@ -1,0 +1,156 @@
+package templates
+
+import (
+	"fmt"
+
+	"github.com/patiHash1/Strata-prototype/internal/templates/components"
+)
+
+// SuperAdminSecurityView renders the /security page showing live streaming
+// security events, threat monitoring, and audit trails.
+templ SuperAdminSecurityView() {
+	@SuperAdminLayout("Security & Audit") {
+		<div class="dashboard-shell">
+			<!-- Page header with controls -->
+			<div class="security-header">
+				<div>
+					<h1 class="page-title">Security & Audit</h1>
+					<p class="page-subtitle">Live streaming security events, threat monitoring, and audit trails.</p>
+				</div>
+				<div class="security-controls">
+					<div class="security-status" id="security-status">
+						<span class="security-status-dot"></span>
+						<span class="security-status-text">Connected</span>
+					</div>
+					<button
+						type="button"
+						class="btn-secondary"
+						@click="$dispatch('toggle-security-stream')"
+					>
+						<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+						</svg>
+						Pause/Resume
+					</button>
+					<button
+						type="button"
+						class="btn-secondary"
+						@click="document.getElementById('security-stream-feed').innerHTML = ''"
+					>
+						Clear Stream
+					</button>
+				</div>
+			</div>
+			<!-- Filter controls -->
+			<div class="security-filters">
+				<div class="security-filter-chips">
+					<button
+						type="button"
+						class="filter-chip filter-chip-active"
+						@click="this.classList.toggle('filter-chip-active')"
+					>
+						CRITICAL
+					</button>
+					<button
+						type="button"
+						class="filter-chip filter-chip-active"
+						@click="this.classList.toggle('filter-chip-active')"
+					>
+						WARN
+					</button>
+					<button
+						type="button"
+						class="filter-chip filter-chip-active"
+						@click="this.classList.toggle('filter-chip-active')"
+					>
+						INFO
+					</button>
+				</div>
+				<div class="security-filter-search">
+					<input
+						type="text"
+						placeholder="Search by User ID, IP, or Org ID..."
+						class="field-input field-input-sm"
+					/>
+				</div>
+			</div>
+			<!-- Live security feed -->
+			@components.Card("") {
+				<div class="security-stream-container">
+					@SSEFeedFull()
+				</div>
+			}
+		</div>
+	}
+}
+
+// SSEFeedFull renders a full-featured HTMX SSE-connected container for the
+// security page with table layout and inspector drawer.
+templ SSEFeedFull() {
+	<div
+		hx-ext="sse"
+		sse-connect="/api/v1/super-admin/security/stream"
+		sse-swap="security-event"
+		hx-swap="afterbegin"
+		class="sse-feed-full"
+		id="security-stream-feed"
+	>
+		<table class="security-stream-table">
+			<thead>
+				<tr>
+					<th>Timestamp</th>
+					<th>Severity</th>
+					<th>Event</th>
+					<th>Actor</th>
+					<th>IP/Location</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody id="security-stream-body">
+				<tr class="sse-feed-empty-row">
+					<td colspan="6" class="sse-feed-empty">
+						<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+						</svg>
+						<p>Waiting for security events…</p>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+}
+
+// SecurityEventRow renders a single SOC security event as a table row
+// suitable for SSE streaming into the security page table.
+templ SecurityEventRow(event SecurityEvent) {
+	<tr class={ "sse-table-row", "sse-severity-" + event.Severity }>
+		<td class="sse-cell-time">{ event.Timestamp.Format("15:04:05") }</td>
+		<td class="sse-cell-severity">
+			@components.Badge(event.Severity, event.Severity)
+		</td>
+		<td class="sse-cell-event">{ event.Type }</td>
+		<td class="sse-cell-actor">{ event.Message }</td>
+		<td class="sse-cell-ip">
+			if event.IPAddress != "" {
+				{ event.IPAddress }
+			} else {
+				<span class="sse-cell-unknown">—</span>
+			}
+		</td>
+		<td class="sse-cell-actions">
+			<button
+				type="button"
+				class="btn-sm btn-secondary"
+				@click={ fmt.Sprintf("document.getElementById('event-inspector').style.display='flex'; $dispatch('inspect-event', %q)", event.ID) }
+			>
+				Inspect
+			</button>
+			<button
+				type="button"
+				class="btn-sm btn-danger"
+			>
+				Block IP
+			</button>
+		</td>
+	</tr>
+}

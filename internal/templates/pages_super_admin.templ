@@ -29,45 +29,44 @@ type SecurityEvent struct {
 	Timestamp time.Time
 }
 
+// SuperAdminDashboardView renders the high-level platform health dashboard
+// with KPIs, API traffic, and recent activity.
 templ SuperAdminDashboardView() {
 	@SuperAdminLayout("Dashboard") {
 		<div class="dashboard-shell">
-			<!-- Page header -->
-			<div>
-				<h1 class="page-title">Dashboard</h1>
-				<p class="page-subtitle">System overview and key metrics at a glance.</p>
+			<!-- Page header with quick actions -->
+			<div class="dashboard-header">
+				<div>
+					<h1 class="page-title">Dashboard</h1>
+					<p class="page-subtitle">Platform health, key performance indicators, and critical alerts.</p>
+				</div>
+				<div class="dashboard-actions">
+					<a href="/api/v1/super-admin/metrics" class="btn-primary">
+						View Metrics
+					</a>
+					<button
+						type="button"
+						class="btn-primary"
+						hx-get="/api/v1/super-admin/health"
+						hx-target="#health-output"
+						hx-swap="innerHTML"
+					>
+						Health Check
+					</button>
+					<div id="health-output" class="health-output"></div>
+				</div>
 			</div>
-
-			<!-- Metrics grid with HTMX polling -->
-			<div
-				id="metrics-grid"
-				hx-get="/api/v1/super-admin/metrics/fragment"
-				hx-trigger="load, every 5s"
-				hx-swap="outerHTML"
-			>
-				@MetricsGrid(SystemMetricsView{})
+			<!-- Top KPI Bar -->
+			<div class="kpi-grid">
+				@KPICard("System Uptime", "99.9%", "Uptime", "green", "30-day rolling average")
+				@KPICard("Active Organizations", "12", "Active", "strata", "Across all tenants")
+				@KPICard("Global Users", "2,847", "Active", "blue", "1,204 RPS average")
+				@KPICard("Security Alerts", "0", "Clear", "green", "No critical issues")
 			</div>
-
-			<!-- Quick actions -->
+			<!-- Global API Traffic Chart -->
+			@APITrafficChart()
+			<!-- Recent Activity Feed -->
 			<div class="content-grid">
-				@components.Card("Quick Actions") {
-					<div>
-						<p class="quick-actions-text">Common administrative tasks available to super admins.</p>
-						<div class="quick-actions-btn-group">
-							@components.PrimaryButton("View Metrics", templ.Attributes{
-								"hx-get":    "/api/v1/super-admin/metrics",
-								"hx-target": "#metrics-output",
-								"hx-swap":   "innerHTML",
-							})
-							@components.PrimaryButton("Health Check", templ.Attributes{
-								"hx-get":    "/api/v1/super-admin/health",
-								"hx-target": "#metrics-output",
-								"hx-swap":   "innerHTML",
-							})
-						</div>
-						<div id="metrics-output" class="metrics-output"></div>
-					</div>
-				}
 				@components.Card("Recent Activity") {
 					<div class="activity-list">
 						<div class="activity-item">
@@ -88,16 +87,109 @@ templ SuperAdminDashboardView() {
 					</div>
 				}
 			</div>
-
-			<!-- ApexCharts real-time line graph -->
-			@MetricsChart()
-
-			<!-- Live security feed -->
-			@components.Card("Live Security Feed") {
-				@SSEFeed()
-			}
 		</div>
 	}
+}
+
+// KPICard renders a high-level KPI metric card for the dashboard.
+templ KPICard(title string, value string, badgeLabel string, badgeColor string, caption string) {
+	<div class="card">
+		<div class="card-header">
+			<h3 class="card-header-title">{ title }</h3>
+		</div>
+		<div class="card-body">
+			<div class="stat-container">
+				<span class="stat-number">{ value }</span>
+				@components.Badge(badgeLabel, badgeColor)
+			</div>
+			<p class="stat-caption">{ caption }</p>
+		</div>
+	</div>
+}
+
+// APITrafficChart renders a high-level API traffic chart showing 2xx vs 5xx throughput.
+templ APITrafficChart() {
+	<div
+		class="card"
+		x-data="apiTrafficChart()"
+		x-init="initChart()"
+	>
+		<div class="card-header">
+			<h3 class="card-header-title">Global API Traffic</h3>
+		</div>
+		<div class="card-body">
+			<div id="api-traffic-chart" style="min-height: 250px;"></div>
+		</div>
+	</div>
+	<script>
+		function apiTrafficChart() {
+			return {
+				chart: null,
+
+				initChart() {
+					if (typeof ApexCharts === 'undefined') {
+						setTimeout(() => this.initChart(), 200);
+						return;
+					}
+
+					const options = {
+						chart: {
+							id: 'api-traffic-chart',
+							type: 'area',
+							height: 250,
+							animations: {
+								enabled: true,
+								easing: 'easeinout',
+								speed: 400,
+							},
+							toolbar: { show: false },
+							background: 'transparent',
+						},
+						stroke: {
+							curve: 'smooth',
+							width: 2,
+						},
+						colors: ['#2EA043', '#D97706'],
+						series: [
+							{ name: '2xx Success', data: [] },
+							{ name: '5xx Errors', data: [] },
+						],
+						xaxis: {
+							type: 'datetime',
+							labels: { style: { colors: '#9CA3AF' } },
+						},
+						yaxis: {
+							labels: { style: { colors: '#9CA3AF' } },
+						},
+						grid: {
+							borderColor: '#374151',
+							strokeDashArray: 4,
+						},
+						legend: {
+							labels: { colors: '#9CA3AF' },
+						},
+						tooltip: { theme: 'dark' },
+					};
+
+					this.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);
+					this.chart.render();
+
+					// Generate sample data for initial render
+					const now = Date.now();
+					const data2xx = [];
+					const data5xx = [];
+					for (let i = 30; i >= 0; i--) {
+						data2xx.push({ x: now - (i * 60000), y: Math.floor(Math.random() * 500 + 1000) });
+						data5xx.push({ x: now - (i * 60000), y: Math.floor(Math.random() * 20 + 5) });
+					}
+					this.chart.updateSeries([
+						{ name: '2xx Success', data: data2xx },
+						{ name: '5xx Errors', data: data5xx },
+					]);
+				},
+			};
+		}
+	</script>
 }
 
 // MetricsGrid renders the four metric cards as an HTMX-swappable fragment.
@@ -289,7 +381,7 @@ templ SSEFeed() {
 // suitable for SSE streaming. It is wrapped in a <div> that HTMX can swap
 // into the feed container.
 templ SecurityLogEntry(event SecurityEvent) {
-	<div class={ "sse-entry", "sse-severity-"+event.Severity }>
+	<div class={ "sse-entry", "sse-severity-" + event.Severity }>
 		<div class="sse-entry-header">
 			<span class="sse-entry-type">{ event.Type }</span>
 			@components.Badge(event.Severity, event.Severity)

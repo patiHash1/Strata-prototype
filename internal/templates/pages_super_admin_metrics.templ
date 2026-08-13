@@ -1,0 +1,26 @@
+package templates
+
+// SuperAdminMetricsView renders the /metrics page showing low-level runtime
+// telemetry, database performance, and infrastructure profiling.
+templ SuperAdminMetricsView() {
+	@SuperAdminLayout("Metrics") {
+		<div class="dashboard-shell">
+			<!-- Page header -->
+			<div>
+				<h1 class="page-title">Metrics</h1>
+				<p class="page-subtitle">Runtime telemetry, database performance, and infrastructure profiling.</p>
+			</div>
+			<!-- Runtime metrics grid with HTMX polling -->
+			<div
+				id="metrics-grid"
+				hx-get="/api/v1/super-admin/metrics/fragment"
+				hx-trigger="load, every 5s"
+				hx-swap="outerHTML"
+			>
+				@MetricsGrid(SystemMetricsView{})
+			</div>
+			<!-- ApexCharts real-time line graph -->
+			@MetricsChart()
+		</div>
+	}
+}

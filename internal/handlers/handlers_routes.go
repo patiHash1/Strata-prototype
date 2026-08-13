@@ -581,6 +581,14 @@ func (a *App) routes() http.Handler {
 	)
 
 	mux.Handle("GET /api/v1/super-admin/metrics",
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.superAdminMetricsPageHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/metrics/json",
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.getSuperAdminMetricsHandler),
@@ -648,6 +656,23 @@ func (a *App) routes() http.Handler {
 		utils.RequireAuthCookie(a.Auth, a.startedAt)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.securityStreamHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/security",
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.superAdminSecurityPageHandler),
+			),
+		),
+	)
+
+	// ── Super-Admin: Settings page ──
+	mux.Handle("GET /api/v1/super-admin/settings",
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.superAdminSettingsPageHandler),
 			),
 		),
 	)

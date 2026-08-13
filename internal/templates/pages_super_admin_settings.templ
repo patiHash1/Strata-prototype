@@ -1,0 +1,118 @@
+package templates
+
+import (
+	"github.com/patiHash1/Strata-prototype/internal/templates/components"
+)
+
+// SuperAdminSettingsView renders the /settings page for global environment
+// config, API keys, rate-limiting limits, and webhook setups.
+templ SuperAdminSettingsView() {
+	@SuperAdminLayout("Settings") {
+		<div class="dashboard-shell">
+			<!-- Page header -->
+			<div>
+				<h1 class="page-title">Settings</h1>
+				<p class="page-subtitle">Global environment configuration, API keys, and webhook setups.</p>
+			</div>
+			<!-- Settings sections -->
+			<div class="settings-grid">
+				<!-- General Settings -->
+				@components.Card("General Settings") {
+					<div class="settings-form">
+						<div class="settings-field">
+							<label class="field-label">Platform Name</label>
+							<input type="text" class="field-input" value="Strata" />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Default Timezone</label>
+							<select class="field-input">
+								<option value="UTC">UTC</option>
+								<option value="America/New_York">Eastern Time</option>
+								<option value="America/Chicago">Central Time</option>
+								<option value="America/Denver">Mountain Time</option>
+								<option value="America/Los_Angeles">Pacific Time</option>
+							</select>
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Maintenance Mode</label>
+							<div class="toggle-switch">
+								<input type="checkbox" id="maintenance-mode" class="toggle-input" />
+								<label for="maintenance-mode" class="toggle-label"></label>
+							</div>
+						</div>
+					</div>
+				}
+				<!-- Rate Limiting -->
+				@components.Card("Rate Limiting") {
+					<div class="settings-form">
+						<div class="settings-field">
+							<label class="field-label">Global Rate Limit (req/min)</label>
+							<input type="number" class="field-input" value="1000" />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Per-User Rate Limit (req/min)</label>
+							<input type="number" class="field-input" value="100" />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Auth Endpoint Rate Limit (req/min)</label>
+							<input type="number" class="field-input" value="20" />
+						</div>
+					</div>
+				}
+				<!-- API Keys -->
+				@components.Card("API Keys") {
+					<div class="settings-form">
+						<div class="settings-field">
+							<label class="field-label">Stripe API Key</label>
+							<input type="password" class="field-input" placeholder="sk_live_..." />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">SendGrid API Key</label>
+							<input type="password" class="field-input" placeholder="SG...." />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Redis URL</label>
+							<input type="text" class="field-input" value="redis://localhost:6379" />
+						</div>
+					</div>
+				}
+				<!-- Webhooks -->
+				@components.Card("Webhooks") {
+					<div class="settings-form">
+						<div class="settings-field">
+							<label class="field-label">Webhook URL</label>
+							<input type="url" class="field-input" placeholder="https://your-webhook.com/events" />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Webhook Secret</label>
+							<input type="password" class="field-input" placeholder="whsec_..." />
+						</div>
+						<div class="settings-field">
+							<label class="field-label">Events to Send</label>
+							<div class="checkbox-group">
+								<label class="checkbox-label">
+									<input type="checkbox" checked /> User Events
+								</label>
+								<label class="checkbox-label">
+									<input type="checkbox" checked /> Organization Events
+								</label>
+								<label class="checkbox-label">
+									<input type="checkbox" /> Security Events
+								</label>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+			<!-- Save button -->
+			<div class="settings-actions">
+				<button type="button" class="btn-primary">
+					Save Settings
+				</button>
+				<button type="button" class="btn-secondary">
+					Reset to Defaults
+				</button>
+			</div>
+		</div>
+	}
+}
