@@ -1,0 +1,193 @@
+package templates
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/patiHash1/Strata-prototype/internal/templates/components"
+)
+
+// OrgView is a lightweight view model for the organizations table.
+type OrgView struct {
+	ID          string
+	CompanyName string
+	DomainSlug  string
+	Status      string
+	CreatedAt   time.Time
+}
+
+// SuperAdminOrganizationsView renders the /organizations page showing the
+// tenant directory, provisioning, and plan/quota management.
+templ SuperAdminOrganizationsView() {
+	@SuperAdminLayout("Organizations") {
+		<div class="dashboard-shell">
+			<!-- Page header -->
+			<div class="page-header-row">
+				<div>
+					<h1 class="page-title">Organizations</h1>
+					<p class="page-subtitle">Tenant directory, organization provisioning, and plan/quota management.</p>
+				</div>
+				<div class="page-header-actions">
+					<input
+						type="text"
+						placeholder="Search organizations..."
+						class="field-input field-input-sm"
+						hx-get="/api/v1/super-admin/organizations"
+						hx-trigger="keyup changed delay:300ms"
+						hx-include="[name='offset'],[name='limit']"
+						hx-target="#orgs-table-body"
+						hx-swap="innerHTML"
+						name="search"
+					/>
+				</div>
+			</div>
+			<!-- Organizations table card -->
+			@components.Card("") {
+				<div class="orgs-table-wrapper">
+					<table class="data-table">
+						<thead>
+							<tr>
+								<th>Organization</th>
+								<th>Domain</th>
+								<th>Status</th>
+								<th>Created</th>
+								<th class="th-actions">Actions</th>
+							</tr>
+						</thead>
+						<tbody
+							id="orgs-table-body"
+							hx-get="/api/v1/super-admin/organizations/fragment"
+							hx-trigger="load"
+							hx-swap="innerHTML"
+						>
+							<tr>
+								<td colspan="5" class="table-loading">Loading organizations…</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<!-- Pagination -->
+				<div class="table-footer">
+					<span class="table-footer-text" id="orgs-count"></span>
+					<div class="table-pagination">
+						<button
+							type="button"
+							class="btn-secondary btn-sm"
+							hx-get="/api/v1/super-admin/organizations/fragment"
+							hx-vals='js:{"offset": Math.max(0, parseInt(document.querySelector("[name=orgs-offset]")?.value || "0") - 50)}'
+							hx-target="#orgs-table-body"
+							hx-swap="innerHTML"
+							hx-include="[name='limit']"
+						>
+							← Previous
+						</button>
+						<input type="hidden" name="orgs-offset" value="0"/>
+						<input type="hidden" name="limit" value="50"/>
+						<button
+							type="button"
+							class="btn-secondary btn-sm"
+							hx-get="/api/v1/super-admin/organizations/fragment"
+							hx-vals='js:{"offset": parseInt(document.querySelector("[name=orgs-offset]")?.value || "0") + 50}'
+							hx-target="#orgs-table-body"
+							hx-swap="innerHTML"
+							hx-include="[name='limit']"
+						>
+							Next →
+						</button>
+					</div>
+				</div>
+			}
+			<!-- Org detail drawer -->
+			<div id="org-detail-drawer" class="drawer" style="display:none;"></div>
+		</div>
+	}
+}
+
+// OrgsTableBody renders the <tbody> rows for HTMX fragment swaps.
+templ OrgsTableBody(orgs []OrgView) {
+	for _, o := range orgs {
+		@OrgRow(o)
+	}
+	if len(orgs) == 0 {
+		<tr>
+			<td colspan="5" class="table-empty">No organizations found.</td>
+		</tr>
+	}
+}
+
+// OrgRow renders a single organization as a table row.
+templ OrgRow(o OrgView) {
+	<tr id={ fmt.Sprintf("org-row-%s", o.ID) } class="data-table-row">
+		<td>
+			<div class="user-cell">
+				<div class="avatar avatar-sm avatar-purple">{ orgInitials(o.CompanyName) }</div>
+				<span class="user-cell-name">{ o.CompanyName }</span>
+			</div>
+		</td>
+		<td class="td-slug">{ o.DomainSlug }</td>
+		<td>
+			@components.Badge(o.Status, orgStatusBadge(o.Status))
+		</td>
+		<td class="td-time">{ o.CreatedAt.Format("Jan 02, 2006") }</td>
+		<td class="td-actions">
+			if o.Status == "suspended" {
+				<button
+					type="button"
+					class="btn-sm btn-secondary"
+					hx-post={ fmt.Sprintf("/api/v1/super-admin/organizations/%s/activate", o.ID) }
+					hx-target={ fmt.Sprintf("#org-row-%s", o.ID) }
+					hx-swap="outerHTML"
+					hx-confirm={ fmt.Sprintf("Activate organization %s?", o.CompanyName) }
+				>
+					Activate
+				</button>
+			} else {
+				<button
+					type="button"
+					class="btn-sm btn-danger"
+					hx-post={ fmt.Sprintf("/api/v1/super-admin/organizations/%s/suspend", o.ID) }
+					hx-target={ fmt.Sprintf("#org-row-%s", o.ID) }
+					hx-swap="outerHTML"
+					hx-confirm={ fmt.Sprintf("Suspend organization %s? All members will lose access.", o.CompanyName) }
+				>
+					Suspend
+				</button>
+			}
+			<button
+				type="button"
+				class="btn-sm btn-secondary"
+				hx-get={ fmt.Sprintf("/api/v1/super-admin/organizations/%s", o.ID) }
+				hx-target="#org-detail-drawer"
+				hx-swap="innerHTML"
+			>
+				View
+			</button>
+		</td>
+	</tr>
+}
+
+// orgInitials returns the first two characters of a company name.
+func orgInitials(name string) string {
+	if len(name) == 0 {
+		return "?"
+	}
+	runes := []rune(name)
+	if len(runes) >= 2 {
+		return string([]rune{runes[0], runes[1]})
+	}
+	return string(runes)
+}
+
+// orgStatusBadge returns a badge color for the given org status.
+func orgStatusBadge(status string) string {
+	switch status {
+	case "active":
+		return "green"
+	case "suspended":
+		return "red"
+	case "pending_verification":
+		return "yellow"
+	default:
+		return "gray"
+	}
+}

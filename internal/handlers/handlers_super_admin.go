@@ -1129,6 +1129,138 @@ func (a *App) SettingsPageHandlerForTest(w http.ResponseWriter, r *http.Request)
 	a.superAdminSettingsPageHandler(w, r)
 }
 
+// ── GET /api/v1/super-admin/users (HTML page) ──
+
+// superAdminUsersPageHandler renders the Users page with a global user directory.
+//
+//	@Summary		Users page (HTML)
+//	@Description	Renders the Users page showing the global user directory and RBAC.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/users [get]
+func (a *App) superAdminUsersPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Surrogate-Control", "no-store")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.SuperAdminUsersView()
+	component.Render(r.Context(), w)
+}
+
+// UsersPageHandlerForTest exposes the users page handler for httptest
+// without the auth middleware chain.
+func (a *App) UsersPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.superAdminUsersPageHandler(w, r)
+}
+
+// ── GET /api/v1/super-admin/users/fragment (HTML fragment) ──
+
+// listUsersFragmentHandler returns the users table body as an HTMX-swappable fragment.
+func (a *App) listUsersFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	offset, limit := parsePagination(r)
+	users, total, err := a.Users.ListAllUsers(r.Context(), offset, limit)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.UsersTableBody(nil).Render(r.Context(), w)
+		return
+	}
+
+	views := make([]templates.UserView, len(users))
+	for i, u := range users {
+		views[i] = templates.UserView{
+			ID:        u.ID.String(),
+			Email:     u.Email,
+			FullName:  u.FullName,
+			IsBanned:  u.IsBanned,
+			BanReason: u.BanReason,
+			CreatedAt: u.CreatedAt,
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.UsersTableBody(views).Render(r.Context(), w)
+
+	// Also update the total count via OOB swap.
+	countHTML := fmt.Sprintf("<span id=\"users-count\">%d users total</span>", total)
+	w.Write([]byte(countHTML))
+}
+
+// ListUsersFragmentHandlerForTest exposes the users fragment handler for httptest.
+func (a *App) ListUsersFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.listUsersFragmentHandler(w, r)
+}
+
+// ── GET /api/v1/super-admin/organizations (HTML page) ──
+
+// superAdminOrganizationsPageHandler renders the Organizations page with a tenant directory.
+//
+//	@Summary		Organizations page (HTML)
+//	@Description	Renders the Organizations page showing the tenant directory and provisioning.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/organizations [get]
+func (a *App) superAdminOrganizationsPageHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Expires", "0")
+	w.Header().Set("Surrogate-Control", "no-store")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	component := templates.SuperAdminOrganizationsView()
+	component.Render(r.Context(), w)
+}
+
+// OrganizationsPageHandlerForTest exposes the organizations page handler for httptest
+// without the auth middleware chain.
+func (a *App) OrganizationsPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.superAdminOrganizationsPageHandler(w, r)
+}
+
+// ── GET /api/v1/super-admin/organizations/fragment (HTML fragment) ──
+
+// listOrgsFragmentHandler returns the organizations table body as an HTMX-swappable fragment.
+func (a *App) listOrgsFragmentHandler(w http.ResponseWriter, r *http.Request) {
+	offset, limit := parsePagination(r)
+	orgs, total, err := a.Orgs.ListAllOrgs(r.Context(), offset, limit)
+	if err != nil {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		templates.OrgsTableBody(nil).Render(r.Context(), w)
+		return
+	}
+
+	views := make([]templates.OrgView, len(orgs))
+	for i, o := range orgs {
+		views[i] = templates.OrgView{
+			ID:          o.ID.String(),
+			CompanyName: o.CompanyName,
+			DomainSlug:  o.DomainSlug,
+			Status:      string(o.Status),
+			CreatedAt:   o.CreatedAt,
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.OrgsTableBody(views).Render(r.Context(), w)
+
+	countHTML := fmt.Sprintf("<span id=\"orgs-count\">%d organizations total</span>", total)
+	w.Write([]byte(countHTML))
+}
+
+// ListOrgsFragmentHandlerForTest exposes the organizations fragment handler for httptest.
+func (a *App) ListOrgsFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.listOrgsFragmentHandler(w, r)
+}
+
 // ── Helpers ──
 
 // staticHandler serves embedded static assets (CSS, JS, images) with

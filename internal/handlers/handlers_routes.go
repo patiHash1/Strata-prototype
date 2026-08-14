@@ -695,6 +695,22 @@ func (a *App) routes() http.Handler {
 
 	// ── Super-Admin: User management ──
 	mux.Handle("GET /api/v1/super-admin/users",
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.superAdminUsersPageHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/users/fragment",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.listUsersFragmentHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/users/json",
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.listAllUsersHandler),
@@ -728,6 +744,22 @@ func (a *App) routes() http.Handler {
 
 	// ── Super-Admin: Organization management ──
 	mux.Handle("GET /api/v1/super-admin/organizations",
+		utils.RequireAuthCookie(a.Auth, a.startedAt)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.superAdminOrganizationsPageHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/organizations/fragment",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.listOrgsFragmentHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/organizations/json",
 		utils.RequireAuth(a.Auth)(
 			utils.RequirePermission(services.PermSuperAdmin)(
 				http.HandlerFunc(a.listAllOrgsHandler),

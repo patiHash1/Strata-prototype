@@ -1,0 +1,252 @@
+package templates
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/patiHash1/Strata-prototype/internal/templates/components"
+)
+
+// UserView is a lightweight view model for the users table.
+type UserView struct {
+	ID        string
+	Email     string
+	FullName  string
+	IsBanned  bool
+	BanReason string
+	CreatedAt time.Time
+}
+
+// SuperAdminUsersView renders the /users page showing the global user
+// directory, RBAC overview, and session management.
+templ SuperAdminUsersView() {
+	@SuperAdminLayout("Users") {
+		<div class="dashboard-shell">
+			<!-- Page header -->
+			<div class="page-header-row">
+				<div>
+					<h1 class="page-title">Users</h1>
+					<p class="page-subtitle">Global user directory, role-based access control, and session management.</p>
+				</div>
+				<div class="page-header-actions">
+					<input
+						type="text"
+						placeholder="Search users..."
+						class="field-input field-input-sm"
+						hx-get="/api/v1/super-admin/users"
+						hx-trigger="keyup changed delay:300ms"
+						hx-include="[name='offset'],[name='limit']"
+						hx-target="#users-table-body"
+						hx-swap="innerHTML"
+						name="search"
+					/>
+				</div>
+			</div>
+			<!-- Users table card -->
+			@components.Card("") {
+				<div class="users-table-wrapper">
+					<table class="data-table">
+						<thead>
+							<tr>
+								<th>User</th>
+								<th>Email</th>
+								<th>Status</th>
+								<th>Joined</th>
+								<th class="th-actions">Actions</th>
+							</tr>
+						</thead>
+						<tbody
+							id="users-table-body"
+							hx-get="/api/v1/super-admin/users/fragment"
+							hx-trigger="load"
+							hx-swap="innerHTML"
+						>
+							<tr>
+								<td colspan="5" class="table-loading">Loading users…</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<!-- Pagination -->
+				<div class="table-footer">
+					<span class="table-footer-text" id="users-count"></span>
+					<div class="table-pagination">
+						<button
+							type="button"
+							class="btn-secondary btn-sm"
+							hx-get="/api/v1/super-admin/users/fragment"
+							hx-vals='js:{"offset": Math.max(0, parseInt(document.querySelector("[name=users-offset]")?.value || "0") - 50)}'
+							hx-target="#users-table-body"
+							hx-swap="innerHTML"
+							hx-include="[name='limit']"
+						>
+							← Previous
+						</button>
+						<input type="hidden" name="users-offset" value="0"/>
+						<input type="hidden" name="limit" value="50"/>
+						<button
+							type="button"
+							class="btn-secondary btn-sm"
+							hx-get="/api/v1/super-admin/users/fragment"
+							hx-vals='js:{"offset": parseInt(document.querySelector("[name=users-offset]")?.value || "0") + 50}'
+							hx-target="#users-table-body"
+							hx-swap="innerHTML"
+							hx-include="[name='limit']"
+						>
+							Next →
+						</button>
+					</div>
+				</div>
+			}
+			<!-- User detail drawer -->
+			<div id="user-detail-drawer" class="drawer" style="display:none;"></div>
+		</div>
+	}
+}
+
+// UsersTableBody renders the <tbody> rows for HTMX fragment swaps.
+templ UsersTableBody(users []UserView) {
+	for _, u := range users {
+		@UserRow(u)
+	}
+	if len(users) == 0 {
+		<tr>
+			<td colspan="5" class="table-empty">No users found.</td>
+		</tr>
+	}
+}
+
+// UserRow renders a single user as a table row.
+templ UserRow(u UserView) {
+	<tr id={ fmt.Sprintf("user-row-%s", u.ID) } class="data-table-row">
+		<td>
+			<div class="user-cell">
+				<div class="avatar avatar-sm">{ userInitials(u.FullName) }</div>
+				<span class="user-cell-name">{ u.FullName }</span>
+			</div>
+		</td>
+		<td class="td-email">{ u.Email }</td>
+		<td>
+			if u.IsBanned {
+				@components.Badge("Banned", "red")
+			} else {
+				@components.Badge("Active", "green")
+			}
+		</td>
+		<td class="td-time">{ u.CreatedAt.Format("Jan 02, 2006") }</td>
+		<td class="td-actions">
+			if u.IsBanned {
+				<button
+					type="button"
+					class="btn-sm btn-secondary"
+					hx-post={ fmt.Sprintf("/api/v1/super-admin/users/%s/unban", u.ID) }
+					hx-target={ fmt.Sprintf("#user-row-%s", u.ID) }
+					hx-swap="outerHTML"
+					hx-confirm={ fmt.Sprintf("Unban user %s?", u.Email) }
+				>
+					Unban
+				</button>
+			} else {
+				<button
+					type="button"
+					class="btn-sm btn-danger"
+					@click={ fmt.Sprintf("$dispatch('open-ban-modal', {userId: '%s', userEmail: '%s'})", u.ID, u.Email) }
+				>
+					Ban
+				</button>
+			}
+			<button
+				type="button"
+				class="btn-sm btn-secondary"
+				hx-get={ fmt.Sprintf("/api/v1/super-admin/users/%s", u.ID) }
+				hx-target="#user-detail-drawer"
+				hx-swap="innerHTML"
+			>
+				View
+			</button>
+		</td>
+	</tr>
+}
+
+// BanUserModal renders the ban confirmation modal.
+templ BanUserModal() {
+	<div
+		x-data="{ open: false, userId: '', userEmail: '' }"
+		@open-ban-modal.window="open = true; userId = $event.detail.userId; userEmail = $event.detail.userEmail"
+		@close-ban-modal.window="open = false"
+		@keydown.escape.window="open = false"
+		x-cloak
+	>
+		<div
+			x-show="open"
+			x-transition:enter="transition ease-out duration-200"
+			x-transition:enter-start="opacity-0"
+			x-transition:enter-end="opacity-100"
+			x-transition:leave="transition ease-in duration-150"
+			x-transition:leave-start="opacity-100"
+			x-transition:leave-end="opacity-0"
+			class="modal-backdrop"
+			@click="open = false"
+		></div>
+		<div
+			x-show="open"
+			x-transition:enter="transition ease-out duration-200"
+			x-transition:enter-start="opacity-0 scale-95"
+			x-transition:enter-end="opacity-100 scale-100"
+			x-transition:leave="transition ease-in duration-150"
+			x-transition:leave-start="opacity-100 scale-100"
+			x-transition:leave-end="opacity-0 scale-95"
+			class="modal-panel"
+			@click.outside="open = false"
+		>
+			<div class="modal-header">
+				<h3 class="modal-title">Ban User</h3>
+				<button type="button" class="modal-close" @click="open = false">
+					<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+					</svg>
+				</button>
+			</div>
+			<form
+				class="modal-form"
+				hx-post="/api/v1/super-admin/users/ban-placeholder"
+				hx-on:submit="this.action = '/api/v1/super-admin/users/' + document.querySelector('[x-data]').__x.$data.userId + '/ban'"
+				hx-swap="none"
+				x-data
+			>
+				<div class="modal-form-fields">
+					<p class="ban-modal-info">
+						You are about to ban <strong x-text="userEmail"></strong>. This user will be unable to authenticate.
+					</p>
+					<div>
+						<label for="ban-reason" class="field-label">Reason</label>
+						<textarea
+							name="reason"
+							id="ban-reason"
+							class="field-input"
+							rows="3"
+							placeholder="Describe why this user is being banned…"
+							required
+						></textarea>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn-secondary" @click="open = false">Cancel</button>
+					<button type="submit" class="btn-danger">Ban User</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}
+
+// userInitials extracts the first two characters of a name for the avatar.
+func userInitials(name string) string {
+	if len(name) == 0 {
+		return "?"
+	}
+	runes := []rune(name)
+	if len(runes) >= 2 {
+		return string([]rune{runes[0], runes[1]})
+	}
+	return string(runes)
+}
