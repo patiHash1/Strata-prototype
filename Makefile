@@ -1,4 +1,4 @@
-.PHONY: dev build test clean install-tools check-redis testsoc
+.PHONY: dev build test clean install-tools check-redis testsoc data-seed data-wipe templ-generate swagger
 
 # ── Tool versions / paths ──
 AIR       := $(shell command -v air 2>/dev/null || echo "$(shell go env GOPATH)/bin/air")
@@ -68,13 +68,22 @@ clean:
 	@echo "==> Cleaning…"
 	rm -rf ./tmp
 
+# ── Seed / wipe dummy data ──
+data-seed:
+	@echo "==> Seeding database with dummy data…"
+	go run ./scripts/seed.go seed
+
+data-wipe:
+	@echo "==> Wiping dummy data from database…"
+	go run ./scripts/seed.go wipe
+
 # ── Development server (hot-reload) ──
 # Runs templ generate once, checks Redis, then starts air for hot-reload.
 dev: install-tools templ-generate check-redis
 	@echo "==> Starting development server with hot-reload…"
 	$(AIR)
 
-	# ── Publish mock SOC events to Redis ──
+# ── Publish mock SOC events to Redis ──
 testsoc:
 	@echo "==> Publishing mock SOC events to Redis…"
 	REDIS_ADDR=$${REDIS_ADDR:-localhost:6379}; \
