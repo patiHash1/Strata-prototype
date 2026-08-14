@@ -29,8 +29,23 @@ type SecurityEvent struct {
 	Timestamp time.Time
 }
 
+// DashboardKPIs holds the real-time KPI values for the dashboard.
+type DashboardKPIs struct {
+	SystemUptime         string
+	ActiveOrganizations  int
+	TotalActiveUsers     int
+	SecurityAlerts       int
+}
+
+// ActivityItem holds a single recent activity entry.
+type ActivityItem struct {
+	Severity  string
+	Message   string
+	Timestamp string
+}
+
 // SuperAdminDashboardView renders the high-level platform health dashboard
-// with KPIs, API traffic, and recent activity.
+// with real-time KPIs, API traffic, and recent activity.
 templ SuperAdminDashboardView() {
 	@SuperAdminLayout("Dashboard") {
 		<div class="dashboard-shell">
@@ -56,39 +71,74 @@ templ SuperAdminDashboardView() {
 					<div id="health-output" class="health-output"></div>
 				</div>
 			</div>
-			<!-- Top KPI Bar -->
-			<div class="kpi-grid">
-				@KPICard("System Uptime", "99.9%", "Uptime", "green", "30-day rolling average")
-				@KPICard("Active Organizations", "12", "Active", "strata", "Across all tenants")
-				@KPICard("Global Users", "2,847", "Active", "blue", "1,204 RPS average")
-				@KPICard("Security Alerts", "0", "Clear", "green", "No critical issues")
+			<!-- Top KPI Bar — HTMX polls every 10s -->
+			<div
+				id="dashboard-kpis"
+				hx-get="/api/v1/super-admin/dashboard/kpis"
+				hx-trigger="load, every 10s"
+				hx-swap="innerHTML"
+			>
+				@DashboardKPIGrid(DashboardKPIs{})
 			</div>
-			<!-- Global API Traffic Chart -->
-			@APITrafficChart()
-			<!-- Recent Activity Feed -->
-			<div class="content-grid">
-				@components.Card("Recent Activity") {
-					<div class="activity-list">
-						<div class="activity-item">
-							@components.Badge("Deploy", "purple")
-							<span class="activity-text">v0.1.0 deployed to production</span>
-							<span class="activity-time">2h ago</span>
-						</div>
-						<div class="activity-item">
-							@components.Badge("Alert", "yellow")
-							<span class="activity-text">Disk usage at 78% on db-primary</span>
-							<span class="activity-time">5h ago</span>
-						</div>
-						<div class="activity-item">
-							@components.Badge("User", "blue")
-							<span class="activity-text">New org registered: Acme Corp</span>
-							<span class="activity-time">1d ago</span>
-						</div>
-					</div>
-				}
+			<!-- Bottom row: API Traffic (65%) + Recent Activity (35%) -->
+			<div class="dashboard-bottom-row">
+				<!-- Global API Traffic Chart (65%) -->
+				<div class="dashboard-bottom-chart" style="flex: 65;">
+					@APITrafficChart()
+				</div>
+				<!-- Recent Activity Feed (35%) -->
+				<div class="dashboard-bottom-activity" style="flex: 35;">
+					@DashboardActivityPanel()
+				</div>
 			</div>
 		</div>
 	}
+}
+
+// DashboardKPIGrid renders the four KPI cards as an HTMX-swappable fragment.
+templ DashboardKPIGrid(kpis DashboardKPIs) {
+	<div id="dashboard-kpis" class="kpi-grid">
+		@KPICard("System Uptime", kpis.SystemUptime, "Uptime", "green", "30-day rolling average")
+		@KPICard("Active Organizations", fmt.Sprintf("%d", kpis.ActiveOrganizations), "Active", "strata", "Across all tenants")
+		@KPICard("Global Users", fmt.Sprintf("%d", kpis.TotalActiveUsers), "Active", "blue", "Registered users")
+		@KPICard("Security Alerts", fmt.Sprintf("%d", kpis.SecurityAlerts), alertBadge(kpis.SecurityAlerts), alertBadgeColor(kpis.SecurityAlerts), alertCaption(kpis.SecurityAlerts))
+	</div>
+}
+
+// DashboardActivityPanel renders the recent activity panel with HTMX polling.
+templ DashboardActivityPanel() {
+	<div
+		id="dashboard-activity"
+		hx-get="/api/v1/super-admin/dashboard/activity"
+		hx-trigger="load, every 15s"
+		hx-swap="innerHTML"
+	>
+		@components.Card("Recent Activity") {
+			<div class="activity-list">
+				<div class="activity-empty">Loading recent activity…</div>
+			</div>
+		}
+	</div>
+}
+
+// DashboardActivityList renders the activity items as an HTMX-swappable fragment.
+templ DashboardActivityList(items []ActivityItem) {
+	<div id="dashboard-activity">
+		@components.Card("Recent Activity") {
+			<div class="activity-list">
+				if len(items) == 0 {
+					<div class="activity-empty">No recent activity.</div>
+				}
+				for _, item := range items {
+					<div class="activity-item">
+						@components.Badge(item.Severity, severityBadgeColor(item.Severity))
+						<span class="activity-text">{ item.Message }</span>
+						<span class="activity-time">{ item.Timestamp }</span>
+					</div>
+				}
+			</div>
+		}
+	</div>
 }
 
 // KPICard renders a high-level KPI metric card for the dashboard.
@@ -107,6 +157,77 @@ templ KPICard(title string, value string, badgeLabel string, badgeColor string, 
 	</div>
 }
 
+// MetricsGrid renders the four metric cards as an HTMX-swappable fragment.
+// It does NOT include the full HTML layout shell — only the grid div.
+templ MetricsGrid(metrics SystemMetricsView) {
+	<div id="metrics-grid" class="metrics-grid">
+		@components.Card("Runtime Memory") {
+			<div class="stat-container">
+				<span class="stat-number">{ fmt.Sprintf("%.1f MB", metrics.AllocatedMB) }</span>
+				@components.Badge(fmt.Sprintf("%d GC", metrics.GCRuns), "blue")
+			</div>
+			<p class="stat-caption">{ fmt.Sprintf("%d goroutines · %d heap objects", metrics.Goroutines, metrics.HeapObjects) }</p>
+		}
+		@components.Card("DB Connections") {
+			<div class="stat-container">
+				<span class="stat-number">{ fmt.Sprintf("%d", metrics.AcquiredConns) }</span>
+				@components.Badge(fmt.Sprintf("%d idle", metrics.IdleConns), "green")
+			</div>
+			<p class="stat-caption">{ fmt.Sprintf("%d total / %d max", metrics.TotalConns, metrics.MaxConns) }</p>
+		}
+		@components.Card("Goroutines") {
+			<div class="stat-container">
+				<span class="stat-number">{ fmt.Sprintf("%d", metrics.Goroutines) }</span>
+				@components.Badge("Live", "strata")
+			</div>
+			<p class="stat-caption">Active goroutines</p>
+		}
+		@components.Card("System Status") {
+			<div class="stat-container">
+				<span class="stat-number">99.9%</span>
+				@components.Badge("Uptime", "green")
+			</div>
+			<p class="stat-caption">30-day rolling average</p>
+		}
+	</div>
+}
+
+// SSEFeed renders an HTMX SSE-connected container that listens for
+// security-event messages and swaps new log entries at the top of the list.
+templ SSEFeed() {
+	<div
+		hx-ext="sse"
+		sse-connect="/api/v1/super-admin/security/stream"
+		sse-swap="security-event"
+		hx-swap="afterbegin"
+		class="sse-feed"
+	>
+		<div class="sse-feed-empty">
+			<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+			</svg>
+			<p>Waiting for security events…</p>
+		</div>
+	</div>
+}
+
+// SecurityLogEntry renders a single SOC security event as an HTML element
+// suitable for SSE streaming. It is wrapped in a <div> that HTMX can swap
+// into the feed container.
+templ SecurityLogEntry(event SecurityEvent) {
+	<div class={ "sse-entry", "sse-severity-" + event.Severity }>
+		<div class="sse-entry-header">
+			<span class="sse-entry-type">{ event.Type }</span>
+			@components.Badge(event.Severity, event.Severity)
+			if event.IPAddress != "" {
+				<span class="sse-entry-ip">{ event.IPAddress }</span>
+			}
+			<span class="sse-entry-time">{ event.Timestamp.Format("15:04:05") }</span>
+		</div>
+		<p class="sse-entry-message">{ event.Message }</p>
+	</div>
+}
+
 // APITrafficChart renders a high-level API traffic chart showing 2xx vs 5xx throughput.
 templ APITrafficChart() {
 	<div
@@ -118,7 +239,7 @@ templ APITrafficChart() {
 			<h3 class="card-header-title">Global API Traffic</h3>
 		</div>
 		<div class="card-body">
-			<div id="api-traffic-chart" style="min-height: 250px;"></div>
+			<div id="api-traffic-chart" style="min-height: 280px;"></div>
 		</div>
 	</div>
 	<script>
@@ -136,7 +257,7 @@ templ APITrafficChart() {
 						chart: {
 							id: 'api-traffic-chart',
 							type: 'area',
-							height: 250,
+							height: 280,
 							animations: {
 								enabled: true,
 								easing: 'easeinout',
@@ -192,204 +313,36 @@ templ APITrafficChart() {
 	</script>
 }
 
-// MetricsGrid renders the four metric cards as an HTMX-swappable fragment.
-// It does NOT include the full HTML layout shell — only the grid div.
-templ MetricsGrid(metrics SystemMetricsView) {
-	<div id="metrics-grid" class="metrics-grid">
-		@components.Card("Runtime Memory") {
-			<div class="stat-container">
-				<span class="stat-number">{ fmt.Sprintf("%.1f MB", metrics.AllocatedMB) }</span>
-				@components.Badge(fmt.Sprintf("%d GC", metrics.GCRuns), "blue")
-			</div>
-			<p class="stat-caption">{ fmt.Sprintf("%d goroutines · %d heap objects", metrics.Goroutines, metrics.HeapObjects) }</p>
-		}
-		@components.Card("DB Connections") {
-			<div class="stat-container">
-				<span class="stat-number">{ fmt.Sprintf("%d", metrics.AcquiredConns) }</span>
-				@components.Badge(fmt.Sprintf("%d idle", metrics.IdleConns), "green")
-			</div>
-			<p class="stat-caption">{ fmt.Sprintf("%d total / %d max", metrics.TotalConns, metrics.MaxConns) }</p>
-		}
-		@components.Card("Goroutines") {
-			<div class="stat-container">
-				<span class="stat-number">{ fmt.Sprintf("%d", metrics.Goroutines) }</span>
-				@components.Badge("Live", "strata")
-			</div>
-			<p class="stat-caption">Active goroutines</p>
-		}
-		@components.Card("System Status") {
-			<div class="stat-container">
-				<span class="stat-number">99.9%</span>
-				@components.Badge("Uptime", "green")
-			</div>
-			<p class="stat-caption">30-day rolling average</p>
-		}
-	</div>
+// ── Helpers ──
+
+func alertBadge(count int) string {
+	if count > 0 {
+		return fmt.Sprintf("%d Alert", count)
+	}
+	return "Clear"
 }
 
-// MetricsChart renders an ApexCharts line graph using Alpine.js.
-// It listens to HTMX afterSwap events to update data series dynamically
-// without fully redrawing the chart canvas.
-templ MetricsChart() {
-	<div
-		class="card"
-		x-data="metricsChart()"
-		x-init="initChart()"
-		@@htmx:afterSwap.window="onMetricsUpdate($event)"
-	>
-		<div class="card-header">
-			<h3 class="card-header-title">Real-Time Metrics</h3>
-		</div>
-		<div class="card-body">
-			<div id="metrics-chart" style="min-height: 300px;"></div>
-		</div>
-	</div>
-	<script>
-		function metricsChart() {
-			return {
-				chart: null,
-				seriesData: [],
-
-				initChart() {
-					if (typeof ApexCharts === 'undefined') {
-						// ApexCharts CDN not loaded yet; retry on next tick.
-						setTimeout(() => this.initChart(), 200);
-						return;
-					}
-
-					const options = {
-						chart: {
-							id: 'metrics-line-chart',
-							type: 'line',
-							height: 300,
-							animations: {
-								enabled: true,
-								easing: 'easeinout',
-								speed: 400,
-								animateGradually: {
-									enabled: true,
-									delay: 100,
-								},
-							},
-							toolbar: { show: false },
-							background: 'transparent',
-						},
-						stroke: {
-							curve: 'smooth',
-							width: 2,
-						},
-						colors: ['#00ADD8', '#7B42BC', '#2EA043', '#D97706'],
-						series: [
-							{ name: 'Memory (MB)', data: [] },
-							{ name: 'Goroutines', data: [] },
-							{ name: 'DB Conns', data: [] },
-							{ name: 'Heap Objects (÷100)', data: [] },
-						],
-						xaxis: {
-							type: 'datetime',
-							labels: {
-								style: { colors: '#9CA3AF' },
-							},
-						},
-						yaxis: {
-							labels: {
-								style: { colors: '#9CA3AF' },
-							},
-						},
-						grid: {
-							borderColor: '#374151',
-							strokeDashArray: 4,
-						},
-						legend: {
-							labels: {
-								colors: '#9CA3AF',
-							},
-						},
-						tooltip: {
-							theme: 'dark',
-						},
-					};
-
-					this.chart = new ApexCharts(document.querySelector('#metrics-chart'), options);
-					this.chart.render();
-				},
-
-				onMetricsUpdate(event) {
-					// Only react to swaps targeting our metrics grid.
-					const target = event.detail.target;
-					if (!target || target.id !== 'metrics-grid') return;
-
-					if (!this.chart) return;
-
-					const now = Date.now();
-
-					// Parse metric values from the swapped HTML.
-					const html = target.innerHTML;
-					const memMatch = html.match(/([\d.]+)\s*MB/);
-					const gorMatch = html.match(/(\d+)\s*goroutines/);
-					const connMatch = html.match(/(\d+)\s*total/);
-					const heapMatch = html.match(/(\d+)\s*heap objects/);
-
-					const memVal = memMatch ? parseFloat(memMatch[1]) : 0;
-					const gorVal = gorMatch ? parseInt(gorMatch[1], 10) : 0;
-					const connVal = connMatch ? parseInt(connMatch[1], 10) : 0;
-					const heapVal = heapMatch ? parseInt(heapMatch[1], 10) / 100 : 0;
-
-					// Append new data point to each series.
-					this.chart.appendData([
-						{ data: [memVal] },
-						{ data: [gorVal] },
-						{ data: [connVal] },
-						{ data: [heapVal] },
-					]);
-
-					// Keep at most 60 data points (5 minutes at 5s intervals).
-					const series = this.chart.w.globals.series;
-					if (series[0] && series[0].length > 60) {
-						const sliceStart = series[0].length - 60;
-						const newSeries = series.map(s => ({
-							data: s.slice(sliceStart),
-						}));
-						this.chart.updateSeries(newSeries);
-					}
-				},
-			};
-		}
-	</script>
+func alertBadgeColor(count int) string {
+	if count > 0 {
+		return "red"
+	}
+	return "green"
 }
 
-// SSEFeed renders an HTMX SSE-connected container that listens for
-// security-event messages and swaps new log entries at the top of the list.
-templ SSEFeed() {
-	<div
-		hx-ext="sse"
-		sse-connect="/api/v1/super-admin/security/stream"
-		sse-swap="security-event"
-		hx-swap="afterbegin"
-		class="sse-feed"
-	>
-		<div class="sse-feed-empty">
-			<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-			</svg>
-			<p>Waiting for security events…</p>
-		</div>
-	</div>
+func alertCaption(count int) string {
+	if count > 0 {
+		return "Requires attention"
+	}
+	return "No critical issues"
 }
 
-// SecurityLogEntry renders a single SOC security event as an HTML element
-// suitable for SSE streaming. It is wrapped in a <div> that HTMX can swap
-// into the feed container.
-templ SecurityLogEntry(event SecurityEvent) {
-	<div class={ "sse-entry", "sse-severity-" + event.Severity }>
-		<div class="sse-entry-header">
-			<span class="sse-entry-type">{ event.Type }</span>
-			@components.Badge(event.Severity, event.Severity)
-			if event.IPAddress != "" {
-				<span class="sse-entry-ip">{ event.IPAddress }</span>
-			}
-			<span class="sse-entry-time">{ event.Timestamp.Format("15:04:05") }</span>
-		</div>
-		<p class="sse-entry-message">{ event.Message }</p>
-	</div>
+func severityBadgeColor(severity string) string {
+	switch severity {
+	case "high", "critical":
+		return "red"
+	case "medium", "warn":
+		return "yellow"
+	default:
+		return "blue"
+	}
 }

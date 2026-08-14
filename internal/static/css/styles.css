@@ -603,6 +603,37 @@ table { border-collapse: collapse; }
 	margin-bottom: 1.5rem;
 }
 
+/* ── Dashboard Bottom Row (65:35 split) ─────────────────────── */
+
+.dashboard-bottom-row {
+	display: flex;
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+}
+
+.dashboard-bottom-chart,
+.dashboard-bottom-activity {
+	min-width: 0;
+}
+
+.dashboard-bottom-chart .card,
+.dashboard-bottom-activity .card {
+	height: 100%;
+}
+
+.activity-empty {
+	padding: 2rem 0;
+	text-align: center;
+	color: var(--color-gray-400);
+	font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+	.dashboard-bottom-row {
+		flex-direction: column;
+	}
+}
+
 /* ── Content Grid ────────────────────────────────────────────── */
 
 .content-grid {

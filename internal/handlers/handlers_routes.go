@@ -693,6 +693,22 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	mux.Handle("GET /api/v1/super-admin/dashboard/kpis",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.dashboardKPIsHandler),
+			),
+		),
+	)
+
+	mux.Handle("GET /api/v1/super-admin/dashboard/activity",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.dashboardActivityHandler),
+			),
+		),
+	)
+
 	// ── Super-Admin: User management ──
 	mux.Handle("GET /api/v1/super-admin/users",
 		utils.RequireAuthCookie(a.Auth, a.startedAt)(

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
@@ -227,6 +228,101 @@ func (a *App) superAdminDashboardHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	component := templates.SuperAdminDashboardView()
 	component.Render(r.Context(), w)
+}
+
+// ── GET /api/v1/super-admin/dashboard/kpis ──
+
+// dashboardKPIsHandler returns the real-time KPI fragment for HTMX polling.
+func (a *App) dashboardKPIsHandler(w http.ResponseWriter, r *http.Request) {
+	kpis := templates.DashboardKPIs{
+		SystemUptime: "99.9%",
+	}
+
+	// Count active organizations.
+	if _, orgTotal, err := a.Orgs.ListAllOrgs(r.Context(), 0, 1); err == nil {
+		kpis.ActiveOrganizations = orgTotal
+	}
+
+	// Count total active users.
+	if _, userTotal, err := a.Users.ListAllUsers(r.Context(), 0, 1); err == nil {
+		kpis.TotalActiveUsers = userTotal
+	}
+
+	// Count recent security alerts (high/critical from ring buffer).
+	if a.SuperAdmin != nil {
+		events := a.SuperAdmin.RecentSOCEvents()
+		for _, e := range events {
+			if e.Severity == "high" || e.Severity == "critical" {
+				kpis.SecurityAlerts++
+			}
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.DashboardKPIGrid(kpis).Render(r.Context(), w)
+}
+
+// DashboardKPIsHandlerForTest exposes the KPI handler for httptest.
+func (a *App) DashboardKPIsHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.dashboardKPIsHandler(w, r)
+}
+
+// ── GET /api/v1/super-admin/dashboard/activity ──
+
+// dashboardActivityHandler returns the recent activity fragment for HTMX polling.
+func (a *App) dashboardActivityHandler(w http.ResponseWriter, r *http.Request) {
+	var items []templates.ActivityItem
+
+	if a.SuperAdmin != nil {
+		events := a.SuperAdmin.RecentSOCEvents()
+		limit := 20
+		if len(events) < limit {
+			limit = len(events)
+		}
+		events = events[:limit]
+		for _, e := range events {
+			age := time.Since(e.Timestamp)
+			items = append(items, templates.ActivityItem{
+				Severity:  e.Severity,
+				Message:   e.Message,
+				Timestamp: humanDuration(age),
+			})
+		}
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	templates.DashboardActivityList(items).Render(r.Context(), w)
+}
+
+// DashboardActivityHandlerForTest exposes the activity handler for httptest.
+func (a *App) DashboardActivityHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.dashboardActivityHandler(w, r)
+}
+
+// humanDuration returns a human-readable relative time string.
+func humanDuration(d time.Duration) string {
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		mins := int(d.Minutes())
+		if mins == 1 {
+			return "1m ago"
+		}
+		return fmt.Sprintf("%dm ago", mins)
+	case d < 24*time.Hour:
+		hours := int(d.Hours())
+		if hours == 1 {
+			return "1h ago"
+		}
+		return fmt.Sprintf("%dh ago", hours)
+	default:
+		days := int(d.Hours() / 24)
+		if days == 1 {
+			return "1d ago"
+		}
+		return fmt.Sprintf("%dd ago", days)
+	}
 }
 
 // SuperAdminDashboardHandlerForTest exposes the dashboard handler for httptest

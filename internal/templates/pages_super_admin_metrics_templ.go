@@ -8,9 +8,9 @@ package templates
 import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
-// SuperAdminMetricsView renders the /metrics page showing low-level runtime
-// telemetry, database performance, and infrastructure profiling.
-func SuperAdminMetricsView() templ.Component {
+// MetricsChart renders an ApexCharts line graph using Alpine.js.
+// It listens to HTMX afterSwap events to update data series dynamically.
+func MetricsChart() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -31,7 +31,38 @@ func SuperAdminMetricsView() templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Var2 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"card\" x-data=\"metricsChart()\" x-init=\"initChart()\" @@htmx:afterSwap.window=\"onMetricsUpdate($event)\"><div class=\"card-header\"><h3 class=\"card-header-title\">Real-Time Metrics</h3></div><div class=\"card-body\"><div id=\"metrics-chart\" style=\"min-height: 300px;\"></div></div></div><script>\n\t\tfunction metricsChart() {\n\t\t\treturn {\n\t\t\t\tchart: null,\n\t\t\t\tseriesData: [],\n\n\t\t\t\tinitChart() {\n\t\t\t\t\tif (typeof ApexCharts === 'undefined') {\n\t\t\t\t\t\tsetTimeout(() => this.initChart(), 200);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst options = {\n\t\t\t\t\t\tchart: {\n\t\t\t\t\t\t\tid: 'metrics-line-chart',\n\t\t\t\t\t\t\ttype: 'line',\n\t\t\t\t\t\t\theight: 300,\n\t\t\t\t\t\t\tanimations: { enabled: true, easing: 'easeinout', speed: 400 },\n\t\t\t\t\t\t\ttoolbar: { show: false },\n\t\t\t\t\t\t\tbackground: 'transparent',\n\t\t\t\t\t\t},\n\t\t\t\t\t\tstroke: { curve: 'smooth', width: 2 },\n\t\t\t\t\t\tcolors: ['#00ADD8', '#7B42BC', '#2EA043', '#D97706'],\n\t\t\t\t\t\tseries: [\n\t\t\t\t\t\t\t{ name: 'Memory (MB)', data: [] },\n\t\t\t\t\t\t\t{ name: 'Goroutines', data: [] },\n\t\t\t\t\t\t\t{ name: 'DB Conns', data: [] },\n\t\t\t\t\t\t\t{ name: 'Heap Objects (\\u00f7100)', data: [] },\n\t\t\t\t\t\t],\n\t\t\t\t\t\txaxis: { type: 'datetime', labels: { style: { colors: '#9CA3AF' } } },\n\t\t\t\t\t\tyaxis: { labels: { style: { colors: '#9CA3AF' } } },\n\t\t\t\t\t\tgrid: { borderColor: '#374151', strokeDashArray: 4 },\n\t\t\t\t\t\tlegend: { labels: { colors: '#9CA3AF' } },\n\t\t\t\t\t\ttooltip: { theme: 'dark' },\n\t\t\t\t\t};\n\n\t\t\t\t\tthis.chart = new ApexCharts(document.querySelector('#metrics-chart'), options);\n\t\t\t\t\tthis.chart.render();\n\t\t\t\t},\n\n\t\t\t\tonMetricsUpdate(event) {\n\t\t\t\t\tconst target = event.detail.target;\n\t\t\t\t\tif (!target || target.id !== 'metrics-grid') return;\n\t\t\t\t\tif (!this.chart) return;\n\n\t\t\t\t\tconst html = target.innerHTML;\n\t\t\t\t\tconst memMatch = html.match(/([\\d.]+)\\s*MB/);\n\t\t\t\t\tconst gorMatch = html.match(/(\\d+)\\s*goroutines/);\n\t\t\t\t\tconst connMatch = html.match(/(\\d+)\\s*total/);\n\t\t\t\t\tconst heapMatch = html.match(/(\\d+)\\s*heap objects/);\n\n\t\t\t\t\tconst memVal = memMatch ? parseFloat(memMatch[1]) : 0;\n\t\t\t\t\tconst gorVal = gorMatch ? parseInt(gorMatch[1], 10) : 0;\n\t\t\t\t\tconst connVal = connMatch ? parseInt(connMatch[1], 10) : 0;\n\t\t\t\t\tconst heapVal = heapMatch ? parseInt(heapMatch[1], 10) / 100 : 0;\n\n\t\t\t\t\tthis.chart.appendData([\n\t\t\t\t\t\t{ data: [memVal] },\n\t\t\t\t\t\t{ data: [gorVal] },\n\t\t\t\t\t\t{ data: [connVal] },\n\t\t\t\t\t\t{ data: [heapVal] },\n\t\t\t\t\t]);\n\n\t\t\t\t\tconst series = this.chart.w.globals.series;\n\t\t\t\t\tif (series[0] && series[0].length > 60) {\n\t\t\t\t\t\tconst sliceStart = series[0].length - 60;\n\t\t\t\t\t\tconst newSeries = series.map(s => ({ data: s.slice(sliceStart) }));\n\t\t\t\t\t\tthis.chart.updateSeries(newSeries);\n\t\t\t\t\t}\n\t\t\t\t},\n\t\t\t};\n\t\t}\n\t</script>")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		return nil
+	})
+}
+
+// SuperAdminMetricsView renders the /metrics page showing low-level runtime
+// telemetry, database performance, and infrastructure profiling.
+func SuperAdminMetricsView() templ.Component {
+	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
+		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
+			return templ_7745c5c3_CtxErr
+		}
+		templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
+		if !templ_7745c5c3_IsBuffer {
+			defer func() {
+				templ_7745c5c3_BufErr := templruntime.ReleaseBuffer(templ_7745c5c3_Buffer)
+				if templ_7745c5c3_Err == nil {
+					templ_7745c5c3_Err = templ_7745c5c3_BufErr
+				}
+			}()
+		}
+		ctx = templ.InitializeContext(ctx)
+		templ_7745c5c3_Var2 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var2 == nil {
+			templ_7745c5c3_Var2 = templ.NopComponent
+		}
+		ctx = templ.ClearChildren(ctx)
+		templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -43,7 +74,7 @@ func SuperAdminMetricsView() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"dashboard-shell\"><!-- Page header --><div><h1 class=\"page-title\">Metrics</h1><p class=\"page-subtitle\">Runtime telemetry, database performance, and infrastructure profiling.</p></div><!-- Runtime metrics grid with HTMX polling --><div id=\"metrics-grid\" hx-get=\"/api/v1/super-admin/metrics/fragment\" hx-trigger=\"load, every 5s\" hx-swap=\"outerHTML\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"dashboard-shell\"><!-- Page header --><div><h1 class=\"page-title\">Metrics</h1><p class=\"page-subtitle\">Runtime telemetry, database performance, and infrastructure profiling.</p></div><!-- Runtime metrics grid with HTMX polling --><div id=\"metrics-grid\" hx-get=\"/api/v1/super-admin/metrics/fragment\" hx-trigger=\"load, every 5s\" hx-swap=\"outerHTML\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -51,7 +82,7 @@ func SuperAdminMetricsView() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</div><!-- ApexCharts real-time line graph -->")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div><!-- ApexCharts real-time line graph -->")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -59,13 +90,13 @@ func SuperAdminMetricsView() templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = SuperAdminLayout("Metrics").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = SuperAdminLayout("Metrics").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
