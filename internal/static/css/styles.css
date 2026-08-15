@@ -609,16 +609,64 @@ table { border-collapse: collapse; }
 	display: flex;
 	gap: 1rem;
 	margin-bottom: 1.5rem;
+	min-height: 380px;
 }
 
-.dashboard-bottom-chart,
-.dashboard-bottom-activity {
+.dashboard-bottom-chart {
+	flex: 65;
 	min-width: 0;
+}
+
+.dashboard-bottom-activity {
+	flex: 35;
+	min-width: 0;
+	min-height: 0;
 }
 
 .dashboard-bottom-chart .card,
 .dashboard-bottom-activity .card {
+	display: flex;
+	flex-direction: column;
 	height: 100%;
+}
+
+/* Make the activity card body fill remaining height and scroll */
+.dashboard-bottom-activity .card-body {
+	flex: 1;
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.activity-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.activity-item {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 0.625rem 0;
+	border-bottom: 1px solid var(--color-gray-100);
+}
+
+.activity-item:last-child {
+	border-bottom: none;
+}
+
+.activity-text {
+	flex: 1;
+	font-size: 0.8125rem;
+	color: var(--color-gray-700);
+	line-height: 1.4;
+}
+
+.activity-time {
+	white-space: nowrap;
+	font-size: 0.75rem;
+	color: var(--color-gray-400);
+	flex-shrink: 0;
 }
 
 .activity-empty {
@@ -631,6 +679,7 @@ table { border-collapse: collapse; }
 @media (max-width: 768px) {
 	.dashboard-bottom-row {
 		flex-direction: column;
+		min-height: auto;
 	}
 }
 

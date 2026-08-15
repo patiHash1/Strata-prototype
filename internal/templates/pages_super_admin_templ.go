@@ -52,6 +52,13 @@ type ActivityItem struct {
 	Timestamp string
 }
 
+// TrafficDataPoint is the JSON shape returned by the traffic chart endpoint.
+type TrafficDataPoint struct {
+	Timestamp int64 `json:"ts"`
+	Count2xx  int64 `json:"count_2xx"`
+	Count5xx  int64 `json:"count_5xx"`
+}
+
 // SuperAdminDashboardView renders the high-level platform health dashboard
 // with real-time KPIs, API traffic, and recent activity.
 func SuperAdminDashboardView() templ.Component {
@@ -295,7 +302,7 @@ func DashboardActivityList(items []ActivityItem) templ.Component {
 				var templ_7745c5c3_Var8 string
 				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(item.Message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 135, Col: 48}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 142, Col: 48}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
 				if templ_7745c5c3_Err != nil {
@@ -308,7 +315,7 @@ func DashboardActivityList(items []ActivityItem) templ.Component {
 				var templ_7745c5c3_Var9 string
 				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(item.Timestamp)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 136, Col: 50}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 143, Col: 50}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
@@ -366,7 +373,7 @@ func KPICard(title string, value string, badgeLabel string, badgeColor string, c
 		var templ_7745c5c3_Var11 string
 		templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 148, Col: 40}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 155, Col: 40}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 		if templ_7745c5c3_Err != nil {
@@ -379,7 +386,7 @@ func KPICard(title string, value string, badgeLabel string, badgeColor string, c
 		var templ_7745c5c3_Var12 string
 		templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(value)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 152, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 159, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 		if templ_7745c5c3_Err != nil {
@@ -400,7 +407,7 @@ func KPICard(title string, value string, badgeLabel string, badgeColor string, c
 		var templ_7745c5c3_Var13 string
 		templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(caption)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 155, Col: 36}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 162, Col: 36}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 		if templ_7745c5c3_Err != nil {
@@ -460,7 +467,7 @@ func MetricsGrid(metrics SystemMetricsView) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f MB", metrics.AllocatedMB))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 166, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 173, Col: 75}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -481,7 +488,7 @@ func MetricsGrid(metrics SystemMetricsView) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d goroutines · %d heap objects", metrics.Goroutines, metrics.HeapObjects))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 169, Col: 117}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 176, Col: 117}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -516,7 +523,7 @@ func MetricsGrid(metrics SystemMetricsView) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", metrics.AcquiredConns))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 173, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 180, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -537,7 +544,7 @@ func MetricsGrid(metrics SystemMetricsView) templ.Component {
 			var templ_7745c5c3_Var20 string
 			templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d total / %d max", metrics.TotalConns, metrics.MaxConns))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 176, Col: 99}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 183, Col: 99}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 			if templ_7745c5c3_Err != nil {
@@ -572,7 +579,7 @@ func MetricsGrid(metrics SystemMetricsView) templ.Component {
 			var templ_7745c5c3_Var22 string
 			templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%d", metrics.Goroutines))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 180, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 187, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 			if templ_7745c5c3_Err != nil {
@@ -714,7 +721,7 @@ func SecurityLogEntry(event SecurityEvent) templ.Component {
 		var templ_7745c5c3_Var28 string
 		templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(event.Type)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 220, Col: 44}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 227, Col: 44}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 		if templ_7745c5c3_Err != nil {
@@ -736,7 +743,7 @@ func SecurityLogEntry(event SecurityEvent) templ.Component {
 			var templ_7745c5c3_Var29 string
 			templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(event.IPAddress)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 223, Col: 48}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 230, Col: 48}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 			if templ_7745c5c3_Err != nil {
@@ -754,7 +761,7 @@ func SecurityLogEntry(event SecurityEvent) templ.Component {
 		var templ_7745c5c3_Var30 string
 		templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(event.Timestamp.Format("15:04:05"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 225, Col: 68}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 232, Col: 68}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 		if templ_7745c5c3_Err != nil {
@@ -767,7 +774,7 @@ func SecurityLogEntry(event SecurityEvent) templ.Component {
 		var templ_7745c5c3_Var31 string
 		templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(event.Message)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 227, Col: 46}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 234, Col: 46}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 		if templ_7745c5c3_Err != nil {
@@ -782,6 +789,7 @@ func SecurityLogEntry(event SecurityEvent) templ.Component {
 }
 
 // APITrafficChart renders a high-level API traffic chart showing 2xx vs 5xx throughput.
+// It fetches real data from the backend every 60 seconds.
 func APITrafficChart() templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -803,7 +811,7 @@ func APITrafficChart() templ.Component {
 			templ_7745c5c3_Var32 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"card\" x-data=\"apiTrafficChart()\" x-init=\"initChart()\"><div class=\"card-header\"><h3 class=\"card-header-title\">Global API Traffic</h3></div><div class=\"card-body\"><div id=\"api-traffic-chart\" style=\"min-height: 280px;\"></div></div></div><script>\n\t\tfunction apiTrafficChart() {\n\t\t\treturn {\n\t\t\t\tchart: null,\n\n\t\t\t\tinitChart() {\n\t\t\t\t\tif (typeof ApexCharts === 'undefined') {\n\t\t\t\t\t\tsetTimeout(() => this.initChart(), 200);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst options = {\n\t\t\t\t\t\tchart: {\n\t\t\t\t\t\t\tid: 'api-traffic-chart',\n\t\t\t\t\t\t\ttype: 'area',\n\t\t\t\t\t\t\theight: 280,\n\t\t\t\t\t\t\tanimations: {\n\t\t\t\t\t\t\t\tenabled: true,\n\t\t\t\t\t\t\t\teasing: 'easeinout',\n\t\t\t\t\t\t\t\tspeed: 400,\n\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\ttoolbar: { show: false },\n\t\t\t\t\t\t\tbackground: 'transparent',\n\t\t\t\t\t\t},\n\t\t\t\t\t\tstroke: {\n\t\t\t\t\t\t\tcurve: 'smooth',\n\t\t\t\t\t\t\twidth: 2,\n\t\t\t\t\t\t},\n\t\t\t\t\t\tcolors: ['#2EA043', '#D97706'],\n\t\t\t\t\t\tseries: [\n\t\t\t\t\t\t\t{ name: '2xx Success', data: [] },\n\t\t\t\t\t\t\t{ name: '5xx Errors', data: [] },\n\t\t\t\t\t\t],\n\t\t\t\t\t\txaxis: {\n\t\t\t\t\t\t\ttype: 'datetime',\n\t\t\t\t\t\t\tlabels: { style: { colors: '#9CA3AF' } },\n\t\t\t\t\t\t},\n\t\t\t\t\t\tyaxis: {\n\t\t\t\t\t\t\tlabels: { style: { colors: '#9CA3AF' } },\n\t\t\t\t\t\t},\n\t\t\t\t\t\tgrid: {\n\t\t\t\t\t\t\tborderColor: '#374151',\n\t\t\t\t\t\t\tstrokeDashArray: 4,\n\t\t\t\t\t\t},\n\t\t\t\t\t\tlegend: {\n\t\t\t\t\t\t\tlabels: { colors: '#9CA3AF' },\n\t\t\t\t\t\t},\n\t\t\t\t\t\ttooltip: { theme: 'dark' },\n\t\t\t\t\t};\n\n\t\t\t\t\tthis.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);\n\t\t\t\t\tthis.chart.render();\n\n\t\t\t\t\t// Generate sample data for initial render\n\t\t\t\t\tconst now = Date.now();\n\t\t\t\t\tconst data2xx = [];\n\t\t\t\t\tconst data5xx = [];\n\t\t\t\t\tfor (let i = 30; i >= 0; i--) {\n\t\t\t\t\t\tdata2xx.push({ x: now - (i * 60000), y: Math.floor(Math.random() * 500 + 1000) });\n\t\t\t\t\t\tdata5xx.push({ x: now - (i * 60000), y: Math.floor(Math.random() * 20 + 5) });\n\t\t\t\t\t}\n\t\t\t\t\tthis.chart.updateSeries([\n\t\t\t\t\t\t{ name: '2xx Success', data: data2xx },\n\t\t\t\t\t\t{ name: '5xx Errors', data: data5xx },\n\t\t\t\t\t]);\n\t\t\t\t},\n\t\t\t};\n\t\t}\n\t</script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "<div class=\"card\" x-data=\"apiTrafficChart()\" x-init=\"initChart(); fetchTrafficData()\"><div class=\"card-header\"><h3 class=\"card-header-title\">Global API Traffic</h3></div><div class=\"card-body\"><div id=\"api-traffic-chart\" style=\"min-height: 280px;\"></div></div></div><script>\n\t\tfunction apiTrafficChart() {\n\t\t\treturn {\n\t\t\t\tchart: null,\n\t\t\t\tpollTimer: null,\n\n\t\t\t\tinitChart() {\n\t\t\t\t\tif (typeof ApexCharts === 'undefined') {\n\t\t\t\t\t\tsetTimeout(() => this.initChart(), 200);\n\t\t\t\t\t\treturn;\n\t\t\t\t\t}\n\n\t\t\t\t\tconst options = {\n\t\t\t\t\t\tchart: {\n\t\t\t\t\t\t\tid: 'api-traffic-chart',\n\t\t\t\t\t\t\ttype: 'area',\n\t\t\t\t\t\t\theight: 280,\n\t\t\t\t\t\t\tanimations: { enabled: true, easing: 'easeinout', speed: 400 },\n\t\t\t\t\t\t\ttoolbar: { show: false },\n\t\t\t\t\t\t\tbackground: 'transparent',\n\t\t\t\t\t\t},\n\t\t\t\t\t\tstroke: { curve: 'smooth', width: 2 },\n\t\t\t\t\t\tcolors: ['#2EA043', '#D97706'],\n\t\t\t\t\t\tseries: [\n\t\t\t\t\t\t\t{ name: '2xx Success', data: [] },\n\t\t\t\t\t\t\t{ name: '5xx Errors', data: [] },\n\t\t\t\t\t\t],\n\t\t\t\t\t\txaxis: { type: 'datetime', labels: { style: { colors: '#9CA3AF' } } },\n\t\t\t\t\t\tyaxis: { labels: { style: { colors: '#9CA3AF' } } },\n\t\t\t\t\t\tgrid: { borderColor: '#374151', strokeDashArray: 4 },\n\t\t\t\t\t\tlegend: { labels: { colors: '#9CA3AF' } },\n\t\t\t\t\t\ttooltip: { theme: 'dark' },\n\t\t\t\t\t};\n\n\t\t\t\t\tthis.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);\n\t\t\t\t\tthis.chart.render();\n\n\t\t\t\t\t// Poll every 60 seconds.\n\t\t\t\t\tthis.pollTimer = setInterval(() => this.fetchTrafficData(), 60000);\n\t\t\t\t},\n\n\t\t\t\tfetchTrafficData() {\n\t\t\t\t\tfetch('/api/v1/super-admin/dashboard/traffic', {\n\t\t\t\t\t\tcredentials: 'same-origin',\n\t\t\t\t\t})\n\t\t\t\t\t.then(r => r.json())\n\t\t\t\t\t.then(json => {\n\t\t\t\t\t\tif (!json.series || !this.chart) return;\n\t\t\t\t\t\tconst data2xx = json.series.map(p => ({ x: p.ts, y: p.count_2xx }));\n\t\t\t\t\t\tconst data5xx = json.series.map(p => ({ x: p.ts, y: p.count_5xx }));\n\t\t\t\t\t\tthis.chart.updateSeries([\n\t\t\t\t\t\t\t{ name: '2xx Success', data: data2xx },\n\t\t\t\t\t\t\t{ name: '5xx Errors', data: data5xx },\n\t\t\t\t\t\t]);\n\t\t\t\t\t})\n\t\t\t\t\t.catch(() => {\n\t\t\t\t\t\t// Silently ignore fetch errors — chart keeps its last data.\n\t\t\t\t\t});\n\t\t\t\t},\n\t\t\t};\n\t\t}\n\t</script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

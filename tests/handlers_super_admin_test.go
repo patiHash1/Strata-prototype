@@ -431,8 +431,8 @@ func TestSecuritySSEStream(t *testing.T) {
 	if !strings.Contains(bodyStr, "192.168.1.100") {
 		t.Error("SSE stream does not contain IP address in HTML payload")
 	}
-	if !strings.Contains(bodyStr, "sse-entry") {
-		t.Error("SSE stream does not contain sse-entry CSS class in HTML payload")
+	if !strings.Contains(bodyStr, "sse-table-row") && !strings.Contains(bodyStr, "sse-entry") {
+		t.Error("SSE stream does not contain sse-table-row or sse-entry CSS class in HTML payload")
 	}
 	if !strings.Contains(bodyStr, "sse-severity-high") {
 		t.Error("SSE stream does not contain severity CSS class in HTML payload")

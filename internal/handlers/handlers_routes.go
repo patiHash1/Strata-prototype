@@ -709,6 +709,14 @@ func (a *App) routes() http.Handler {
 		),
 	)
 
+	mux.Handle("GET /api/v1/super-admin/dashboard/traffic",
+		utils.RequireAuth(a.Auth)(
+			utils.RequirePermission(services.PermSuperAdmin)(
+				http.HandlerFunc(a.dashboardTrafficHandler),
+			),
+		),
+	)
+
 	// ── Super-Admin: User management ──
 	mux.Handle("GET /api/v1/super-admin/users",
 		utils.RequireAuthCookie(a.Auth, a.startedAt)(

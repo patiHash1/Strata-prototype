@@ -44,6 +44,13 @@ type ActivityItem struct {
 	Timestamp string
 }
 
+// TrafficDataPoint is the JSON shape returned by the traffic chart endpoint.
+type TrafficDataPoint struct {
+	Timestamp int64 `json:"ts"`
+	Count2xx  int64 `json:"count_2xx"`
+	Count5xx  int64 `json:"count_5xx"`
+}
+
 // SuperAdminDashboardView renders the high-level platform health dashboard
 // with real-time KPIs, API traffic, and recent activity.
 templ SuperAdminDashboardView() {
@@ -229,11 +236,12 @@ templ SecurityLogEntry(event SecurityEvent) {
 }
 
 // APITrafficChart renders a high-level API traffic chart showing 2xx vs 5xx throughput.
+// It fetches real data from the backend every 60 seconds.
 templ APITrafficChart() {
 	<div
 		class="card"
 		x-data="apiTrafficChart()"
-		x-init="initChart()"
+		x-init="initChart(); fetchTrafficData()"
 	>
 		<div class="card-header">
 			<h3 class="card-header-title">Global API Traffic</h3>
@@ -246,6 +254,7 @@ templ APITrafficChart() {
 		function apiTrafficChart() {
 			return {
 				chart: null,
+				pollTimer: null,
 
 				initChart() {
 					if (typeof ApexCharts === 'undefined') {
@@ -258,55 +267,47 @@ templ APITrafficChart() {
 							id: 'api-traffic-chart',
 							type: 'area',
 							height: 280,
-							animations: {
-								enabled: true,
-								easing: 'easeinout',
-								speed: 400,
-							},
+							animations: { enabled: true, easing: 'easeinout', speed: 400 },
 							toolbar: { show: false },
 							background: 'transparent',
 						},
-						stroke: {
-							curve: 'smooth',
-							width: 2,
-						},
+						stroke: { curve: 'smooth', width: 2 },
 						colors: ['#2EA043', '#D97706'],
 						series: [
 							{ name: '2xx Success', data: [] },
 							{ name: '5xx Errors', data: [] },
 						],
-						xaxis: {
-							type: 'datetime',
-							labels: { style: { colors: '#9CA3AF' } },
-						},
-						yaxis: {
-							labels: { style: { colors: '#9CA3AF' } },
-						},
-						grid: {
-							borderColor: '#374151',
-							strokeDashArray: 4,
-						},
-						legend: {
-							labels: { colors: '#9CA3AF' },
-						},
+						xaxis: { type: 'datetime', labels: { style: { colors: '#9CA3AF' } } },
+						yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+						grid: { borderColor: '#374151', strokeDashArray: 4 },
+						legend: { labels: { colors: '#9CA3AF' } },
 						tooltip: { theme: 'dark' },
 					};
 
 					this.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);
 					this.chart.render();
 
-					// Generate sample data for initial render
-					const now = Date.now();
-					const data2xx = [];
-					const data5xx = [];
-					for (let i = 30; i >= 0; i--) {
-						data2xx.push({ x: now - (i * 60000), y: Math.floor(Math.random() * 500 + 1000) });
-						data5xx.push({ x: now - (i * 60000), y: Math.floor(Math.random() * 20 + 5) });
-					}
-					this.chart.updateSeries([
-						{ name: '2xx Success', data: data2xx },
-						{ name: '5xx Errors', data: data5xx },
-					]);
+					// Poll every 60 seconds.
+					this.pollTimer = setInterval(() => this.fetchTrafficData(), 60000);
+				},
+
+				fetchTrafficData() {
+					fetch('/api/v1/super-admin/dashboard/traffic', {
+						credentials: 'same-origin',
+					})
+					.then(r => r.json())
+					.then(json => {
+						if (!json.series || !this.chart) return;
+						const data2xx = json.series.map(p => ({ x: p.ts, y: p.count_2xx }));
+						const data5xx = json.series.map(p => ({ x: p.ts, y: p.count_5xx }));
+						this.chart.updateSeries([
+							{ name: '2xx Success', data: data2xx },
+							{ name: '5xx Errors', data: data5xx },
+						]);
+					})
+					.catch(() => {
+						// Silently ignore fetch errors — chart keeps its last data.
+					});
 				},
 			};
 		}

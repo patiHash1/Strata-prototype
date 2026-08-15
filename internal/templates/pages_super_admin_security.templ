@@ -87,14 +87,7 @@ templ SuperAdminSecurityView() {
 // SSEFeedFull renders a full-featured HTMX SSE-connected container for the
 // security page with table layout and inspector drawer.
 templ SSEFeedFull() {
-	<div
-		hx-ext="sse"
-		sse-connect="/api/v1/super-admin/security/stream"
-		sse-swap="security-event"
-		hx-swap="afterbegin"
-		class="sse-feed-full"
-		id="security-stream-feed"
-	>
+	<div class="sse-feed-full" id="security-stream-feed">
 		<table class="security-stream-table">
 			<thead>
 				<tr>
@@ -106,15 +99,21 @@ templ SSEFeedFull() {
 					<th>Actions</th>
 				</tr>
 			</thead>
-			<tbody id="security-stream-body">
-				<tr class="sse-feed-empty-row">
+			<tbody
+				id="security-stream-body"
+				hx-ext="sse"
+				sse-connect="/api/v1/super-admin/security/stream"
+				sse-swap="security-event"
+				hx-swap="afterbegin"
+			>
+				<tr class="sse-feed-empty-row" id="sse-empty-placeholder">
 					<td colspan="6" class="sse-feed-empty">
 						<svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-						</svg>
-						<p>Waiting for security events…</p>
-					</td>
-				</tr>
+					</svg>
+					<p>Waiting for security events…</p>
+				</td>
+			</tr>
 			</tbody>
 		</table>
 	</div>

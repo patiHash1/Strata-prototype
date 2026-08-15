@@ -400,6 +400,11 @@ type SuperAdminService struct {
 	httpMu      sync.Mutex
 	httpMetrics HTTPMetrics
 
+	// Time-series traffic buckets (2xx / 5xx per minute)
+	trafficSeries *RingBuffer[TrafficBucket]
+	trafficMu     sync.Mutex
+	currentBucket TrafficBucket
+
 	// SSE subscribers
 	sseMu   sync.Mutex
 	sseSubs map[string]*sseSubscriber
@@ -418,6 +423,13 @@ type HTTPLatencyRecord struct {
 	Latency    time.Duration `json:"latency"`
 	Module     string        `json:"module"`
 	Timestamp  time.Time     `json:"timestamp"`
+}
+
+// TrafficBucket holds aggregated request counts for a one-minute window.
+type TrafficBucket struct {
+	Timestamp time.Time `json:"timestamp"`
+	Count2xx  int64     `json:"count_2xx"`
+	Count5xx  int64     `json:"count_5xx"`
 }
 
 // Redis channel constants.
@@ -439,6 +451,7 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 		latencyBuffer:   NewRingBuffer[HTTPLatencyRecord](100),
 		telemetryBuffer: NewRingBuffer[TelemetrySnapshot](100),
 		socBuffer:       NewRingBuffer[SOCEvent](50),
+		trafficSeries:   NewRingBuffer[TrafficBucket](60),
 		httpMetrics: HTTPMetrics{
 			PerModule: make(map[string]*ModuleHTTPMetrics),
 		},
@@ -836,6 +849,58 @@ func (s *SuperAdminService) RecordHTTPLatency(record HTTPLatencyRecord) {
 	if record.StatusCode >= 500 {
 		pm.Errors5xx++
 	}
+
+	// Bucket into per-minute time-series.
+	bucketTS := record.Timestamp.Truncate(time.Minute)
+
+	// Use a dedicated current-bucket accumulator for atomic updates.
+	s.trafficMu.Lock()
+	if s.currentBucket.Timestamp.Equal(bucketTS) {
+		if record.StatusCode >= 200 && record.StatusCode < 300 {
+			s.currentBucket.Count2xx++
+		} else if record.StatusCode >= 500 {
+			s.currentBucket.Count5xx++
+		}
+	} else {
+		// Flush previous bucket if non-zero.
+		if s.currentBucket.Count2xx > 0 || s.currentBucket.Count5xx > 0 {
+			s.trafficSeries.Push(s.currentBucket)
+		}
+		s.currentBucket = TrafficBucket{Timestamp: bucketTS}
+		if record.StatusCode >= 200 && record.StatusCode < 300 {
+			s.currentBucket.Count2xx++
+		} else if record.StatusCode >= 500 {
+			s.currentBucket.Count5xx++
+		}
+	}
+	// Also flush if we have accumulated a lot.
+	if s.currentBucket.Count2xx+s.currentBucket.Count5xx >= 100 {
+		s.trafficSeries.Push(s.currentBucket)
+		s.currentBucket = TrafficBucket{Timestamp: bucketTS}
+	}
+	defer s.trafficMu.Unlock()
+}
+
+// TrafficSeries returns the last 30 one-minute traffic buckets for charting.
+func (s *SuperAdminService) TrafficSeries() []TrafficBucket {
+	snap := s.trafficSeries.Snapshot()
+
+	// Include the in-progress current bucket.
+	s.trafficMu.Lock()
+	current := s.currentBucket
+	s.trafficMu.Unlock()
+
+	var result []TrafficBucket
+	result = append(result, snap...)
+	if current.Count2xx > 0 || current.Count5xx > 0 {
+		result = append(result, current)
+	}
+
+	// Return last 30 buckets.
+	if len(result) > 30 {
+		result = result[len(result)-30:]
+	}
+	return result
 }
 
 // ── SOC Security Events ──
@@ -908,6 +973,14 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 				return
 			}
 			log.Printf("[super-admin] SOC event received from Redis, fan-out to %d subscribers", len(s.sseSubs))
+
+			// Also push into the in-memory ring buffer so RecentSOCEvents()
+			// returns data for the dashboard Activity panel.
+			var evt SOCEvent
+			if err := json.Unmarshal([]byte(msg.Payload), &evt); err == nil {
+				s.socBuffer.Push(evt)
+			}
+
 			s.fanoutSSE([]byte(msg.Payload))
 		}
 	}
@@ -995,6 +1068,9 @@ func (s *SuperAdminService) fanoutSSE(data []byte) {
 // It marshals the given SOCEvent to JSON and fans it out to local subscribers
 // without requiring a Redis connection.
 func (s *SuperAdminService) FanoutSSEForTest(event SOCEvent) {
+	// Also push into the ring buffer so RecentSOCEvents() returns data.
+	s.socBuffer.Push(event)
+
 	data, err := json.Marshal(event)
 	if err != nil {
 		return

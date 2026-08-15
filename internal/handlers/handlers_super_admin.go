@@ -299,6 +299,32 @@ func (a *App) DashboardActivityHandlerForTest(w http.ResponseWriter, r *http.Req
 	a.dashboardActivityHandler(w, r)
 }
 
+// ── GET /api/v1/super-admin/dashboard/traffic ──
+
+// dashboardTrafficHandler returns the real-time API traffic time-series as JSON
+// for the ApexCharts client-side chart.
+func (a *App) dashboardTrafficHandler(w http.ResponseWriter, r *http.Request) {
+	var series []templates.TrafficDataPoint
+
+	if a.SuperAdmin != nil {
+		buckets := a.SuperAdmin.TrafficSeries()
+		for _, b := range buckets {
+			series = append(series, templates.TrafficDataPoint{
+				Timestamp: b.Timestamp.UnixMilli(),
+				Count2xx:  b.Count2xx,
+				Count5xx:  b.Count5xx,
+			})
+		}
+	}
+
+	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"series": series})
+}
+
+// DashboardTrafficHandlerForTest exposes the traffic handler for httptest.
+func (a *App) DashboardTrafficHandlerForTest(w http.ResponseWriter, r *http.Request) {
+	a.dashboardTrafficHandler(w, r)
+}
+
 // humanDuration returns a human-readable relative time string.
 func humanDuration(d time.Duration) string {
 	switch {
@@ -756,7 +782,7 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 			Timestamp: evt.Timestamp,
 		}
 		var buf strings.Builder
-		templates.SecurityLogEntry(event).Render(r.Context(), &buf)
+		templates.SecurityEventRow(event).Render(r.Context(), &buf)
 		fmt.Fprintf(w, "event: security-event\ndata: %s\n\n", buf.String())
 	}
 	flusher.Flush()
@@ -785,9 +811,9 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 				Timestamp: socEvent.Timestamp,
 			}
 
-			// Render the SecurityLogEntry component to a buffer.
+			// Render the SecurityEventRow component to a buffer.
 			var buf strings.Builder
-			templates.SecurityLogEntry(event).Render(r.Context(), &buf)
+			templates.SecurityEventRow(event).Render(r.Context(), &buf)
 			html := buf.String()
 
 			// Write as SSE: event: security-event, data: <div>...</div>
