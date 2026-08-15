@@ -1,6 +1,10 @@
 package services
 
-import "log"
+import (
+	"log/slog"
+
+	"github.com/patiHash1/Strata-prototype/internal/logger"
+)
 
 // Mailer handles transactional email sending.
 // This is a stub — swap in SendGrid, Mailgun, SMTP, etc.
@@ -15,7 +19,7 @@ func NewMailer() *Mailer {
 // The token is intentionally truncated in logs to avoid leaking the
 // full secret into any log aggregation system.
 func (m *Mailer) SendInvitation(email, token string) error {
-	log.Printf("[MAILER] invitation to %s with token %s…", email, redactToken(token))
+	logger.Info("invitation sent", slog.String("email", email), slog.String("token_prefix", redactToken(token)))
 	return nil
 }
 

@@ -2,10 +2,11 @@ package services
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 )
 
 // SuperAdminOrgSlug is the reserved slug for the system-wide super-admin org.
@@ -31,14 +32,14 @@ func (s *SeedService) SeedSuperAdmin(ctx context.Context, email, password string
 	// Check if super-admin org already exists.
 	org, err := s.orgSvc.GetByDomainSlug(ctx, SuperAdminOrgSlug)
 	if err != nil {
-		log.Printf("  WARNING: could not check for existing super-admin org: %v", err)
+		logger.Warn("could not check for existing super-admin org", slog.String("error", err.Error()))
 	}
 	if org == nil {
 		org, err = s.orgSvc.Create(ctx, SuperAdminOrgSlug, "Strata System")
 		if err != nil {
 			return err
 		}
-		log.Printf("  created super-admin org: %s", org.ID)
+		logger.Info("created super-admin org", slog.String("org_id", org.ID.String()))
 	}
 
 	// Check if super-admin user already exists.
@@ -52,7 +53,7 @@ func (s *SeedService) SeedSuperAdmin(ctx context.Context, email, password string
 		if err != nil {
 			return err
 		}
-		log.Printf("  created super-admin user: %s", user.ID)
+		logger.Info("created super-admin user", slog.String("user_id", user.ID.String()))
 	}
 
 	// Check if super-admin role already exists in the org.
@@ -80,7 +81,7 @@ func (s *SeedService) SeedSuperAdmin(ctx context.Context, email, password string
 		if err != nil {
 			return err
 		}
-		log.Printf("  created super-admin role: %s", superAdminRole.ID)
+		logger.Info("created super-admin role", slog.String("role_id", superAdminRole.ID.String()))
 	}
 
 	// Check if user is already a member of the org.
@@ -94,7 +95,7 @@ func (s *SeedService) SeedSuperAdmin(ctx context.Context, email, password string
 		}); err != nil {
 			return err
 		}
-		log.Printf("  added super-admin user to org")
+		logger.Info("added super-admin user to org")
 	}
 
 	return nil

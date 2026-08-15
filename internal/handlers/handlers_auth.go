@@ -4,9 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
+	"log/slog"
 	"net/http"
 
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
@@ -201,7 +202,7 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 	// Update last_login_at asynchronously (best-effort).
 	go func() {
 		if err := a.Users.UpdateLastLoginAt(context.Background(), user.ID); err != nil {
-			log.Printf("failed to update last_login_at for user %s: %v", user.ID, err)
+			logger.Error("failed to update last_login_at", slog.String("user_id", user.ID.String()), slog.String("error", err.Error()))
 		}
 	}()
 

@@ -3,7 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"mime"
 	"net/http"
 	"path/filepath"
@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/static"
 	"github.com/patiHash1/Strata-prototype/internal/templates"
@@ -514,7 +515,7 @@ func (a *App) getSuperAdminMetricsPrometheusHandler(w http.ResponseWriter, r *ht
 func (a *App) getSuperAdminHealthHandler(w http.ResponseWriter, r *http.Request) {
 	health, err := a.SuperAdmin.GetModuleHealth(r.Context())
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module health: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module health")
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"modules": health})
@@ -538,7 +539,7 @@ func (a *App) getModuleHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 	status, err := a.SuperAdmin.GetModuleStatus(r.Context(), module)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module status: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module status")
 		return
 	}
 
@@ -587,7 +588,7 @@ func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 	report, err := a.SuperAdmin.IngestCIHealth(r.Context(), req)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to ingest CI health: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to ingest CI health")
 		return
 	}
 
@@ -601,7 +602,7 @@ func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 func (a *App) listMaintenanceRulesPageHandler(w http.ResponseWriter, r *http.Request) {
 	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules")
 		return
 	}
 
@@ -621,7 +622,7 @@ func (a *App) ListMaintenanceRulesPageHandlerForTest(w http.ResponseWriter, r *h
 func (a *App) listMaintenanceRulesFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules")
 		return
 	}
 
@@ -653,7 +654,7 @@ func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 		AllowedRoles: []string{},
 	}
 
-	log.Printf("[maintenance] create request: scope=%q target_id=%q reason=%q", req.Scope, req.TargetID, req.Reason)
+	logger.Info("maintenance rule create request", slog.String("scope", req.Scope), slog.String("target_id", req.TargetID), slog.String("reason", req.Reason))
 
 	// Validate required fields.
 	if req.Scope == "" || req.TargetID == "" {
@@ -668,10 +669,10 @@ func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 
 	rule, err := a.SuperAdmin.ToggleMaintenance(r.Context(), req)
 	if err != nil {
-		log.Printf("[maintenance] create error: %v", err)
+		logger.Error("maintenance rule create error", slog.String("error", err.Error()))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.MaintenanceValidationError("Failed to create rule: "+err.Error()).Render(r.Context(), w)
+		templates.MaintenanceValidationError("Failed to create rule").Render(r.Context(), w)
 		return
 	}
 
@@ -718,7 +719,7 @@ func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := a.SuperAdmin.DeleteMaintenanceRule(r.Context(), id); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to delete maintenance rule: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to delete maintenance rule")
 		return
 	}
 
@@ -851,7 +852,7 @@ func (a *App) listAllUsersHandler(w http.ResponseWriter, r *http.Request) {
 	offset, limit := parsePagination(r)
 	users, total, err := a.Users.ListAllUsers(r.Context(), offset, limit)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to list users: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list users")
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"users": users, "total": total})
@@ -882,7 +883,7 @@ func (a *App) getUserDetailHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := a.Users.GetByID(r.Context(), userID)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user")
 		return
 	}
 	if user == nil {
@@ -939,7 +940,7 @@ func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := a.Users.GetByID(r.Context(), userID)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user")
 		return
 	}
 	if user == nil {
@@ -948,7 +949,7 @@ func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.Users.BanUser(r.Context(), userID, req.Reason); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to ban user: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to ban user")
 		return
 	}
 
@@ -988,7 +989,7 @@ func (a *App) unbanUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	user, err := a.Users.GetByID(r.Context(), userID)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get user")
 		return
 	}
 	if user == nil {
@@ -997,7 +998,7 @@ func (a *App) unbanUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.Users.UnbanUser(r.Context(), userID); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to unban user: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to unban user")
 		return
 	}
 
@@ -1031,7 +1032,7 @@ func (a *App) listAllOrgsHandler(w http.ResponseWriter, r *http.Request) {
 	offset, limit := parsePagination(r)
 	orgs, total, err := a.Orgs.ListAllOrgs(r.Context(), offset, limit)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to list organizations: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to list organizations")
 		return
 	}
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"organizations": orgs, "total": total})
@@ -1062,7 +1063,7 @@ func (a *App) getOrgDetailHandler(w http.ResponseWriter, r *http.Request) {
 
 	org, err := a.Orgs.GetByID(r.Context(), orgID)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization")
 		return
 	}
 	if org == nil {
@@ -1098,7 +1099,7 @@ func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
 
 	org, err := a.Orgs.GetByID(r.Context(), orgID)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization")
 		return
 	}
 	if org == nil {
@@ -1107,7 +1108,7 @@ func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.Orgs.SuspendOrg(r.Context(), orgID); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to suspend organization: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to suspend organization")
 		return
 	}
 
@@ -1146,7 +1147,7 @@ func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
 
 	org, err := a.Orgs.GetByID(r.Context(), orgID)
 	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to get organization")
 		return
 	}
 	if org == nil {
@@ -1155,7 +1156,7 @@ func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.Orgs.ActivateOrg(r.Context(), orgID); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "failed to activate organization: "+err.Error())
+		utils.WriteErr(w, http.StatusInternalServerError, "failed to activate organization")
 		return
 	}
 

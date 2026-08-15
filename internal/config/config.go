@@ -1,9 +1,8 @@
 package config
 
 import (
-	"log"
-
 	"github.com/patiHash1/Strata-prototype/internal/env"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 )
 
 // DBConfig holds database connection settings.
@@ -39,7 +38,8 @@ func Load() Config {
 
 	jwtSecret := env.GetString("JWT_SECRET", "")
 	if jwtSecret == "" {
-		log.Fatal("FATAL: JWT_SECRET environment variable is required")
+		logger.Error("JWT_SECRET environment variable is required")
+		panic("JWT_SECRET environment variable is required")
 	}
 
 	superAdminUname := env.GetString("SUPERADMIN_UNAME", "")

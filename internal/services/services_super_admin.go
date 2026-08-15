@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -370,7 +371,7 @@ func (r *superAdminRepository) ListRecentSOCEvents(ctx context.Context, limit in
 		}
 		if metadataJSON != nil {
 			if err := json.Unmarshal(metadataJSON, &e.Metadata); err != nil {
-				log.Printf("[super-admin] failed to unmarshal SOC event metadata: %v", err)
+				logger.Error("failed to unmarshal SOC event metadata", slog.String("error", err.Error()))
 			}
 		}
 		events = append(events, e)
@@ -474,7 +475,7 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 	// Load initial maintenance rules into cache.
 	if svc.pool != nil {
 		if err := svc.reloadCache(context.Background()); err != nil {
-			log.Printf("[super-admin] initial cache load failed: %v", err)
+			logger.Error("initial cache load failed", slog.String("error", err.Error()))
 		}
 	}
 
@@ -577,13 +578,13 @@ func (s *SuperAdminService) ToggleMaintenance(ctx context.Context, req Maintenan
 	})
 	if s.rdb != nil {
 		if err := s.rdb.Publish(ctx, RedisChannelMaintenanceSync, msg).Err(); err != nil {
-			log.Printf("[super-admin] failed to publish maintenance sync: %v", err)
+			logger.Error("failed to publish maintenance sync", slog.String("error", err.Error()))
 		}
 	}
 
 	// Reload local cache immediately.
 	if err := s.reloadCache(ctx); err != nil {
-		log.Printf("[super-admin] cache reload after toggle failed: %v", err)
+		logger.Error("cache reload after toggle failed", slog.String("error", err.Error()))
 	}
 
 	return rule, nil
@@ -721,13 +722,13 @@ func (s *SuperAdminService) DeleteMaintenanceRule(ctx context.Context, id int64)
 	})
 	if s.rdb != nil {
 		if err := s.rdb.Publish(ctx, RedisChannelMaintenanceSync, msg).Err(); err != nil {
-			log.Printf("[super-admin] failed to publish maintenance sync: %v", err)
+			logger.Error("failed to publish maintenance sync", slog.String("error", err.Error()))
 		}
 	}
 
 	// Reload local cache immediately.
 	if err := s.reloadCache(ctx); err != nil {
-		log.Printf("[super-admin] cache reload after delete failed: %v", err)
+		logger.Error("cache reload after delete failed", slog.String("error", err.Error()))
 	}
 
 	return nil
@@ -753,9 +754,9 @@ func (s *SuperAdminService) subscribeMaintenanceSync() {
 			if !ok {
 				return
 			}
-			log.Printf("[super-admin] maintenance sync received: %s", msg.Payload)
+			logger.Info("maintenance sync received", slog.String("payload", msg.Payload))
 			if err := s.reloadCache(context.Background()); err != nil {
-				log.Printf("[super-admin] cache reload from sync failed: %v", err)
+				logger.Error("cache reload from sync failed", slog.String("error", err.Error()))
 			}
 		}
 	}
@@ -848,7 +849,7 @@ func (s *SuperAdminService) RecordPanic(module string, errMsg string, stackTrace
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if dbErr := s.repo.InsertSystemError(ctx, &errRec); dbErr != nil {
-			log.Printf("[super-admin] failed to persist panic: %v", dbErr)
+			logger.Error("failed to persist panic", slog.String("error", dbErr.Error()))
 		}
 	}()
 }
@@ -947,7 +948,7 @@ func (s *SuperAdminService) PublishSOCEvent(ctx context.Context, event SOCEvent)
 
 	data, err := json.Marshal(event)
 	if err != nil {
-		log.Printf("[super-admin] failed to marshal SOC event: %v", err)
+		logger.Error("failed to marshal SOC event", slog.String("error", err.Error()))
 		return
 	}
 
@@ -961,7 +962,7 @@ func (s *SuperAdminService) PublishSOCEvent(ctx context.Context, event SOCEvent)
 			dbCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			if err := s.repo.InsertSOCEvent(dbCtx, &evt); err != nil {
-				log.Printf("[super-admin] failed to persist SOC event: %v", err)
+				logger.Error("failed to persist SOC event", slog.String("error", err.Error()))
 			}
 		}()
 	}
@@ -969,7 +970,7 @@ func (s *SuperAdminService) PublishSOCEvent(ctx context.Context, event SOCEvent)
 	// Publish to Redis for multi-node fan-out.
 	if s.rdb != nil {
 		if err := s.rdb.Publish(ctx, RedisChannelSecuritySOC, data).Err(); err != nil {
-			log.Printf("[super-admin] failed to publish SOC event: %v", err)
+			logger.Error("failed to publish SOC event", slog.String("error", err.Error()))
 		}
 	}
 
@@ -989,14 +990,14 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 	defer s.wg.Done()
 
 	if s.rdb == nil {
-		log.Println("[super-admin] Redis unavailable, SOC subscriber disabled")
+		logger.Warn("Redis unavailable, SOC subscriber disabled")
 		return
 	}
 
 	pubsub := s.rdb.Subscribe(s.ctx, RedisChannelSecuritySOC)
 	defer pubsub.Close()
 
-	log.Printf("[super-admin] subscribed to Redis channel %s", RedisChannelSecuritySOC)
+	logger.Info("subscribed to Redis channel", slog.String("channel", RedisChannelSecuritySOC))
 
 	ch := pubsub.Channel()
 	for {
@@ -1007,7 +1008,7 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 			if !ok {
 				return
 			}
-			log.Printf("[super-admin] SOC event received from Redis, fan-out to %d subscribers", len(s.sseSubs))
+			logger.Info("SOC event received from Redis", slog.Int("subscribers", len(s.sseSubs)))
 			s.fanoutSSE([]byte(msg.Payload))
 		}
 	}
@@ -1045,11 +1046,11 @@ func (s *SuperAdminService) pruneSOCEvents() {
 
 	rows, err := s.repo.PruneSOCEvents(ctx, socEventRetentionDays*24*time.Hour)
 	if err != nil {
-		log.Printf("[super-admin] SOC event pruning failed: %v", err)
+		logger.Error("SOC event pruning failed", slog.String("error", err.Error()))
 		return
 	}
 	if rows > 0 {
-		log.Printf("[super-admin] pruned %d stale SOC events (>%d days)", rows, socEventRetentionDays)
+		logger.Info("pruned stale SOC events", slog.Int64("rows", rows), slog.Int("retention_days", socEventRetentionDays))
 	}
 }
 
