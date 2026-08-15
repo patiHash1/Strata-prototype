@@ -210,10 +210,11 @@ table { border-collapse: collapse; }
 .sidebar-item:hover { background-color: var(--color-gray-50); color: var(--color-gray-900); }
 
 .sidebar-item-active {
-	color: var(--color-strata-700);
-	background-color: var(--color-strata-50);
+	color: var(--color-white);
+	background-color: var(--color-strata-500);
 }
-.sidebar-item-active:hover { background-color: var(--color-strata-100); }
+.sidebar-item-active:hover { background-color: var(--color-strata-600); }
+.sidebar-item-active .icon { color: var(--color-white); }
 
 /* Main content */
 .main-content {

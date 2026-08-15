@@ -1,13 +1,12 @@
 package templates
 
 // MetricsChart renders an ApexCharts line graph using Alpine.js.
-// It listens to HTMX afterSwap events to update data series dynamically.
+// It fetches real runtime metrics from the backend JSON endpoint every 5 seconds.
 templ MetricsChart() {
 	<div
 		class="card"
 		x-data="metricsChart()"
-		x-init="initChart()"
-		@@htmx:afterSwap.window="onMetricsUpdate($event)"
+		x-init="$nextTick(() => initChart())"
 	>
 		<div class="card-header">
 			<h3 class="card-header-title">Real-Time Metrics</h3>
@@ -20,7 +19,6 @@ templ MetricsChart() {
 		function metricsChart() {
 			return {
 				chart: null,
-				seriesData: [],
 
 				initChart() {
 					if (typeof ApexCharts === 'undefined') {
@@ -42,49 +40,53 @@ templ MetricsChart() {
 						series: [
 							{ name: 'Memory (MB)', data: [] },
 							{ name: 'Goroutines', data: [] },
-							{ name: 'DB Conns', data: [] },
-							{ name: 'Heap Objects (\u00f7100)', data: [] },
+							{ name: 'DB Connections', data: [] },
+							{ name: 'Active Users', data: [] },
 						],
-						xaxis: { type: 'datetime', labels: { style: { colors: '#9CA3AF' } } },
-						yaxis: { labels: { style: { colors: '#9CA3AF' } } },
-						grid: { borderColor: '#374151', strokeDashArray: 4 },
-						legend: { labels: { colors: '#9CA3AF' } },
-						tooltip: { theme: 'dark' },
-					};
+					xaxis: { type: 'datetime', labels: { style: { colors: '#9CA3AF' } } },
+					yaxis: { labels: { style: { colors: '#9CA3AF' } } },
+					grid: { borderColor: '#374151', strokeDashArray: 4 },
+					legend: { labels: { colors: '#9CA3AF' } },
+					tooltip: { theme: 'dark' },
+				};
 
 					this.chart = new ApexCharts(document.querySelector('#metrics-chart'), options);
-					this.chart.render();
+					this.chart.render().then(() => {
+						this.fetchMetrics();
+						setInterval(() => this.fetchMetrics(), 5000);
+					});
 				},
 
-				onMetricsUpdate(event) {
-					const target = event.detail.target;
-					if (!target || target.id !== 'metrics-grid') return;
-					if (!this.chart) return;
-
-					const html = target.innerHTML;
-					const memMatch = html.match(/([\d.]+)\s*MB/);
-					const gorMatch = html.match(/(\d+)\s*goroutines/);
-					const connMatch = html.match(/(\d+)\s*total/);
-					const heapMatch = html.match(/(\d+)\s*heap objects/);
-
-					const memVal = memMatch ? parseFloat(memMatch[1]) : 0;
-					const gorVal = gorMatch ? parseInt(gorMatch[1], 10) : 0;
-					const connVal = connMatch ? parseInt(connMatch[1], 10) : 0;
-					const heapVal = heapMatch ? parseInt(heapMatch[1], 10) / 100 : 0;
-
-					this.chart.appendData([
-						{ data: [memVal] },
-						{ data: [gorVal] },
-						{ data: [connVal] },
-						{ data: [heapVal] },
-					]);
-
-					const series = this.chart.w.globals.series;
-					if (series[0] && series[0].length > 60) {
-						const sliceStart = series[0].length - 60;
-						const newSeries = series.map(s => ({ data: s.slice(sliceStart) }));
-						this.chart.updateSeries(newSeries);
+				fetchMetrics() {
+					if (!this.chart) {
+						setTimeout(() => this.fetchMetrics(), 500);
+						return;
 					}
+					fetch('/api/v1/super-admin/metrics/json', { credentials: 'same-origin' })
+					.then(r => r.json())
+					.then(json => {
+						if (!json.metrics || !this.chart) return;
+						const m = json.metrics;
+						const now = Date.now();
+						const runtime = m.runtime || {};
+						const db = m.db || {};
+						const http = m.http || {};
+
+						this.chart.appendData([
+							{ data: [{ x: now, y: runtime.allocated_mb || 0 }] },
+							{ data: [{ x: now, y: runtime.goroutines || 0 }] },
+							{ data: [{ x: now, y: db.acquired_conns || 0 }] },
+							{ data: [{ x: now, y: http.total_requests || 0 }] },
+						]);
+
+						// Keep at most 60 data points (5 minutes at 5s intervals).
+						const series = this.chart.w.globals.series;
+						if (series[0] && series[0].length > 60) {
+							const start = series[0].length - 60;
+							this.chart.updateSeries(series.map(s => ({ data: s.slice(start) })));
+						}
+					})
+					.catch(() => {});
 				},
 			};
 		}
