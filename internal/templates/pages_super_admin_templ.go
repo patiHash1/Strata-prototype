@@ -465,7 +465,7 @@ func MetricsGrid(metrics SystemMetricsView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var16 string
-			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f MB", metrics.AllocatedMB))
+			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.2f MB", metrics.AllocatedMB))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/templates/pages_super_admin.templ`, Line: 173, Col: 75}
 			}

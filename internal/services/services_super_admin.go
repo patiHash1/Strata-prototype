@@ -56,6 +56,7 @@ type TelemetrySnapshot struct {
 	Runtime      RuntimeMetrics `json:"runtime"`
 	DB           DBMetrics      `json:"db"`
 	HTTP         HTTPMetrics    `json:"http"`
+	ActiveUsers  int            `json:"active_users"`
 	RecentPanics []SystemError  `json:"recent_panics"`
 }
 
@@ -405,6 +406,9 @@ type SuperAdminService struct {
 	trafficMu     sync.Mutex
 	currentBucket TrafficBucket
 
+	// User service for active user counting
+	userSvc *UserService
+
 	// SSE subscribers
 	sseMu   sync.Mutex
 	sseSubs map[string]*sseSubscriber
@@ -488,6 +492,11 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 func (s *SuperAdminService) Shutdown() {
 	s.cancel()
 	s.wg.Wait()
+}
+
+// SetUserSvc injects the UserService for active user counting in snapshots.
+func (s *SuperAdminService) SetUserSvc(userSvc *UserService) {
+	s.userSvc = userSvc
 }
 
 // ── Maintenance Cache ──
@@ -792,6 +801,13 @@ func (s *SuperAdminService) CollectSnapshot() TelemetrySnapshot {
 	}
 
 	snapshot.HTTP = httpCopy
+
+	// Active users: users who logged in within the last 7 days.
+	if s.userSvc != nil {
+		if count, err := s.userSvc.CountActiveUsers(context.Background(), 7*24*time.Hour); err == nil {
+			snapshot.ActiveUsers = count
+		}
+	}
 
 	s.telemetryBuffer.Push(snapshot)
 	return snapshot

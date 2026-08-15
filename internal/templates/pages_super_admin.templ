@@ -170,7 +170,7 @@ templ MetricsGrid(metrics SystemMetricsView) {
 	<div id="metrics-grid" class="metrics-grid">
 		@components.Card("Runtime Memory") {
 			<div class="stat-container">
-				<span class="stat-number">{ fmt.Sprintf("%.1f MB", metrics.AllocatedMB) }</span>
+				<span class="stat-number">{ fmt.Sprintf("%.2f MB", metrics.AllocatedMB) }</span>
 				@components.Badge(fmt.Sprintf("%d GC", metrics.GCRuns), "blue")
 			</div>
 			<p class="stat-caption">{ fmt.Sprintf("%d goroutines · %d heap objects", metrics.Goroutines, metrics.HeapObjects) }</p>

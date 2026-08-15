@@ -201,6 +201,11 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	// Record last login timestamp for active user tracking.
+	if a.Users != nil {
+		a.Users.UpdateLastLoginAt(r.Context(), user.ID)
+	}
+
 	http.Redirect(w, r, "/api/v1/super-admin/dashboard", http.StatusFound)
 }
 

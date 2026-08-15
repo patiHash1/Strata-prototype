@@ -310,7 +310,7 @@ func TestMetricsFragmentHandler(t *testing.T) {
 	}
 
 	// Assert metric values are present in the HTML (even if zero).
-	if !strings.Contains(bodyStr, "0.0 MB") {
+	if !strings.Contains(bodyStr, "0.00 MB") {
 		t.Error("response body does not contain allocated memory metric")
 	}
 	if !strings.Contains(bodyStr, "0 goroutines") {

@@ -15,16 +15,17 @@ import (
 // ---- Types ----
 
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"`
-	FullName     string    `json:"full_name"`
-	PhoneNumber  *string   `json:"phone_number,omitempty"`
-	MFAEnabled   bool      `json:"mfa_enabled"`
-	MFASecret    *string   `json:"-"`
-	IsBanned     bool      `json:"is_banned"`
-	BanReason    string    `json:"ban_reason,omitempty"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID           uuid.UUID  `json:"id"`
+	Email        string     `json:"email"`
+	PasswordHash string     `json:"-"`
+	FullName     string     `json:"full_name"`
+	PhoneNumber  *string    `json:"phone_number,omitempty"`
+	MFAEnabled   bool       `json:"mfa_enabled"`
+	MFASecret    *string    `json:"-"`
+	IsBanned     bool       `json:"is_banned"`
+	BanReason    string     `json:"ban_reason,omitempty"`
+	CreatedAt    time.Time  `json:"created_at"`
+	LastLoginAt  *time.Time `json:"last_login_at,omitempty"`
 }
 
 type OrganizationMember struct {
@@ -59,9 +60,9 @@ func (r *userRepository) Create(ctx context.Context, u *User) error {
 func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	u := &User{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
+		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at, last_login_at
 		FROM users WHERE email = $1
-	`, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt)
+	`, email).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt, &u.LastLoginAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -71,9 +72,9 @@ func (r *userRepository) GetByEmail(ctx context.Context, email string) (*User, e
 func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	u := &User{}
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
+		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at, last_login_at
 		FROM users WHERE id = $1
-	`, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt)
+	`, id).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber, &u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt, &u.LastLoginAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -230,6 +231,25 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, fullName,
 	}
 
 	return s.repo.Update(ctx, id, fullName, email, phone)
+}
+
+// CountActiveUsers returns the number of users who logged in within the given duration.
+func (s *UserService) CountActiveUsers(ctx context.Context, within time.Duration) (int, error) {
+	var count int
+	err := s.repo.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM users
+		WHERE last_login_at IS NOT NULL
+		AND last_login_at > NOW() - make_interval(secs => $1)
+	`, within.Seconds()).Scan(&count)
+	return count, err
+}
+
+// UpdateLastLoginAt sets the last_login_at timestamp for a user.
+func (s *UserService) UpdateLastLoginAt(ctx context.Context, userID uuid.UUID) error {
+	_, err := s.repo.pool.Exec(ctx, `
+		UPDATE users SET last_login_at = NOW() WHERE id = $1
+	`, userID)
+	return err
 }
 
 // DeleteAccount removes the user record for the given ID.

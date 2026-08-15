@@ -130,6 +130,7 @@ func main() {
 
 	// ── Super Admin ──
 	superAdminSvc := services.NewSuperAdminService(db.Pool, rdb)
+	superAdminSvc.SetUserSvc(userSvc)
 	defer superAdminSvc.Shutdown()
 
 	registrationSvc := services.NewRegistrationService(db.Pool)

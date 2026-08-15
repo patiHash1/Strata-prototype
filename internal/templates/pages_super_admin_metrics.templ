@@ -70,13 +70,12 @@ templ MetricsChart() {
 						const now = Date.now();
 						const runtime = m.runtime || {};
 						const db = m.db || {};
-						const http = m.http || {};
 
 						this.chart.appendData([
-							{ data: [{ x: now, y: runtime.allocated_mb || 0 }] },
+							{ data: [{ x: now, y: parseFloat((runtime.allocated_mb || 0).toFixed(2)) }] },
 							{ data: [{ x: now, y: runtime.goroutines || 0 }] },
 							{ data: [{ x: now, y: db.acquired_conns || 0 }] },
-							{ data: [{ x: now, y: http.total_requests || 0 }] },
+							{ data: [{ x: now, y: m.active_users || 0 }] },
 						]);
 
 						// Keep at most 60 data points (5 minutes at 5s intervals).
