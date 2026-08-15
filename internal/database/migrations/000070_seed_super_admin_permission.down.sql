@@ -1,0 +1,1 @@
+-- Seed data — no rollback needed for 000070_seed_super_admin_permission

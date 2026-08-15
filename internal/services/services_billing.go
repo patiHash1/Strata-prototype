@@ -147,7 +147,3 @@ func (s *BillingService) CreateOrUpgrade(ctx context.Context, orgID uuid.UUID, p
 func (s *BillingService) GetByOrgID(ctx context.Context, orgID uuid.UUID) (*Subscription, error) {
 	return s.repo.GetByOrgID(ctx, orgID)
 }
-
-var (
-	ErrSubNotFound = errors.New("subscription not found")
-)

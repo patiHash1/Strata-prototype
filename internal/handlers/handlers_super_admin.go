@@ -186,7 +186,7 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   86400,
 		HttpOnly: true,
-		Secure:   false, // set to true in production with TLS
+		Secure:   r.TLS != nil,
 		SameSite: http.SameSiteLaxMode,
 	})
 

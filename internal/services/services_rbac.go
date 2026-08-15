@@ -60,9 +60,18 @@ func (r *rbacRepository) GetRoleByID(ctx context.Context, id uuid.UUID) (*Role, 
 }
 
 func (r *rbacRepository) ListRolesByOrg(ctx context.Context, orgID uuid.UUID) ([]Role, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT id, org_id, name, description, is_system_default FROM roles WHERE org_id = $1
-	`, orgID)
+	return r.listRolesByOrg(ctx, orgID, 0, 0)
+}
+
+func (r *rbacRepository) listRolesByOrg(ctx context.Context, orgID uuid.UUID, offset, limit int) ([]Role, error) {
+	query := `SELECT id, org_id, name, description, is_system_default FROM roles WHERE org_id = $1`
+	args := []any{orgID}
+	if limit > 0 {
+		query += ` ORDER BY name LIMIT $2 OFFSET $3`
+		args = append(args, limit, offset)
+	}
+
+	rows, err := r.pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,6 +193,11 @@ func (s *RBACService) GetRoleByID(ctx context.Context, id uuid.UUID) (*Role, err
 
 func (s *RBACService) ListRolesByOrg(ctx context.Context, orgID uuid.UUID) ([]Role, error) {
 	return s.repo.ListRolesByOrg(ctx, orgID)
+}
+
+// ListRolesByOrgPage returns a paginated list of roles for an org.
+func (s *RBACService) ListRolesByOrgPage(ctx context.Context, orgID uuid.UUID, offset, limit int) ([]Role, error) {
+	return s.repo.listRolesByOrg(ctx, orgID, offset, limit)
 }
 
 func (s *RBACService) GetPermissionsByRole(ctx context.Context, roleID uuid.UUID) ([]Permission, error) {

@@ -3,12 +3,13 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/database"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 )
 
@@ -84,7 +85,7 @@ func (a *App) Serve(ctx context.Context) error {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	log.Printf("API server listening on %s", addr)
+	logger.Info("API server listening", slog.String("addr", addr))
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -96,7 +97,7 @@ func (a *App) Serve(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
-		log.Print("shutting down server…")
+		logger.Info("shutting down server")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		return a.server.Shutdown(shutdownCtx)

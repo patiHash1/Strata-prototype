@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/patiHash1/Strata-prototype/internal/services"
@@ -196,8 +198,16 @@ func (a *App) loginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Update last_login_at asynchronously (best-effort).
+	go func() {
+		if err := a.Users.UpdateLastLoginAt(context.Background(), user.ID); err != nil {
+			log.Printf("failed to update last_login_at for user %s: %v", user.ID, err)
+		}
+	}()
+
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{
-		"access_token": token,
+		"access_token":  token,
+		"refresh_token": a.Auth.GenerateRefreshToken(),
 		"user_profile": utils.Envelope{
 			"id":        user.ID.String(),
 			"email":     user.Email,

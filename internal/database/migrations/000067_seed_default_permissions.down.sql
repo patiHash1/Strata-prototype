@@ -1,0 +1,1 @@
+-- Seed data — no rollback needed for 000067_seed_default_permissions

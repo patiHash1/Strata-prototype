@@ -1,1 +1,1 @@
-DROP TABLE IF EXISTS super_admin_soc_events;
+DROP TABLE IF EXISTS super_admin_soc_events CASCADE;

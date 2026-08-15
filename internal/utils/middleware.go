@@ -3,13 +3,14 @@ package utils
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 )
 
@@ -49,12 +50,12 @@ func LoggingMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) 
 
 			latency := time.Since(start)
 
-			log.Printf(
-				"%s %s %d %s",
-				r.Method,
-				r.URL.Path,
-				lw.status,
-				latency.Round(time.Microsecond),
+			logger.Info("http_request",
+				slog.String("method", r.Method),
+				slog.String("path", r.URL.Path),
+				slog.Int("status", lw.status),
+				slog.Duration("latency", latency),
+				slog.String("module", extractModule(r.URL.Path)),
 			)
 
 			if adminSvc != nil {
@@ -97,7 +98,10 @@ func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler)
 			defer func() {
 				if rec := recover(); rec != nil {
 					stack := string(debug.Stack())
-					log.Printf("PANIC: %v\n%s", rec, stack)
+					logger.Error("panic_recovered",
+						slog.String("path", r.URL.Path),
+						slog.Any("panic", rec),
+					)
 
 					if adminSvc != nil {
 						adminSvc.RecordPanic("system", fmt.Sprintf("%v", rec), stack, http.StatusInternalServerError)

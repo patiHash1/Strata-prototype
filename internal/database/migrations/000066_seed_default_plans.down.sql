@@ -1,0 +1,1 @@
+-- Seed data — no rollback needed for 000066_seed_default_plans

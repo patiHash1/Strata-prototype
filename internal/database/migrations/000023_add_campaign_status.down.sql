@@ -1,0 +1,1 @@
+-- Manual rollback required for 000023_add_campaign_status

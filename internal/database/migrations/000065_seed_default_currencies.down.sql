@@ -1,0 +1,1 @@
+-- Seed data — no rollback needed for 000065_seed_default_currencies

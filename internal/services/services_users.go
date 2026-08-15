@@ -130,13 +130,29 @@ func (r *userRepository) GetMemberByID(ctx context.Context, memberID uuid.UUID) 
 	return m, err
 }
 
-func (r *userRepository) ListMembersByUser(ctx context.Context, userID uuid.UUID) ([]OrganizationMember, error) {
+func (r *userRepository) ListMembersByUser(ctx context.Context, userID uuid.UUID, offset, limit int) ([]OrganizationMember, int, error) {
+	var total int
+	if err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM organization_members WHERE user_id = $1
+	`, userID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+
 	rows, err := r.pool.Query(ctx, `
 		SELECT id, org_id, user_id, role_id, is_active, joined_at
 		FROM organization_members WHERE user_id = $1
-	`, userID)
+		ORDER BY joined_at ASC
+		LIMIT $2 OFFSET $3
+	`, userID, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -144,11 +160,11 @@ func (r *userRepository) ListMembersByUser(ctx context.Context, userID uuid.UUID
 	for rows.Next() {
 		var m OrganizationMember
 		if err := rows.Scan(&m.ID, &m.OrgID, &m.UserID, &m.RoleID, &m.IsActive, &m.JoinedAt); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		members = append(members, m)
 	}
-	return members, rows.Err()
+	return members, total, rows.Err()
 }
 
 // ---- Service ----
@@ -214,7 +230,15 @@ func (s *UserService) GetMemberByID(ctx context.Context, memberID uuid.UUID) (*O
 }
 
 func (s *UserService) ListMembersByUser(ctx context.Context, userID uuid.UUID) ([]OrganizationMember, error) {
-	return s.repo.ListMembersByUser(ctx, userID)
+	// Keep the existing high-level signature for callers that only need the
+	// user's memberships (e.g. login). Internally it uses a sane page size.
+	members, _, err := s.repo.ListMembersByUser(ctx, userID, 0, 100)
+	return members, err
+}
+
+// ListMembersByUserPage returns a paginated list of a user's memberships.
+func (s *UserService) ListMembersByUserPage(ctx context.Context, userID uuid.UUID, offset, limit int) ([]OrganizationMember, int, error) {
+	return s.repo.ListMembersByUser(ctx, userID, offset, limit)
 }
 
 // UpdateProfile allows a user to modify their own profile fields.
@@ -325,7 +349,7 @@ func (r *userRepository) ListAllUsers(ctx context.Context, offset, limit int) ([
 	}
 
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, email, password_hash, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
+		SELECT id, email, full_name, phone_number, mfa_enabled, mfa_secret, is_banned, ban_reason, created_at
 		FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2
 	`, limit, offset)
 	if err != nil {
@@ -336,7 +360,7 @@ func (r *userRepository) ListAllUsers(ctx context.Context, offset, limit int) ([
 	var users []User
 	for rows.Next() {
 		var u User
-		if err := rows.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.FullName, &u.PhoneNumber,
+		if err := rows.Scan(&u.ID, &u.Email, &u.FullName, &u.PhoneNumber,
 			&u.MFAEnabled, &u.MFASecret, &u.IsBanned, &u.BanReason, &u.CreatedAt); err != nil {
 			return nil, 0, err
 		}
@@ -348,6 +372,4 @@ func (r *userRepository) ListAllUsers(ctx context.Context, offset, limit int) ([
 // Domain errors
 var (
 	ErrEmailAlreadyExists = errors.New("user with this email already exists")
-	ErrMemberNotFound     = errors.New("organization member not found")
-	ErrMemberNotInOrg     = errors.New("member does not belong to this organization")
 )

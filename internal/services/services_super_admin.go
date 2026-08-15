@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"runtime"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 )
@@ -251,6 +253,9 @@ func (r *superAdminRepository) GetLatestCIHealthByModule(ctx context.Context, mo
 	err := row.Scan(&report.ID, &report.Module, &report.CoveragePercent,
 		&report.LinterIssues, &report.VulnerabilitiesCount, &report.CommitSHA, &report.CreatedAt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &report, nil
@@ -364,7 +369,9 @@ func (r *superAdminRepository) ListRecentSOCEvents(ctx context.Context, limit in
 			return nil, err
 		}
 		if metadataJSON != nil {
-			json.Unmarshal(metadataJSON, &e.Metadata)
+			if err := json.Unmarshal(metadataJSON, &e.Metadata); err != nil {
+				log.Printf("[super-admin] failed to unmarshal SOC event metadata: %v", err)
+			}
 		}
 		events = append(events, e)
 	}
@@ -492,6 +499,18 @@ func NewSuperAdminService(pool *pgxpool.Pool, rdb *redis.Client) *SuperAdminServ
 func (s *SuperAdminService) Shutdown() {
 	s.cancel()
 	s.wg.Wait()
+}
+
+// PingRedis reports whether the optional Redis client is configured and
+// reachable. A nil client (Redis disabled) returns false, nil.
+func (s *SuperAdminService) PingRedis(ctx context.Context) (bool, error) {
+	if s.rdb == nil {
+		return false, nil
+	}
+	if err := s.rdb.Ping(ctx).Err(); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // SetUserSvc injects the UserService for active user counting in snapshots.

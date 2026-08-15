@@ -245,6 +245,18 @@ templ APITrafficChart() {
 	>
 		<div class="card-header">
 			<h3 class="card-header-title">Global API Traffic</h3>
+			<div class="card-header-actions">
+				<button
+					class="btn-sm"
+					:class="timeframe === 'hourly' ? 'btn-primary' : 'btn-secondary'"
+					@click="switchTimeframe('hourly')"
+				>1h</button>
+				<button
+					class="btn-sm"
+					:class="timeframe === 'daily' ? 'btn-primary' : 'btn-secondary'"
+					@click="switchTimeframe('daily')"
+				>24h</button>
+			</div>
 		</div>
 		<div class="card-body">
 			<div id="api-traffic-chart" style="min-height: 280px;"></div>
@@ -255,12 +267,17 @@ templ APITrafficChart() {
 			return {
 				chart: null,
 				pollTimer: null,
+				timeframe: 'hourly',
+				rawSeries: [],
 
 				initChart() {
 					if (typeof ApexCharts === 'undefined') {
 						setTimeout(() => this.initChart(), 200);
 						return;
 					}
+
+					const HOURS_1 = 60 * 60 * 1000;
+					const now = Date.now();
 
 					const options = {
 						chart: {
@@ -277,25 +294,90 @@ templ APITrafficChart() {
 							{ name: '2xx Success', data: [] },
 							{ name: '5xx Errors', data: [] },
 						],
-						xaxis: { type: 'datetime', labels: { style: { colors: '#9CA3AF' } } },
-						yaxis: { labels: { style: { colors: '#9CA3AF' } } },
-						grid: { borderColor: '#374151', strokeDashArray: 4 },
-						legend: { labels: { colors: '#9CA3AF' } },
-						tooltip: { theme: 'dark' },
-					};
+					xaxis: {
+						type: 'datetime',
+						min: now - HOURS_1,
+						max: now,
+						labels: {
+							style: { colors: '#9CA3AF' },
+							datetimeUTC: false,
+							formatter: function(val) {
+								return new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+							},
+						},
+					},
+					yaxis: { min: 0, labels: { style: { colors: '#9CA3AF' } } },
+					grid: { borderColor: '#374151', strokeDashArray: 4 },
+					legend: { labels: { colors: '#9CA3AF' } },
+					tooltip: { theme: 'dark' },
+				};
 
-					this.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);
-					this.chart.render().then(() => {
-						// Fetch data once chart is ready.
-						this.fetchTrafficData();
-						// Poll every 15 seconds.
-						this.pollTimer = setInterval(() => this.fetchTrafficData(), 15000);
-					});
+				this.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);
+				this.chart.render().then(() => {
+					this.fetchTrafficData();
+					this.pollTimer = setInterval(() => this.fetchTrafficData(), 15000);
+				});
+
+				// Reinitialize chart when page is restored from bfcache.
+				window.addEventListener('pageshow', (e) => {
+					if (e.persisted) {
+						if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+						if (this.chart) { this.chart.destroy(); this.chart = null; }
+						this.rawSeries = [];
+						this.initChart();
+					}
+				});
+			},
+
+				switchTimeframe(tf) {
+					this.timeframe = tf;
+					this.applyData();
+				},
+
+				applyData() {
+					if (!this.chart || this.rawSeries.length === 0) return;
+					const now = Date.now();
+
+					if (this.timeframe === 'hourly') {
+						// Last 12 five-minute buckets (1 hour window).
+						const cutoff = now - 60 * 60 * 1000;
+						const inRange = this.rawSeries.filter(p => p.ts >= cutoff);
+						this.chart.updateSeries([
+							{ name: '2xx Success', data: inRange.map(p => ({ x: p.ts, y: p.c2xx })) },
+							{ name: '5xx Errors', data: inRange.map(p => ({ x: p.ts, y: p.c5xx })) },
+						], true);
+						this.chart.updateOptions({
+							xaxis: { min: cutoff, max: now },
+							title: { text: '12 × 5-min buckets', style: { color: '#9CA3AF', fontSize: '12px' } },
+						}, false);
+					} else {
+						// Daily: 24 one-hour slots, highest recorded value per slot.
+						const cutoff = now - 24 * 60 * 60 * 1000;
+						const inRange = this.rawSeries.filter(p => p.ts >= cutoff);
+						const binSize = (24 * 60 * 60 * 1000) / 24; // 1 hour
+						const agg2xx = [], agg5xx = [];
+						for (let b = 0; b < 24; b++) {
+							const binStart = cutoff + b * binSize;
+							const binEnd = binStart + binSize;
+							const inBin = inRange.filter(p => p.ts >= binStart && p.ts < binEnd);
+							if (inBin.length === 0) continue;
+							const mid = binStart + binSize / 2;
+							agg2xx.push({ x: mid, y: Math.max(...inBin.map(p => p.c2xx)) });
+							agg5xx.push({ x: mid, y: Math.max(...inBin.map(p => p.c5xx)) });
+						}
+						this.chart.updateSeries([
+							{ name: '2xx Success', data: agg2xx },
+							{ name: '5xx Errors', data: agg5xx },
+						], true);
+						this.chart.updateOptions({
+							xaxis: { min: cutoff, max: now },
+							title: { text: '24h Rolling Max (hourly)', style: { color: '#9CA3AF', fontSize: '12px' } },
+						}, false);
+					}
 				},
 
 				fetchTrafficData() {
 					if (!this.chart) {
-						// Chart not ready yet, retry shortly.
 						setTimeout(() => this.fetchTrafficData(), 500);
 						return;
 					}
@@ -305,16 +387,17 @@ templ APITrafficChart() {
 					.then(r => r.json())
 					.then(json => {
 						if (!json.series || !this.chart) return;
-						const data2xx = json.series.map(p => ({ x: p.ts, y: p.count_2xx }));
-						const data5xx = json.series.map(p => ({ x: p.ts, y: p.count_5xx }));
-						this.chart.updateSeries([
-							{ name: '2xx Success', data: data2xx },
-							{ name: '5xx Errors', data: data5xx },
-						]);
+						this.rawSeries = json.series.map(p => ({ ts: p.ts, c2xx: p.count_2xx, c5xx: p.count_5xx }));
+						this.applyData();
 					})
 					.catch(() => {
-						// Silently ignore fetch errors — chart keeps its last data.
+						// Silently ignore fetch errors
 					});
+				},
+
+				destroy() {
+					if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+					if (this.chart) { this.chart.destroy(); this.chart = null; }
 				},
 			};
 		}

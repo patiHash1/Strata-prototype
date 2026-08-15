@@ -1,0 +1,1 @@
+-- Manual rollback required for 000071_super_admin_user_org_columns

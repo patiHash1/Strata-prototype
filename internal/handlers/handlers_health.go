@@ -35,5 +35,14 @@ func (a *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 		data["database"] = "connected"
 	}
 
+	if a.SuperAdmin != nil {
+		ok, err := a.SuperAdmin.PingRedis(r.Context())
+		if err != nil {
+			data["redis"] = "unavailable"
+		} else if ok {
+			data["redis"] = "connected"
+		}
+	}
+
 	utils.WriteJSON(w, http.StatusOK, data)
 }

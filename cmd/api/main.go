@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os/signal"
 	"syscall"
 
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/database"
 	"github.com/patiHash1/Strata-prototype/internal/handlers"
+	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/redis/go-redis/v9"
 
@@ -71,22 +72,25 @@ func main() {
 	ctx := context.Background()
 
 	if cfg.DB.DSN == "" {
-		log.Fatal("DATABASE_URL is required")
+		logger.Error("DATABASE_URL is required")
+		panic("DATABASE_URL is required")
 	}
 
 	db, err := database.New(ctx, cfg.DB.DSN)
 	if err != nil {
-		log.Fatalf("database connection failed: %v", err)
+		logger.Error("database connection failed", slog.String("error", err.Error()))
+		panic(err)
 	}
 	defer db.Close()
-	log.Println("database connected")
+	logger.Info("database connected")
 
 	// ── Run migrations ──
-	log.Println("running migrations…")
+	logger.Info("running migrations")
 	if err := db.Migrate(ctx); err != nil {
-		log.Fatalf("migration failed: %v", err)
+		logger.Error("migration failed", slog.String("error", err.Error()))
+		panic(err)
 	}
-	log.Println("migrations complete")
+	logger.Info("migrations complete")
 
 	// ── Services ──
 	authSvc := services.NewAuthService(cfg.JWTSecret, cfg.JWTIssuer)
@@ -105,9 +109,9 @@ func main() {
 	if cfg.SuperAdminUname != "" && cfg.SuperAdminPword != "" {
 		seedSvc := services.NewSeedService(db.Pool, authSvc, userSvc, orgSvc, rbacSvc)
 		if err := seedSvc.SeedSuperAdmin(ctx, cfg.SuperAdminUname, cfg.SuperAdminPword); err != nil {
-			log.Printf("WARNING: super admin seeding failed (continuing): %v", err)
+			logger.Warn("super admin seeding failed (continuing)", slog.String("error", err.Error()))
 		} else {
-			log.Println("super admin seeded")
+			logger.Info("super admin seeded")
 		}
 	}
 
@@ -120,11 +124,11 @@ func main() {
 			DB:       cfg.Redis.DB,
 		})
 		if err := rdb.Ping(ctx).Err(); err != nil {
-			log.Printf("WARNING: Redis connection failed (continuing without Redis): %v", err)
+			logger.Warn("Redis connection failed (continuing without Redis)", slog.String("error", err.Error()))
 			rdb.Close()
 			rdb = nil
 		} else {
-			log.Println("redis connected")
+			logger.Info("redis connected")
 		}
 	}
 
@@ -142,9 +146,10 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	log.Printf("starting Strata API (port %d)", cfg.Port)
+	logger.Info("starting Strata API", slog.Int("port", cfg.Port))
 
 	if err := app.Serve(sigCtx); err != nil {
-		log.Fatalf("server exited: %v", err)
+		logger.Error("server exited", slog.String("error", err.Error()))
+		panic(err)
 	}
 }

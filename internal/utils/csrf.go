@@ -20,15 +20,20 @@ func GenerateCSRFToken() (string, error) {
 	return hex.EncodeToString(buf), nil
 }
 
-// SetCSRFCookie writes the CSRF token as a readable cookie (not HttpOnly,
-// because the browser JS/templ needs to read it for form embedding).
+// SetCSRFCookie writes the CSRF token as an HttpOnly cookie.
+// The token is also embedded in the form via templ, so the browser
+// does not need JS access to the cookie value.
 func SetCSRFCookie(w http.ResponseWriter, token string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     csrfCookieName,
 		Value:    token,
 		Path:     "/",
 		MaxAge:   int((15 * time.Minute).Seconds()),
-		HttpOnly: false, // form field reads it via templ
+		HttpOnly: true,
+		// NOTE: Secure is intentionally false here because the server may
+		// run behind a TLS-terminating proxy on plain HTTP locally. In a
+		// production deployment without a proxy, set Secure based on
+		// whether the request arrived over HTTPS.
 		SameSite: http.SameSiteStrictMode,
 	})
 }

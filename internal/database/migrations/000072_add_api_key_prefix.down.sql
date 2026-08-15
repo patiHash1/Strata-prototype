@@ -1,0 +1,1 @@
+-- Manual rollback required for 000072_add_api_key_prefix

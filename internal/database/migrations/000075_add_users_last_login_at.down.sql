@@ -1,0 +1,1 @@
+-- Manual rollback required for 000075_add_users_last_login_at
