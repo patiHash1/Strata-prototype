@@ -609,42 +609,30 @@ func (s *SupplyChainService) GetReorderPredictions(ctx context.Context, orgID uu
 			stockMap[l.ProductID] = l.QuantityAvailable
 		}
 	} else {
-		// Build a map of productID -> total quantity available from inventory_levels.
-		stockMap := make(map[uuid.UUID]float64)
-		if warehouseID != nil {
-			levels, err := s.repo.GetInventoryLevelsByWarehouse(ctx, orgID, *warehouseID)
-			if err != nil {
-				return nil, err
-			}
-			for _, l := range levels {
-				stockMap[l.ProductID] = l.QuantityAvailable
-			}
-		} else {
-			// Single aggregate query across all warehouses instead of a per-product N+1 loop.
-			rows, err := s.repo.pool.Query(ctx, `
+		// Single aggregate query across all warehouses instead of a per-product N+1 loop.
+		rows, err := s.repo.pool.Query(ctx, `
 			SELECT product_id, COALESCE(SUM(quantity_available), 0)
 			FROM inventory_levels
 			WHERE org_id = $1
 			GROUP BY product_id
 		`, orgID)
-			if err != nil {
-				return nil, err
-			}
-			for rows.Next() {
-				var productID uuid.UUID
-				var total float64
-				if err := rows.Scan(&productID, &total); err != nil {
-					rows.Close()
-					return nil, err
-				}
-				stockMap[productID] = total
-			}
-			if err := rows.Err(); err != nil {
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var productID uuid.UUID
+			var total float64
+			if err := rows.Scan(&productID, &total); err != nil {
 				rows.Close()
 				return nil, err
 			}
-			rows.Close()
+			stockMap[productID] = total
 		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
 	}
 
 	var predictions []StockoutPrediction
