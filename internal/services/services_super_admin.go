@@ -885,14 +885,14 @@ func (s *SuperAdminService) RecordHTTPLatency(record HTTPLatencyRecord) {
 func (s *SuperAdminService) TrafficSeries() []TrafficBucket {
 	snap := s.trafficSeries.Snapshot()
 
-	// Include the in-progress current bucket.
+	// Include the in-progress current bucket if it has a timestamp set.
 	s.trafficMu.Lock()
 	current := s.currentBucket
 	s.trafficMu.Unlock()
 
 	var result []TrafficBucket
 	result = append(result, snap...)
-	if current.Count2xx > 0 || current.Count5xx > 0 {
+	if !current.Timestamp.IsZero() {
 		result = append(result, current)
 	}
 

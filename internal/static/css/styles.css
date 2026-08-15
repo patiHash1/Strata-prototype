@@ -609,7 +609,6 @@ table { border-collapse: collapse; }
 	display: flex;
 	gap: 1rem;
 	margin-bottom: 1.5rem;
-	min-height: 380px;
 }
 
 .dashboard-bottom-chart {
@@ -620,34 +619,45 @@ table { border-collapse: collapse; }
 .dashboard-bottom-activity {
 	flex: 35;
 	min-width: 0;
-	min-height: 0;
 }
 
-.dashboard-bottom-chart .card,
-.dashboard-bottom-activity .card {
+/* Both panels stretch to match each other's height */
+.dashboard-bottom-chart .card {
 	display: flex;
 	flex-direction: column;
 	height: 100%;
 }
 
-/* Make the activity card body fill remaining height and scroll */
+.dashboard-bottom-chart .card-body {
+	flex: 1;
+	min-height: 0;
+}
+
+.dashboard-bottom-activity .card {
+	display: flex;
+	flex-direction: column;
+	height: 380px;
+	max-height: 380px;
+}
+
+/* Activity card body: fixed height with scroll overflow */
 .dashboard-bottom-activity .card-body {
 	flex: 1;
 	overflow-y: auto;
 	min-height: 0;
+	padding: 0;
 }
 
 .activity-list {
 	display: flex;
 	flex-direction: column;
-	gap: 0;
 }
 
 .activity-item {
 	display: flex;
 	align-items: flex-start;
 	gap: 0.5rem;
-	padding: 0.625rem 0;
+	padding: 0.625rem 1.25rem;
 	border-bottom: 1px solid var(--color-gray-100);
 }
 
@@ -679,7 +689,10 @@ table { border-collapse: collapse; }
 @media (max-width: 768px) {
 	.dashboard-bottom-row {
 		flex-direction: column;
-		min-height: auto;
+	}
+	.dashboard-bottom-activity .card {
+		height: auto;
+		max-height: none;
 	}
 }
 

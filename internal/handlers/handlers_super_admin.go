@@ -275,7 +275,7 @@ func (a *App) dashboardActivityHandler(w http.ResponseWriter, r *http.Request) {
 
 	if a.SuperAdmin != nil {
 		events := a.SuperAdmin.RecentSOCEvents()
-		limit := 20
+		limit := 10
 		if len(events) < limit {
 			limit = len(events)
 		}
