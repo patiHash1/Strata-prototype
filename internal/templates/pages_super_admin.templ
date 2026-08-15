@@ -241,7 +241,7 @@ templ APITrafficChart() {
 	<div
 		class="card"
 		x-data="apiTrafficChart()"
-		x-init="initChart(); fetchTrafficData()"
+		x-init="$nextTick(() => initChart())"
 	>
 		<div class="card-header">
 			<h3 class="card-header-title">Global API Traffic</h3>
@@ -285,13 +285,20 @@ templ APITrafficChart() {
 					};
 
 					this.chart = new ApexCharts(document.querySelector('#api-traffic-chart'), options);
-					this.chart.render();
-
-					// Poll every 15 seconds.
-					this.pollTimer = setInterval(() => this.fetchTrafficData(), 15000);
+					this.chart.render().then(() => {
+						// Fetch data once chart is ready.
+						this.fetchTrafficData();
+						// Poll every 15 seconds.
+						this.pollTimer = setInterval(() => this.fetchTrafficData(), 15000);
+					});
 				},
 
 				fetchTrafficData() {
+					if (!this.chart) {
+						// Chart not ready yet, retry shortly.
+						setTimeout(() => this.fetchTrafficData(), 500);
+						return;
+					}
 					fetch('/api/v1/super-admin/dashboard/traffic', {
 						credentials: 'same-origin',
 					})

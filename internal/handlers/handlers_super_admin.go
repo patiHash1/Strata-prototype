@@ -275,12 +275,15 @@ func (a *App) dashboardActivityHandler(w http.ResponseWriter, r *http.Request) {
 
 	if a.SuperAdmin != nil {
 		events := a.SuperAdmin.RecentSOCEvents()
-		limit := 10
-		if len(events) < limit {
-			limit = len(events)
+		// Take the latest 5 events (most recent are at the end).
+		start := 0
+		if len(events) > 5 {
+			start = len(events) - 5
 		}
-		events = events[:limit]
-		for _, e := range events {
+		latest := events[start:]
+		// Reverse so most recent appears first in the UI.
+		for i := len(latest) - 1; i >= 0; i-- {
+			e := latest[i]
 			age := time.Since(e.Timestamp)
 			items = append(items, templates.ActivityItem{
 				Severity:  e.Severity,

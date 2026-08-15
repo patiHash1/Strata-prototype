@@ -973,14 +973,6 @@ func (s *SuperAdminService) subscribeSOCEvents() {
 				return
 			}
 			log.Printf("[super-admin] SOC event received from Redis, fan-out to %d subscribers", len(s.sseSubs))
-
-			// Also push into the in-memory ring buffer so RecentSOCEvents()
-			// returns data for the dashboard Activity panel.
-			var evt SOCEvent
-			if err := json.Unmarshal([]byte(msg.Payload), &evt); err == nil {
-				s.socBuffer.Push(evt)
-			}
-
 			s.fanoutSSE([]byte(msg.Payload))
 		}
 	}
