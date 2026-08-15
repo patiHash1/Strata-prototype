@@ -14,24 +14,31 @@ templ MetricsChart() {
 				<button
 					class="btn-sm"
 					:class="timeframe === 'daily' ? 'btn-primary' : 'btn-secondary'"
-					@click="switchTimeframe('daily')"
+					@click="setRange('daily')"
 				>24h</button>
 				<button
 					class="btn-sm"
 					:class="timeframe === 'weekly' ? 'btn-primary' : 'btn-secondary'"
-					@click="switchTimeframe('weekly')"
+					@click="setRange('weekly')"
 				>7d</button>
 			</div>
 		</div>
 		<div class="card-body">
-			<div id="metrics-chart" style="min-height: 300px;"></div>
+			<div x-ref="chart" id="metrics-chart" style="min-height: 300px;"></div>
 		</div>
 	</div>
 	<script>
 		function metricsChart() {
+			// Global in-memory buffer shared across component remounts so
+			// navigating away and back preserves the collected history.
+			const metricsStore = window.__strataMetricsStore || (window.__strataMetricsStore = {
+				points: [],
+			});
+
 			return {
 				chart: null,
 				pollTimer: null,
+				resizeObserver: null,
 				timeframe: 'daily',
 				allPoints: [],
 
@@ -40,6 +47,9 @@ templ MetricsChart() {
 						setTimeout(() => this.initChart(), 200);
 						return;
 					}
+
+					// Restore any previously collected points before mounting the chart.
+					this.allPoints = metricsStore.points.slice();
 
 					const DAY = 24 * 60 * 60 * 1000;
 					const now = Date.now();
@@ -79,8 +89,28 @@ templ MetricsChart() {
 						tooltip: { theme: 'dark' },
 					};
 
-					this.chart = new ApexCharts(document.querySelector('#metrics-chart'), options);
+					this.chart = new ApexCharts(this.$refs.chart, options);
 					this.chart.render().then(() => {
+						// Watch container size. On remount via HTMX the div may
+						// start at 0×0 — wait for a real clientWidth before
+						// trying resize + rebuild.
+						if (typeof ResizeObserver !== 'undefined') {
+							this.resizeObserver = new ResizeObserver((entries) => {
+								for (const e of entries) {
+									if (e.contentRect.width > 0 && this.chart) {
+										this.chart.resize();
+										this.rebuildChart();
+									}
+								}
+							});
+							this.resizeObserver.observe(this.$refs.chart);
+						} else {
+							// Fallback for older browsers.
+							requestAnimationFrame(() => {
+								if (this.chart) { this.chart.resize(); }
+							});
+						}
+
 						this.fetchMetrics();
 						this.pollTimer = setInterval(() => this.fetchMetrics(), 5000);
 					});
@@ -90,14 +120,43 @@ templ MetricsChart() {
 						if (e.persisted) {
 							if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
 							if (this.chart) { this.chart.destroy(); this.chart = null; }
-							this.allPoints = [];
+							this.allPoints = metricsStore.points.slice();
 							this.initChart();
 						}
 					});
 				},
 
-				switchTimeframe(tf) {
+				setRange(tf) {
 					this.timeframe = tf;
+					if (!this.chart) return;
+
+					const now = Date.now();
+					const DAY = 24 * 60 * 60 * 1000;
+					const rangeMs = tf === 'daily' ? DAY : 7 * DAY;
+
+					// Dynamic x-axis formatter: clock times for ≤24h, dates for multi-day.
+					const isMultiDay = tf === 'weekly';
+					const xaxisFormatter = isMultiDay
+						? function(val) {
+							const d = new Date(val);
+							return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+						  }
+						: function(val) {
+							return new Date(val).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+						  };
+
+					this.chart.updateOptions({
+						xaxis: {
+							min: now - rangeMs,
+							max: now,
+							labels: { formatter: xaxisFormatter },
+						},
+						title: {
+							text: isMultiDay ? '7-Day Rolling Max' : '24h Rolling Average',
+							style: { color: '#9CA3AF', fontSize: '12px' },
+						},
+					}, false);
+
 					this.rebuildChart();
 				},
 
@@ -119,7 +178,6 @@ templ MetricsChart() {
 						]);
 						this.chart.updateOptions({
 							xaxis: { min: cutoff, max: now },
-							title: { text: this.timeframe === 'weekly' ? '7-Day Rolling Max' : '24h Rolling Average', style: { color: '#9CA3AF', fontSize: '12px' } },
 						}, false);
 						return;
 					}
@@ -130,15 +188,18 @@ templ MetricsChart() {
 						const binStart = cutoff + b * binSize;
 						const binEnd = binStart + binSize;
 						const inBin = inRange.filter(p => p.ts >= binStart && p.ts < binEnd);
-						if (inBin.length === 0) continue;
 						const binTimestamp = binStart + binSize / 2;
 						for (let s = 0; s < 4; s++) {
-							if (this.timeframe === 'weekly') {
-								const max = Math.max(...inBin.map(p => p.values[s]));
-								aggregated[s].push({ x: binTimestamp, y: max });
+							if (inBin.length > 0) {
+								if (this.timeframe === 'weekly') {
+									const max = Math.max(...inBin.map(p => p.values[s]));
+									aggregated[s].push({ x: binTimestamp, y: max });
+								} else {
+									const sum = inBin.reduce((a, p) => a + p.values[s], 0);
+									aggregated[s].push({ x: binTimestamp, y: parseFloat((sum / inBin.length).toFixed(2)) });
+								}
 							} else {
-								const sum = inBin.reduce((a, p) => a + p.values[s], 0);
-								aggregated[s].push({ x: binTimestamp, y: parseFloat((sum / inBin.length).toFixed(2)) });
+								aggregated[s].push({ x: binTimestamp, y: 0 });
 							}
 						}
 					}
@@ -147,7 +208,6 @@ templ MetricsChart() {
 					this.chart.updateSeries(seriesNames.map((name, i) => ({ name, data: aggregated[i] })), true);
 					this.chart.updateOptions({
 						xaxis: { min: cutoff, max: now },
-						title: { text: this.timeframe === 'weekly' ? '7-Day Rolling Max' : '24h Rolling Average', style: { color: '#9CA3AF', fontSize: '12px' } },
 					}, false);
 				},
 
@@ -179,6 +239,10 @@ templ MetricsChart() {
 							this.allPoints = this.allPoints.slice(-20160);
 						}
 
+						// Keep the shared store in sync so a later remount can restore
+						// the chart immediately before the next live sample arrives.
+						metricsStore.points = this.allPoints.slice();
+
 						this.rebuildChart();
 					})
 					.catch(() => {});
@@ -186,7 +250,10 @@ templ MetricsChart() {
 
 				destroy() {
 					if (this.pollTimer) { clearInterval(this.pollTimer); this.pollTimer = null; }
+					if (this.resizeObserver) { this.resizeObserver.disconnect(); this.resizeObserver = null; }
 					if (this.chart) { this.chart.destroy(); this.chart = null; }
+					// Persist collected points so they survive component unmount.
+					metricsStore.points = this.allPoints.slice();
 				},
 			};
 		}

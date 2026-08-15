@@ -339,38 +339,58 @@ templ APITrafficChart() {
 					const now = Date.now();
 
 					if (this.timeframe === 'hourly') {
-						// Last 12 five-minute buckets (1 hour window).
-						const cutoff = now - 60 * 60 * 1000;
-						const inRange = this.rawSeries.filter(p => p.ts >= cutoff);
+						// Last 12 five-minute buckets anchored to the most-recent
+						// 5‑min boundary so the origin never drifts on restart.
+						const bucketMs = 5 * 60 * 1000;
+						const cutoff = Math.floor(now / bucketMs) * bucketMs - 11 * bucketMs;
+						const dense2xx = [];
+						const dense5xx = [];
+						for (let b = 0; b < 12; b++) {
+							const slotStart = cutoff + b * bucketMs;
+							const slotEnd = slotStart + bucketMs;
+							const mid = slotStart + bucketMs / 2;
+							const inSlot = this.rawSeries.filter(p => p.ts >= slotStart && p.ts < slotEnd);
+							if (inSlot.length > 0) {
+								dense2xx.push({ x: mid, y: inSlot.reduce((s, p) => s + p.c2xx, 0) });
+								dense5xx.push({ x: mid, y: inSlot.reduce((s, p) => s + p.c5xx, 0) });
+							} else {
+								dense2xx.push({ x: mid, y: 0 });
+								dense5xx.push({ x: mid, y: 0 });
+							}
+						}
+
 						this.chart.updateSeries([
-							{ name: '2xx Success', data: inRange.map(p => ({ x: p.ts, y: p.c2xx })) },
-							{ name: '5xx Errors', data: inRange.map(p => ({ x: p.ts, y: p.c5xx })) },
+							{ name: '2xx Success', data: dense2xx },
+							{ name: '5xx Errors', data: dense5xx },
 						], true);
 						this.chart.updateOptions({
-							xaxis: { min: cutoff, max: now },
+							xaxis: { min: cutoff, max: cutoff + 11 * bucketMs + bucketMs },
 							title: { text: '12 × 5-min buckets', style: { color: '#9CA3AF', fontSize: '12px' } },
 						}, false);
 					} else {
 						// Daily: 24 one-hour slots, highest recorded value per slot.
-						const cutoff = now - 24 * 60 * 60 * 1000;
-						const inRange = this.rawSeries.filter(p => p.ts >= cutoff);
-						const binSize = (24 * 60 * 60 * 1000) / 24; // 1 hour
+						const hourMs = 60 * 60 * 1000;
+						const cutoff = Math.floor(now / hourMs) * hourMs - 23 * hourMs;
 						const agg2xx = [], agg5xx = [];
 						for (let b = 0; b < 24; b++) {
-							const binStart = cutoff + b * binSize;
-							const binEnd = binStart + binSize;
-							const inBin = inRange.filter(p => p.ts >= binStart && p.ts < binEnd);
-							if (inBin.length === 0) continue;
-							const mid = binStart + binSize / 2;
-							agg2xx.push({ x: mid, y: Math.max(...inBin.map(p => p.c2xx)) });
-							agg5xx.push({ x: mid, y: Math.max(...inBin.map(p => p.c5xx)) });
+							const binStart = cutoff + b * hourMs;
+							const binEnd = binStart + hourMs;
+							const mid = binStart + hourMs / 2;
+							const inBin = this.rawSeries.filter(p => p.ts >= binStart && p.ts < binEnd);
+							if (inBin.length > 0) {
+								agg2xx.push({ x: mid, y: Math.max(...inBin.map(p => p.c2xx)) });
+								agg5xx.push({ x: mid, y: Math.max(...inBin.map(p => p.c5xx)) });
+							} else {
+								agg2xx.push({ x: mid, y: 0 });
+								agg5xx.push({ x: mid, y: 0 });
+							}
 						}
 						this.chart.updateSeries([
 							{ name: '2xx Success', data: agg2xx },
 							{ name: '5xx Errors', data: agg5xx },
 						], true);
 						this.chart.updateOptions({
-							xaxis: { min: cutoff, max: now },
+							xaxis: { min: cutoff, max: cutoff + 23 * hourMs + hourMs },
 							title: { text: '24h Rolling Max (hourly)', style: { color: '#9CA3AF', fontSize: '12px' } },
 						}, false);
 					}
