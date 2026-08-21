@@ -30,6 +30,7 @@ type CreateLeadResponse struct {
 
 // createLeadHandler creates a new lead, triggers AI scoring, and returns the result.
 //
+//	@ID			createLead
 //	@Summary		Create lead & trigger AI scoring
 //	@Description	Creates a new CRM contact as a lead, runs AI win probability scoring, and creates a linked deal. Requires `crm.leads.write` permission.
 //	@Tags			CRM
@@ -106,6 +107,7 @@ type AnalyzeRiskResponse struct {
 
 // analyzeRiskHandler performs AI risk analysis on a quote's contract text.
 //
+//	@ID			analyzeContractRisk
 //	@Summary		Analyze contract risk
 //	@Description	Runs AI risk analysis on a quote's contract text, identifying flagged clauses with risk levels and suggested fixes. Requires `crm.quotes.write` permission.
 //	@Tags			CRM
@@ -188,6 +190,9 @@ type CreateTicketResponse struct {
 //
 //	@Summary		Auto-route support ticket & analyze sentiment
 //	@Description	Creates a helpdesk ticket, runs AI sentiment analysis on the description, auto-assigns priority and routing. Requires `crm.tickets.write` permission.
+//	@ID			createTicket
+//	@Summary		Create support ticket & auto-route
+//	@Description	Creates a helpdesk ticket with AI sentiment analysis, auto-assigned priority, and an AI-generated suggested response. Requires `crm.tickets.write` permission.
 //	@Tags			CRM
 //	@Accept			json
 //	@Produce		json
@@ -282,8 +287,9 @@ type ScheduleFieldVisitResponse struct {
 
 // scheduleFieldVisitHandler schedules a field sales visit with AI route optimization.
 //
+//	@ID			scheduleFieldVisit
 //	@Summary		Schedule field sales visit
-//	@Description	Creates a field sales visit and simulates AI route optimization, returning estimated travel time. Requires `crm.fieldvisits.write` permission.
+//	@Description	Schedules an in-person field sales visit for a contact, returning the estimated travel time. Requires `crm.fieldvisits.write` permission.
 //	@Tags			CRM
 //	@Accept			json
 //	@Produce		json
@@ -293,6 +299,7 @@ type ScheduleFieldVisitResponse struct {
 //	@Failure		400	{object}	utils.Envelope
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/crm/field-visits [post]
 func (a *App) scheduleFieldVisitHandler(w http.ResponseWriter, r *http.Request) {
 	var req scheduleFieldVisitRequest
@@ -381,8 +388,9 @@ type CreateCampaignResponse struct {
 
 // createCampaignHandler creates a marketing campaign with AI audience segmentation.
 //
+//	@ID			createCampaign
 //	@Summary		Create marketing campaign
-//	@Description	Creates a new marketing campaign with AI-powered audience segmentation. Requires `crm.campaigns.write` permission.
+//	@Description	Creates a new marketing campaign with AI-generated target segment criteria. Requires `crm.campaigns.write` permission.
 //	@Tags			CRM
 //	@Accept			json
 //	@Produce		json
@@ -449,10 +457,10 @@ type launchCampaignResponse struct {
 
 // launchCampaignHandler launches a marketing campaign and returns estimated reach.
 //
+//	@ID			launchCampaign
 //	@Summary		Launch marketing campaign
-//	@Description	Launches a draft campaign, activating it and returning AI-estimated reach. Requires `crm.campaigns.write` permission.
+//	@Description	Launches a previously created campaign, transitioning it to active status and returning the estimated reach. Requires `crm.campaigns.write` permission.
 //	@Tags			CRM
-//	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			campaign_id	path	string	true	"Campaign ID"

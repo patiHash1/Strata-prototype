@@ -25,6 +25,7 @@ type AccountProfileResponse struct {
 
 // getAccountHandler returns the authenticated user's profile.
 //
+//	@ID			getAccount
 //	@Summary		Get own profile
 //	@Description	Returns the profile of the currently authenticated user.
 //	@Tags			Account
@@ -77,6 +78,7 @@ type updateAccountRequest struct {
 
 // updateAccountHandler updates the authenticated user's profile fields.
 //
+//	@ID			updateAccount
 //	@Summary		Update own profile
 //	@Description	Partially updates profile fields (full_name, email, phone_number) for the authenticated user.
 //	@Tags			Account
@@ -158,6 +160,7 @@ func (a *App) updateAccountHandler(w http.ResponseWriter, r *http.Request) {
 
 // deleteAccountHandler removes the authenticated user's account.
 //
+//	@ID			deleteAccount
 //	@Summary		Delete own account
 //	@Description	Permanently deletes the authenticated user's account and all associated data.
 //	@Tags			Account
@@ -200,6 +203,7 @@ type AccountOrgResponse struct {
 
 // listMyOrganizationsHandler returns all org memberships for the authenticated user.
 //
+//	@ID			listMyOrganizations
 //	@Summary		List my organizations
 //	@Description	Returns all organization memberships for the currently authenticated user.
 //	@Tags			Account

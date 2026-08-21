@@ -34,6 +34,7 @@ type CreateJournalEntryResponse struct {
 
 // createJournalEntryHandler posts a balanced general ledger entry.
 //
+//	@ID			createJournalEntry
 //	@Summary		Post general ledger entry
 //	@Description	Creates a journal entry with balanced debit/credit items. Total debits must equal total credits. Requires `accounting.ledger.write` permission.
 //	@Tags			Accounting
@@ -130,6 +131,7 @@ type OCRResponse struct {
 
 // processInvoiceOCRHandler uploads an invoice file for AI vision OCR processing.
 //
+//	@ID			processInvoiceOCR
 //	@Summary		Upload invoice for vision OCR
 //	@Description	Uploads a PDF or image invoice file for AI-powered OCR extraction. Returns extracted vendor, line items, tax, and total. Requires `accounting.invoices.write` permission.
 //	@Tags			Accounting
@@ -207,6 +209,7 @@ type CreateExpenseResponse struct {
 
 // createExpenseHandler submits an expense with AI fraud audit.
 //
+//	@ID			createExpense
 //	@Summary		Submit expense with AI fraud audit
 //	@Description	Creates an expense submission and runs AI fraud detection. Flags high-value, policy-violating, or suspicious expenses. Requires `expenses.submit` permission.
 //	@Tags			Accounting
@@ -288,6 +291,7 @@ type createAssetRequest struct {
 
 // createAssetHandler registers a new fixed asset.
 //
+//	@ID			createAsset
 //	@Summary		Register fixed asset
 //	@Description	Registers a new fixed asset for depreciation tracking. Requires `accounting.assets.write` permission.
 //	@Tags			Accounting
@@ -361,6 +365,7 @@ func (a *App) createAssetHandler(w http.ResponseWriter, r *http.Request) {
 
 // getDepreciationHandler calculates straight-line depreciation for a fixed asset.
 //
+//	@ID			getDepreciation
 //	@Summary		Calculate asset depreciation
 //	@Description	Calculates straight-line depreciation for a fixed asset over a given date range. Returns annual depreciation, accumulated depreciation, and current book value. Requires `accounting.assets.read` permission.
 //	@Tags			Accounting
@@ -435,6 +440,7 @@ type createTaxRateRequest struct {
 
 // createTaxRateHandler creates a new tax rate.
 //
+//	@ID			createTaxRate
 //	@Summary		Create tax rate
 //	@Description	Creates a new tax rate for a specific country (e.g., VAT, GST). Requires `accounting.tax.manage` permission.
 //	@Tags			Accounting
@@ -502,6 +508,7 @@ type calculateTaxRequest struct {
 
 // calculateTaxHandler computes tax for a given country and subtotal.
 //
+//	@ID			calculateTax
 //	@Summary		Calculate tax
 //	@Description	Computes tax for a given country code and subtotal amount using the organization's active tax rates. Requires `accounting.tax.read` permission.
 //	@Tags			Accounting

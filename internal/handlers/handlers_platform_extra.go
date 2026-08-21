@@ -24,6 +24,7 @@ type IngestReadingBatchResponse struct {
 
 // ingestReadingBatchHandler processes multiple IoT device sensor readings in batch.
 //
+//	@ID			ingestReadingBatch
 //	@Summary		Ingest device readings batch
 //	@Description	Processes multiple sensor readings from IoT devices in batch for high-frequency ingestion. Requires `iot.readings.ingest` permission.
 //	@Tags			BI & IoT

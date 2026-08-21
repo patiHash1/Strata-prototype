@@ -22,6 +22,7 @@ type importBankStatementRequest struct {
 
 // importBankStatementHandler imports a bank statement with its transactions.
 //
+//	@ID			importBankStatement
 //	@Summary		Import bank statement
 //	@Description	Imports a bank statement and its transaction lines for reconciliation. Requires `accounting.bankrec.write` permission.
 //	@Tags			Accounting
@@ -91,8 +92,9 @@ func (a *App) importBankStatementHandler(w http.ResponseWriter, r *http.Request)
 
 // reconcileBankStatementHandler auto-reconciles a bank statement against journal entries.
 //
+//	@ID			reconcileBankStatement
 //	@Summary		Reconcile bank statement
-//	@Description	Auto-matches bank transactions from a statement to journal entries by amount proximity. Requires `accounting.bankrec.write` permission.
+//	@Description	Runs AI auto-matching to reconcile a bank statement against journal entries. Requires `accounting.bankrec.write` permission.
 //	@Tags			Accounting
 //	@Accept			json
 //	@Produce		json
@@ -102,6 +104,7 @@ func (a *App) importBankStatementHandler(w http.ResponseWriter, r *http.Request)
 //	@Failure		400	{object}	utils.Envelope
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
+//	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/accounting/bank-statements/{statement_id}/reconcile [post]
 func (a *App) reconcileBankStatementHandler(w http.ResponseWriter, r *http.Request) {
 	statementIDStr := r.PathValue("statement_id")
@@ -151,8 +154,9 @@ type createExchangeRateRequest struct {
 
 // createExchangeRateHandler creates or updates an exchange rate between two currencies.
 //
+//	@ID			createExchangeRate
 //	@Summary		Create exchange rate
-//	@Description	Creates or updates an exchange rate between two currencies for multi-currency accounting. Requires `accounting.exchangerates.write` permission.
+//	@Description	Creates a new currency exchange rate. Requires `accounting.exchangerates.write` permission.
 //	@Tags			Accounting
 //	@Accept			json
 //	@Produce		json
@@ -224,8 +228,9 @@ type convertCurrencyRequest struct {
 
 // convertCurrencyHandler converts a monetary amount between currencies.
 //
+//	@ID			convertCurrency
 //	@Summary		Convert currency
-//	@Description	Converts a monetary amount between two currencies using the effective exchange rate. Requires `accounting.currencyconvert.read` permission.
+//	@Description	Converts an amount between two currencies using the latest exchange rate. Requires `accounting.currencyconvert.read` permission.
 //	@Tags			Accounting
 //	@Accept			json
 //	@Produce		json

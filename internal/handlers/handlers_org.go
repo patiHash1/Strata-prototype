@@ -19,6 +19,7 @@ type inviteRequest struct {
 
 // inviteHandler sends an invitation to join the organization.
 //
+//	@ID			inviteMember
 //	@Summary		Invite team member
 //	@Description	Sends an invitation to join the organization. Requires `users.invite` permission.
 //	@Tags			Organizations
@@ -94,6 +95,7 @@ type createRoleRequest struct {
 
 // createRoleHandler creates a new dynamic role.
 //
+//	@ID			createRole
 //	@Summary		Create dynamic role
 //	@Description	Creates a new role with assigned permissions. Requires `rbac.manage` permission.
 //	@Tags			Organizations
@@ -165,6 +167,7 @@ type updateMemberRequest struct {
 
 // updateMemberHandler updates admin-managed information for an organization member.
 //
+//	@ID			updateMember
 //	@Summary		Update organization member
 //	@Description	Updates a member's role or other admin-managed fields. Requires `users.manage` permission.
 //	@Tags			Organizations
@@ -259,8 +262,9 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 
 // deleteMemberHandler deactivates (soft-deletes) an organization member.
 //
+//	@ID			deactivateMember
 //	@Summary		Deactivate organization member
-//	@Description	Deactivates (soft-deletes) a member account. Requires `users.manage` permission.
+//	@Description	Soft-deletes a member by setting is_active = false. Requires `users.manage` permission.
 //	@Tags			Organizations
 //	@Produce		json
 //	@Security		BearerAuth
@@ -334,6 +338,9 @@ func (a *App) deleteMemberHandler(w http.ResponseWriter, r *http.Request) {
 //
 //	@Summary		Remove member from organization
 //	@Description	Removes a member from the organization's member list without deleting the user account. Requires `users.manage` permission.
+//	@ID			removeMember
+//	@Summary		Remove organization member
+//	@Description	Permanently removes a member from the organization by deleting the membership row. The user account is preserved. Requires `users.manage` permission.
 //	@Tags			Organizations
 //	@Produce		json
 //	@Security		BearerAuth
@@ -403,8 +410,9 @@ type createAPIKeyRequest struct {
 
 // createAPIKeyHandler generates a new API key.
 //
-//	@Summary		Generate API key
-//	@Description	Creates a new API key for machine integrations. The plain-text secret is shown only once. Requires `apikeys.manage` permission.
+//	@ID			createAPIKey
+//	@Summary		Create API key
+//	@Description	Generates a new API key for machine-to-machine integrations. Requires `apikeys.manage` permission.
 //	@Tags			Organizations
 //	@Accept			json
 //	@Produce		json

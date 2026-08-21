@@ -12,6 +12,7 @@ import (
 
 // clockOutHandler records a clock-out event for the authenticated user.
 //
+//	@ID			clockOut
 //	@Summary		Clock out
 //	@Description	Records a clock-out event for the authenticated employee, closing the open attendance log and returning hours worked. Requires `hr.attendance.clockout` permission.
 //	@Tags			HR
@@ -69,6 +70,7 @@ type createShiftTemplateRequest struct {
 
 // createShiftTemplateHandler creates a new shift template.
 //
+//	@ID			createShiftTemplate
 //	@Summary		Create shift template
 //	@Description	Creates a new shift template for workforce scheduling. Requires `hr.shifts.write` permission.
 //	@Tags			HR
@@ -138,6 +140,7 @@ type assignShiftRequest struct {
 
 // assignShiftHandler assigns an employee to a shift on a specific date.
 //
+//	@ID			assignShift
 //	@Summary		Assign shift
 //	@Description	Assigns an employee to a shift template on a specific date. Requires `hr.shifts.write` permission.
 //	@Tags			HR
@@ -202,6 +205,7 @@ func (a *App) assignShiftHandler(w http.ResponseWriter, r *http.Request) {
 
 // predictShiftNeedsHandler returns AI-simulated staffing predictions for a date range.
 //
+//	@ID			predictShiftNeeds
 //	@Summary		Predict shift needs
 //	@Description	Returns AI-simulated staffing predictions for a date range based on historical attendance patterns. Requires `hr.shifts.write` permission.
 //	@Tags			HR
@@ -262,6 +266,7 @@ func (a *App) predictShiftNeedsHandler(w http.ResponseWriter, r *http.Request) {
 
 // getEmployeeScheduleHandler returns shift assignments for an employee in a date range.
 //
+//	@ID			getEmployeeSchedule
 //	@Summary		Get employee schedule
 //	@Description	Returns all shift assignments for an employee within a date range. Requires `hr.shifts.write` permission.
 //	@Tags			HR
@@ -323,6 +328,7 @@ func (a *App) getEmployeeScheduleHandler(w http.ResponseWriter, r *http.Request)
 
 // getPayrollRunDetailHandler returns detailed payroll run information including disbursements.
 //
+//	@ID			getPayrollRunDetail
 //	@Summary		Get payroll run detail
 //	@Description	Returns a payroll run with all employee disbursements. Requires `hr.payroll.read` permission.
 //	@Tags			HR
@@ -381,6 +387,7 @@ type setEmployeeTaxProfileRequest struct {
 
 // setEmployeeTaxProfileHandler creates or updates the tax profile for an employee.
 //
+//	@ID			setEmployeeTaxProfile
 //	@Summary		Set employee tax profile
 //	@Description	Creates or updates the tax withholding profile for an employee. Requires `hr.payroll.write` permission.
 //	@Tags			HR

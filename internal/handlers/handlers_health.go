@@ -14,8 +14,9 @@ type HealthResponse struct {
 
 // healthHandler responds to GET /health with the service status.
 //
+//	@ID			health
 //	@Summary		Service health check
-//	@Description	Returns the current health status of the API and its dependencies (e.g. database).
+//	@Description	Returns the current health status of the API and its dependencies (e.g. database, redis).
 //	@Tags			System
 //	@Produce		json
 //	@Success		200 {object} HealthResponse "Service is healthy"

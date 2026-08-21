@@ -17,6 +17,7 @@ type createSubscriptionRequest struct {
 
 // createSubscriptionHandler creates or upgrades a subscription.
 //
+//	@ID			createOrUpgradeSubscription
 //	@Summary		Create / upgrade subscription
 //	@Description	Creates or upgrades a Stripe subscription for the organization. Requires `billing.manage` permission.
 //	@Tags			Billing

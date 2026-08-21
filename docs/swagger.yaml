@@ -248,18 +248,6 @@ definitions:
         type: string
       user_profile: {}
     type: object
-  handlers.MaintenanceListResponse:
-    properties:
-      rules:
-        items:
-          $ref: '#/definitions/services.MaintenanceRule'
-        type: array
-    type: object
-  handlers.MaintenanceToggleResponse:
-    properties:
-      rule:
-        $ref: '#/definitions/services.MaintenanceRule'
-    type: object
   handlers.MetricsResponse:
     properties:
       metrics:
@@ -1020,42 +1008,6 @@ definitions:
       total_requests:
         type: integer
     type: object
-  services.MaintenanceRule:
-    properties:
-      allowed_roles:
-        items:
-          type: string
-        type: array
-      created_at:
-        type: string
-      id:
-        type: integer
-      is_active:
-        type: boolean
-      reason:
-        type: string
-      scope:
-        type: string
-      target_id:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  services.MaintenanceToggleRequest:
-    properties:
-      allowed_roles:
-        items:
-          type: string
-        type: array
-      is_active:
-        type: boolean
-      reason:
-        type: string
-      scope:
-        type: string
-      target_id:
-        type: string
-    type: object
   services.ModuleHTTPMetrics:
     properties:
       errors_5xx:
@@ -1187,6 +1139,8 @@ definitions:
     type: object
   services.TelemetrySnapshot:
     properties:
+      active_users:
+        type: integer
       db:
         $ref: '#/definitions/services.DBMetrics'
       http:
@@ -1214,6 +1168,8 @@ definitions:
         type: string
       is_banned:
         type: boolean
+      last_login_at:
+        type: string
       mfa_enabled:
         type: boolean
       phone_number:
@@ -1243,10 +1199,41 @@ info:
   title: Strata API
   version: 0.1.0
 paths:
+  /api/v1/{module}/health:
+    get:
+      description: Returns the current operational state of a module (operational,
+        degraded, or maintenance). Public endpoint — no authentication required. Designed
+        for load balancers and uptime monitors.
+      operationId: getModuleHealth
+      parameters:
+      - description: Module name (e.g. crm, accounting, hr)
+        in: path
+        name: module
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      summary: Get module health
+      tags:
+      - System
   /api/v1/account:
     delete:
       description: Permanently deletes the authenticated user's account and all associated
         data.
+      operationId: deleteAccount
       produces:
       - application/json
       responses:
@@ -1267,6 +1254,7 @@ paths:
       - Account
     get:
       description: Returns the profile of the currently authenticated user.
+      operationId: getAccount
       produces:
       - application/json
       responses:
@@ -1292,6 +1280,7 @@ paths:
       - application/json
       description: Partially updates profile fields (full_name, email, phone_number)
         for the authenticated user.
+      operationId: updateAccount
       parameters:
       - description: Fields to update
         in: body
@@ -1327,6 +1316,7 @@ paths:
     get:
       description: Returns all organization memberships for the currently authenticated
         user.
+      operationId: listMyOrganizations
       produces:
       - application/json
       responses:
@@ -1355,6 +1345,7 @@ paths:
       - application/json
       description: Registers a new fixed asset for depreciation tracking. Requires
         `accounting.assets.write` permission.
+      operationId: createAsset
       parameters:
       - description: Asset payload
         in: body
@@ -1391,6 +1382,7 @@ paths:
       description: Calculates straight-line depreciation for a fixed asset over a
         given date range. Returns annual depreciation, accumulated depreciation, and
         current book value. Requires `accounting.assets.read` permission.
+      operationId: getDepreciation
       parameters:
       - description: Asset ID
         in: path
@@ -1441,6 +1433,7 @@ paths:
       - application/json
       description: Imports a bank statement and its transaction lines for reconciliation.
         Requires `accounting.bankrec.write` permission.
+      operationId: importBankStatement
       parameters:
       - description: Bank statement payload
         in: body
@@ -1476,8 +1469,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Auto-matches bank transactions from a statement to journal entries
-        by amount proximity. Requires `accounting.bankrec.write` permission.
+      description: Runs AI auto-matching to reconcile a bank statement against journal
+        entries. Requires `accounting.bankrec.write` permission.
+      operationId: reconcileBankStatement
       parameters:
       - description: Bank statement ID
         in: path
@@ -1503,6 +1497,10 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Reconcile bank statement
@@ -1512,8 +1510,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Converts a monetary amount between two currencies using the effective
-        exchange rate. Requires `accounting.currencyconvert.read` permission.
+      description: Converts an amount between two currencies using the latest exchange
+        rate. Requires `accounting.currencyconvert.read` permission.
+      operationId: convertCurrency
       parameters:
       - description: Currency conversion payload
         in: body
@@ -1549,8 +1548,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates or updates an exchange rate between two currencies for
-        multi-currency accounting. Requires `accounting.exchangerates.write` permission.
+      description: Creates a new currency exchange rate. Requires `accounting.exchangerates.write`
+        permission.
+      operationId: createExchangeRate
       parameters:
       - description: Exchange rate payload
         in: body
@@ -1589,6 +1589,7 @@ paths:
       description: Creates an expense submission and runs AI fraud detection. Flags
         high-value, policy-violating, or suspicious expenses. Requires `expenses.submit`
         permission.
+      operationId: createExpense
       parameters:
       - description: Expense payload
         in: body
@@ -1627,6 +1628,7 @@ paths:
       description: Uploads a PDF or image invoice file for AI-powered OCR extraction.
         Returns extracted vendor, line items, tax, and total. Requires `accounting.invoices.write`
         permission.
+      operationId: processInvoiceOCR
       parameters:
       - description: Invoice file (PDF or image)
         in: formData
@@ -1663,6 +1665,7 @@ paths:
       - application/json
       description: Creates a journal entry with balanced debit/credit items. Total
         debits must equal total credits. Requires `accounting.ledger.write` permission.
+      operationId: createJournalEntry
       parameters:
       - description: Journal entry payload
         in: body
@@ -1700,6 +1703,7 @@ paths:
       - application/json
       description: Creates a new tax rate for a specific country (e.g., VAT, GST).
         Requires `accounting.tax.manage` permission.
+      operationId: createTaxRate
       parameters:
       - description: Tax rate payload
         in: body
@@ -1737,6 +1741,7 @@ paths:
       - application/json
       description: Computes tax for a given country code and subtotal amount using
         the organization's active tax rates. Requires `accounting.tax.read` permission.
+      operationId: calculateTax
       parameters:
       - description: Tax calculation payload
         in: body
@@ -1775,6 +1780,7 @@ paths:
       description: Converts a natural language prompt to SQL, executes the simulated
         query, and returns results with a chart recommendation. Requires `copilot.use`
         permission.
+      operationId: copilotQuery
       parameters:
       - description: Natural language prompt (e.g., 'Show top 5 sales reps by revenue
           in Q2')
@@ -1817,6 +1823,7 @@ paths:
       - application/json
       description: Authenticates with email/password (and optionally MFA code). Returns
         JWT + refresh token + profile.
+      operationId: login
       parameters:
       - description: Login payload
         in: body
@@ -1848,6 +1855,7 @@ paths:
       - application/json
       description: Creates a new organization and a user as its owner. Returns a JWT
         access token.
+      operationId: register
       parameters:
       - description: Registration payload
         in: body
@@ -1877,6 +1885,7 @@ paths:
     get:
       description: Returns all BI executive dashboards for the authenticated organization.
         Requires `bi.dashboards.read` permission.
+      operationId: listDashboards
       produces:
       - application/json
       responses:
@@ -1906,6 +1915,7 @@ paths:
       - application/json
       description: Creates a new BI executive dashboard with optional widget configuration.
         Requires `bi.dashboards.write` permission.
+      operationId: createDashboard
       parameters:
       - description: Dashboard creation payload
         in: body
@@ -1945,6 +1955,7 @@ paths:
     get:
       description: Returns rendered widget data for a BI dashboard with AI-powered
         anomaly detection. Requires `bi.dashboards.read` permission.
+      operationId: getDashboardData
       parameters:
       - description: Dashboard ID
         in: path
@@ -1985,6 +1996,7 @@ paths:
       - application/json
       description: Creates or upgrades a Stripe subscription for the organization.
         Requires `billing.manage` permission.
+      operationId: createOrUpgradeSubscription
       parameters:
       - description: Subscription payload
         in: body
@@ -2020,8 +2032,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new marketing campaign with AI-powered audience segmentation.
-        Requires `crm.campaigns.write` permission.
+      description: Creates a new marketing campaign with AI-generated target segment
+        criteria. Requires `crm.campaigns.write` permission.
+      operationId: createCampaign
       parameters:
       - description: Campaign payload
         in: body
@@ -2055,10 +2068,9 @@ paths:
       - CRM
   /api/v1/crm/campaigns/{campaign_id}/launch:
     post:
-      consumes:
-      - application/json
-      description: Launches a draft campaign, activating it and returning AI-estimated
-        reach. Requires `crm.campaigns.write` permission.
+      description: Launches a previously created campaign, transitioning it to active
+        status and returning the estimated reach. Requires `crm.campaigns.write` permission.
+      operationId: launchCampaign
       parameters:
       - description: Campaign ID
         in: path
@@ -2097,8 +2109,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a field sales visit and simulates AI route optimization,
-        returning estimated travel time. Requires `crm.fieldvisits.write` permission.
+      description: Schedules an in-person field sales visit for a contact, returning
+        the estimated travel time. Requires `crm.fieldvisits.write` permission.
+      operationId: scheduleFieldVisit
       parameters:
       - description: Field visit payload
         in: body
@@ -2125,6 +2138,10 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/utils.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
       summary: Schedule field sales visit
@@ -2136,6 +2153,7 @@ paths:
       - application/json
       description: Creates a new CRM contact as a lead, runs AI win probability scoring,
         and creates a linked deal. Requires `crm.leads.write` permission.
+      operationId: createLead
       parameters:
       - description: Lead payload
         in: body
@@ -2174,6 +2192,7 @@ paths:
       description: Runs AI risk analysis on a quote's contract text, identifying flagged
         clauses with risk levels and suggested fixes. Requires `crm.quotes.write`
         permission.
+      operationId: analyzeContractRisk
       parameters:
       - description: Risk analysis payload
         in: body
@@ -2213,8 +2232,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a helpdesk ticket, runs AI sentiment analysis on the description,
-        auto-assigns priority and routing. Requires `crm.tickets.write` permission.
+      description: |-
+        Creates a helpdesk ticket, runs AI sentiment analysis on the description, auto-assigns priority and routing. Requires `crm.tickets.write` permission.
+        Creates a helpdesk ticket with AI sentiment analysis, auto-assigned priority, and an AI-generated suggested response. Requires `crm.tickets.write` permission.
+      operationId: createTicket
       parameters:
       - description: Ticket payload
         in: body
@@ -2247,7 +2268,7 @@ paths:
             $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: Auto-route support ticket & analyze sentiment
+      summary: Create support ticket & auto-route
       tags:
       - CRM
   /api/v1/fleet/routes/optimize:
@@ -2257,6 +2278,7 @@ paths:
       description: Generates AI-optimized delivery routes for a set of shipments using
         available vehicles. Returns a route plan with GeoJSON waypoints, ETA, and
         carbon offset estimate. Requires `fleet.routes.manage` permission.
+      operationId: optimizeRoutes
       parameters:
       - description: Route optimization payload
         in: body
@@ -2299,6 +2321,7 @@ paths:
       description: Ingests real-time vehicle telemetry data (GPS, speed, engine temp)
         via API key authentication. Triggers AI predictive maintenance alerts when
         anomalies are detected. Requires API key with `fleet.telematics.ingest` scope.
+      operationId: ingestTelemetry
       parameters:
       - description: Telemetry payload
         in: body
@@ -2342,6 +2365,7 @@ paths:
         extracts candidate details and skills using AI, scores the match against a
         specified job description, and stores the application. Requires `hr.recruitment.write`
         permission.
+      operationId: parseResume
       parameters:
       - description: Resume file (PDF or Docx)
         in: formData
@@ -2389,6 +2413,7 @@ paths:
         Validates whether the location is within a configured geofence. The employee
         is identified from the JWT token's user identity. Requires `hr.attendance.write`
         permission.
+      operationId: clockIn
       parameters:
       - description: Clock-in payload with GPS coordinates
         in: body
@@ -2431,6 +2456,7 @@ paths:
       description: Records a clock-out event for the authenticated employee, closing
         the open attendance log and returning hours worked. Requires `hr.attendance.clockout`
         permission.
+      operationId: clockOut
       produces:
       - application/json
       responses:
@@ -2459,6 +2485,7 @@ paths:
     get:
       description: Lists all employees in the organization. Optionally filter by department
         via query parameter. Requires `hr.employees.read` permission.
+      operationId: listEmployees
       parameters:
       - description: Filter by department name
         in: query
@@ -2491,6 +2518,7 @@ paths:
       - application/json
       description: Creates a new employee record in the organization. Requires `hr.employees.write`
         permission.
+      operationId: createEmployee
       parameters:
       - description: Employee details
         in: body
@@ -2526,6 +2554,7 @@ paths:
     get:
       description: Retrieves an employee record by ID. Requires `hr.employees.read`
         permission.
+      operationId: getEmployee
       parameters:
       - description: Employee UUID
         in: path
@@ -2561,6 +2590,7 @@ paths:
       - application/json
       description: Updates an employee's department, job title, or salary. Requires
         `hr.employees.write` permission.
+      operationId: updateEmployee
       parameters:
       - description: Employee UUID
         in: path
@@ -2609,6 +2639,7 @@ paths:
         knowledge base documents (e.g., HR policies, onboarding guides) and returns
         an AI-synthesized answer with source citations. Requires `knowledge.read`
         permission.
+      operationId: knowledgeSearch
       parameters:
       - description: Search query
         in: body
@@ -2644,6 +2675,7 @@ paths:
     get:
       description: Lists all payroll runs for the organization. Requires `hr.payroll.read`
         permission.
+      operationId: listPayrollRuns
       produces:
       - application/json
       responses:
@@ -2672,6 +2704,7 @@ paths:
       description: Creates a payroll run, simulating wage calculations, deductions,
         and tax withholdings for all active employees. Requires `hr.payroll.write`
         permission.
+      operationId: runPayroll
       parameters:
       - description: Payroll period
         in: body
@@ -2706,6 +2739,7 @@ paths:
   /api/v1/hr/payroll/runs/{run_id}:
     get:
       description: Retrieves a payroll run by ID. Requires `hr.payroll.read` permission.
+      operationId: getPayrollRun
       parameters:
       - description: Payroll Run UUID
         in: path
@@ -2742,6 +2776,7 @@ paths:
       - application/json
       description: Returns a payroll run with all employee disbursements. Requires
         `hr.payroll.read` permission.
+      operationId: getPayrollRunDetail
       parameters:
       - description: Payroll run ID
         in: path
@@ -2782,6 +2817,7 @@ paths:
       - application/json
       description: Creates or updates the tax withholding profile for an employee.
         Requires `hr.payroll.write` permission.
+      operationId: setEmployeeTaxProfile
       parameters:
       - description: Tax profile payload
         in: body
@@ -2819,6 +2855,7 @@ paths:
       - application/json
       description: Assigns an employee to a shift template on a specific date. Requires
         `hr.shifts.write` permission.
+      operationId: assignShift
       parameters:
       - description: Shift assignment payload
         in: body
@@ -2856,6 +2893,7 @@ paths:
       - application/json
       description: Returns AI-simulated staffing predictions for a date range based
         on historical attendance patterns. Requires `hr.shifts.write` permission.
+      operationId: predictShiftNeeds
       parameters:
       - description: Department filter
         in: query
@@ -2901,6 +2939,7 @@ paths:
       - application/json
       description: Returns all shift assignments for an employee within a date range.
         Requires `hr.shifts.write` permission.
+      operationId: getEmployeeSchedule
       parameters:
       - description: Employee ID
         in: query
@@ -2947,6 +2986,7 @@ paths:
       - application/json
       description: Creates a new shift template for workforce scheduling. Requires
         `hr.shifts.write` permission.
+      operationId: createShiftTemplate
       parameters:
       - description: Shift template payload
         in: body
@@ -2984,6 +3024,7 @@ paths:
       - application/json
       description: Removes stock from a warehouse and records an issue movement. Requires
         `inventory.issue` permission.
+      operationId: issueStock
       parameters:
       - description: Stock issue payload
         in: body
@@ -3021,6 +3062,7 @@ paths:
       - application/json
       description: Adds stock to a warehouse and records a receipt movement. Requires
         `inventory.receive` permission.
+      operationId: receiveStock
       parameters:
       - description: Stock receipt payload
         in: body
@@ -3057,6 +3099,7 @@ paths:
       description: Returns AI-driven reorder predictions and stockout forecasts for
         all products in the organization. Optionally filtered by warehouse. Requires
         `inventory.read` permission.
+      operationId: getReorderPredictions
       parameters:
       - description: Warehouse UUID to filter predictions
         in: query
@@ -3088,10 +3131,9 @@ paths:
       - Inventory
   /api/v1/inventory/snapshot:
     get:
-      consumes:
-      - application/json
-      description: Returns the current inventory levels for a specified warehouse.
-        Requires `inventory.snapshot` permission.
+      description: Returns a snapshot of current inventory levels, optionally filtered
+        by warehouse. Requires `inventory.snapshot` permission.
+      operationId: getInventorySnapshot
       parameters:
       - description: Warehouse ID
         in: query
@@ -3126,8 +3168,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Moves stock from one warehouse to another and records transfer
-        movements. Requires `inventory.transfer` permission.
+      description: |-
+        Moves stock from one warehouse to another and records transfer movements. Requires `inventory.transfer` permission.
+        Transfers stock from one warehouse to another, recording both an issue and receipt movement. Requires `inventory.transfer` permission.
+      operationId: transferStock
       parameters:
       - description: Stock transfer payload
         in: body
@@ -3156,13 +3200,14 @@ paths:
             $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: Transfer stock
+      summary: Transfer stock between warehouses
       tags:
       - Supply Chain
   /api/v1/iot/devices:
     get:
       description: Returns all registered IoT devices for the authenticated organization.
         Requires `iot.devices.write` permission.
+      operationId: listDevices
       produces:
       - application/json
       responses:
@@ -3192,6 +3237,7 @@ paths:
       - application/json
       description: Registers a new IoT device for the organization. Requires `iot.devices.write`
         permission.
+      operationId: registerDevice
       parameters:
       - description: IoT device registration payload
         in: body
@@ -3233,6 +3279,7 @@ paths:
       - application/json
       description: Processes a sensor reading from an IoT device and performs AI anomaly
         detection. Requires `iot.readings.ingest` permission.
+      operationId: ingestReading
       parameters:
       - description: IoT device reading payload
         in: body
@@ -3274,6 +3321,7 @@ paths:
       - application/json
       description: Processes multiple sensor readings from IoT devices in batch for
         high-frequency ingestion. Requires `iot.readings.ingest` permission.
+      operationId: ingestReadingBatch
       parameters:
       - description: Batch IoT device readings payload
         in: body
@@ -3315,6 +3363,7 @@ paths:
       - application/json
       description: Creates a bill of materials (BOM) with its component products.
         Requires `manufacturing.boms.write` permission.
+      operationId: createBOM
       parameters:
       - description: BOM creation payload
         in: body
@@ -3352,6 +3401,7 @@ paths:
       - application/json
       description: Creates a manufacturing work order with AI bottleneck risk prediction.
         Requires `manufacturing.workorders.write` permission.
+      operationId: createWorkOrder
       parameters:
       - description: Work order creation payload
         in: body
@@ -3387,8 +3437,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Creates a new API key for machine integrations. The plain-text
-        secret is shown only once. Requires `apikeys.manage` permission.
+      description: Generates a new API key for machine-to-machine integrations. Requires
+        `apikeys.manage` permission.
+      operationId: createAPIKey
       parameters:
       - description: API key payload
         in: body
@@ -3417,7 +3468,7 @@ paths:
             $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: Generate API key
+      summary: Create API key
       tags:
       - Organizations
   /api/v1/org/invitations:
@@ -3426,6 +3477,7 @@ paths:
       - application/json
       description: Sends an invitation to join the organization. Requires `users.invite`
         permission.
+      operationId: inviteMember
       parameters:
       - description: Invitation payload
         in: body
@@ -3459,8 +3511,9 @@ paths:
       - Organizations
   /api/v1/org/members/{member_id}:
     delete:
-      description: Deactivates (soft-deletes) a member account. Requires `users.manage`
+      description: Soft-deletes a member by setting is_active = false. Requires `users.manage`
         permission.
+      operationId: deactivateMember
       parameters:
       - description: Member ID
         in: path
@@ -3500,6 +3553,7 @@ paths:
       - application/json
       description: Updates a member's role or other admin-managed fields. Requires
         `users.manage` permission.
+      operationId: updateMember
       parameters:
       - description: Member ID
         in: path
@@ -3542,8 +3596,10 @@ paths:
       - Organizations
   /api/v1/org/members/{member_id}/remove:
     post:
-      description: Removes a member from the organization's member list without deleting
-        the user account. Requires `users.manage` permission.
+      description: |-
+        Removes a member from the organization's member list without deleting the user account. Requires `users.manage` permission.
+        Permanently removes a member from the organization by deleting the membership row. The user account is preserved. Requires `users.manage` permission.
+      operationId: removeMember
       parameters:
       - description: Member ID
         in: path
@@ -3575,7 +3631,7 @@ paths:
             $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: Remove member from organization
+      summary: Remove organization member
       tags:
       - Organizations
   /api/v1/org/roles:
@@ -3584,6 +3640,7 @@ paths:
       - application/json
       description: Creates a new role with assigned permissions. Requires `rbac.manage`
         permission.
+      operationId: createRole
       parameters:
       - description: Role payload
         in: body
@@ -3621,6 +3678,7 @@ paths:
       - application/json
       description: Creates a purchase order with AI supplier risk rating. Requires
         `procurement.po.write` permission.
+      operationId: createPurchaseOrder
       parameters:
       - description: Purchase order creation payload
         in: body
@@ -3656,6 +3714,7 @@ paths:
     get:
       description: Returns an AI-generated risk report for a supplier including risk
         score, open POs, and total spend. Requires `procurement.supplier.read` permission.
+      operationId: getSupplierRisk
       parameters:
       - description: Supplier name to assess
         in: query
@@ -3691,6 +3750,7 @@ paths:
       description: Retrieves security audit log entries flagged as anomalies by the
         AI detection system. Filterable by severity level (low, medium, high, critical).
         Requires `security.audit.read` permission.
+      operationId: auditAnomalies
       parameters:
       - default: high
         description: Filter by severity
@@ -3739,6 +3799,7 @@ paths:
     get:
       description: Renders the Super Admin dashboard with system metrics and quick
         actions.
+      operationId: superAdminDashboard
       produces:
       - text/html
       responses:
@@ -3759,10 +3820,86 @@ paths:
       summary: Super Admin dashboard
       tags:
       - Super Admin
+  /api/v1/super-admin/dashboard/activity:
+    get:
+      description: Returns the recent SOC activity items as an HTML fragment for HTMX
+        polling.
+      operationId: dashboardActivity
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Dashboard activity feed (HTML fragment)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/dashboard/kpis:
+    get:
+      description: Returns the dashboard KPI cards (system uptime, active organizations,
+        active users, security alerts) as an HTML fragment for HTMX polling.
+      operationId: dashboardKPIs
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Dashboard KPIs (HTML fragment)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/dashboard/traffic:
+    get:
+      description: Returns the real-time HTTP traffic time-series (2xx/5xx counts)
+        for the dashboard chart.
+      operationId: dashboardTraffic
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Dashboard traffic series (JSON)
+      tags:
+      - Super Admin
   /api/v1/super-admin/health:
     get:
       description: Returns composite health scores (0-100%) for all modules factoring
         in CI coverage, linter issues, vulnerabilities, and 5xx error rates.
+      operationId: getSuperAdminHealth
       produces:
       - application/json
       responses:
@@ -3789,7 +3926,8 @@ paths:
       - Super Admin
   /api/v1/super-admin/login:
     get:
-      description: Renders the Super Admin login form.
+      description: Renders the super-admin login page as an HTML form.
+      operationId: superAdminLoginPage
       produces:
       - text/html
       responses:
@@ -3804,6 +3942,7 @@ paths:
       consumes:
       - application/x-www-form-urlencoded
       description: Authenticates a super admin and redirects to the dashboard.
+      operationId: superAdminLogin
       parameters:
       - description: Email
         in: formData
@@ -3833,6 +3972,7 @@ paths:
     post:
       description: Invalidates the super-admin session by clearing the strata_token
         cookie and redirects to the login page.
+      operationId: superAdminLogout
       produces:
       - text/html
       responses:
@@ -3844,54 +3984,35 @@ paths:
       tags:
       - Super Admin
   /api/v1/super-admin/maintenance:
-    get:
-      description: Returns all currently active partitioned maintenance locks (by
-        module, tenant, or feature).
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/handlers.MaintenanceListResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/utils.Envelope'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/utils.Envelope'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.Envelope'
-      security:
-      - BearerAuth: []
-      summary: List active maintenance rules
-      tags:
-      - Super Admin
-  /api/v1/super-admin/maintenance/toggle:
     post:
       consumes:
-      - application/json
-      description: Activates or deactivates a partitioned maintenance lock for a given
-        scope (module, tenant_id, feature) and target. Publishes cache-invalidation
-        via Redis Pub/Sub for multi-node sync.
+      - application/x-www-form-urlencoded
+      description: Creates a new partitioned maintenance rule (module, tenant, or
+        feature scope). Form-encoded (application/x-www-form-urlencoded) with fields
+        scope, target_id, reason. Returns an HTMX out-of-band swap HTML fragment.
+      operationId: createMaintenanceRule
       parameters:
-      - description: Maintenance toggle payload
-        in: body
-        name: body
+      - description: 'Scope: module, tenant_id, or feature'
+        in: formData
+        name: scope
         required: true
-        schema:
-          $ref: '#/definitions/services.MaintenanceToggleRequest'
+        type: string
+      - description: Target ID (module name, tenant UUID, or feature key)
+        in: formData
+        name: target_id
+        required: true
+        type: string
+      - description: Reason for maintenance
+        in: formData
+        name: reason
+        type: string
       produces:
-      - application/json
+      - text/html
       responses:
         "200":
-          description: OK
+          description: HTML row fragment (OOB swap)
           schema:
-            $ref: '#/definitions/handlers.MaintenanceToggleResponse'
+            type: string
         "400":
           description: Bad Request
           schema:
@@ -3910,20 +4031,60 @@ paths:
             $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: Toggle maintenance mode
+      summary: Create maintenance rule
       tags:
       - Super Admin
-  /api/v1/super-admin/metrics:
-    get:
-      description: Returns aggregated runtime, database, and HTTP metrics including
-        latency percentiles and recent panics.
+  /api/v1/super-admin/maintenance/{id}:
+    delete:
+      description: Soft-deactivates a maintenance rule by ID (sets is_active = FALSE).
+        Returns an empty HTML row fragment for the fade-out transition.
+      operationId: deleteMaintenanceRule
+      parameters:
+      - description: Maintenance rule ID
+        in: path
+        name: id
+        required: true
+        type: integer
       produces:
-      - application/json
+      - text/html
       responses:
         "200":
-          description: OK
+          description: HTML row fragment
           schema:
-            $ref: '#/definitions/handlers.MetricsResponse'
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Revoke maintenance rule
+      tags:
+      - Super Admin
+  /api/v1/super-admin/maintenance/fragment:
+    get:
+      description: Returns the maintenance rules table body as an HTML fragment for
+        HTMX partial swaps.
+      operationId: listMaintenanceRulesFragment
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment
+          schema:
+            type: string
         "401":
           description: Unauthorized
           schema:
@@ -3934,13 +4095,64 @@ paths:
             $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: System telemetry (JSON)
+      summary: Maintenance rules table fragment (HTML)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/maintenance/rules:
+    get:
+      description: Renders the partitioned maintenance control panel page inside the
+        dashboard layout.
+      operationId: listMaintenanceRulesPage
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Maintenance rules page (HTML)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/metrics:
+    get:
+      description: Renders the Metrics page showing runtime telemetry and infrastructure
+        profiling.
+      operationId: superAdminMetricsPage
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Metrics page (HTML)
       tags:
       - Super Admin
   /api/v1/super-admin/metrics/fragment:
     get:
       description: Returns the MetricsGrid Templ component as an HTML fragment for
         HTMX polling.
+      operationId: getSuperAdminMetricsFragment
       produces:
       - text/html
       responses:
@@ -3961,10 +4173,36 @@ paths:
       summary: Metrics grid fragment (HTML)
       tags:
       - Super Admin
+  /api/v1/super-admin/metrics/json:
+    get:
+      description: Returns aggregated runtime, database, and HTTP metrics including
+        latency percentiles and recent panics.
+      operationId: getSuperAdminMetrics
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.MetricsResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: System telemetry (JSON)
+      tags:
+      - Super Admin
   /api/v1/super-admin/metrics/prometheus:
     get:
       description: Returns runtime, database, and HTTP metrics in Prometheus text
         exposition format suitable for scraping.
+      operationId: getSuperAdminMetricsPrometheus
       produces:
       - text/plain
       responses:
@@ -3987,25 +4225,16 @@ paths:
       - Super Admin
   /api/v1/super-admin/organizations:
     get:
-      description: 'Returns a paginated list of all organizations with their status
-        (active, suspended, pending_verification). Query params: offset (default 0),
-        limit (default 50, max 100).'
-      parameters:
-      - description: Pagination offset
-        in: query
-        name: offset
-        type: integer
-      - description: Page size (max 100)
-        in: query
-        name: limit
-        type: integer
+      description: Renders the Organizations page showing the tenant directory and
+        provisioning.
+      operationId: superAdminOrganizationsPage
       produces:
-      - application/json
+      - text/html
       responses:
         "200":
-          description: OK
+          description: HTML page
           schema:
-            $ref: '#/definitions/handlers.OrgListResponse'
+            type: string
         "401":
           description: Unauthorized
           schema:
@@ -4014,19 +4243,16 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/utils.Envelope'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: List all organizations
+      summary: Organizations page (HTML)
       tags:
       - Super Admin
   /api/v1/super-admin/organizations/{org_id}:
     get:
       description: Returns full details for a specific organization by ID, including
         status and metadata.
+      operationId: getOrgDetail
       parameters:
       - description: Organization ID
         in: path
@@ -4065,6 +4291,7 @@ paths:
     post:
       description: Re-activates a suspended or pending organization, restoring access
         for all members.
+      operationId: activateOrg
       parameters:
       - description: Organization ID
         in: path
@@ -4103,6 +4330,7 @@ paths:
     post:
       description: Suspends an organization, preventing all members from accessing
         the platform.
+      operationId: suspendOrg
       parameters:
       - description: Organization ID
         in: path
@@ -4137,11 +4365,114 @@ paths:
       summary: Suspend an organization
       tags:
       - Super Admin
+  /api/v1/super-admin/organizations/fragment:
+    get:
+      description: Returns the tenant directory table body as an HTML fragment for
+        HTMX partial swaps.
+      operationId: listOrgsFragment
+      parameters:
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - default: 50
+        description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Organizations table fragment (HTML)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/organizations/json:
+    get:
+      description: 'Returns a paginated list of all organizations with their status
+        (active, suspended, pending_verification). Query params: offset (default 0),
+        limit (default 50, max 100).'
+      operationId: listAllOrganizations
+      parameters:
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - default: 50
+        description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.OrgListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List all organizations
+      tags:
+      - Super Admin
+  /api/v1/super-admin/security:
+    get:
+      description: Renders the Security page showing live streaming security events
+        and audit trails.
+      operationId: superAdminSecurityPage
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Security & Audit page (HTML)
+      tags:
+      - Super Admin
   /api/v1/super-admin/security/stream:
     get:
       description: Opens a Server-Sent Events connection that streams real-time SOC
         security events (failed auth, RLS violations, anomalies) as they occur across
         all nodes. Events are fanned out via Redis Pub/Sub.
+      operationId: securityStream
       produces:
       - text/event-stream
       responses:
@@ -4162,12 +4493,38 @@ paths:
       summary: Real-time security event stream (SSE)
       tags:
       - Super Admin
+  /api/v1/super-admin/settings:
+    get:
+      description: Renders the Settings page for global environment config, API keys,
+        and webhook setups.
+      operationId: superAdminSettingsPage
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML page
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Settings page (HTML)
+      tags:
+      - Super Admin
   /api/v1/super-admin/telemetry/ci-health:
     post:
       consumes:
       - application/json
       description: Stores a CI health report with test coverage percentage, linter
         issue count, vulnerability count, and commit SHA for a given module.
+      operationId: ingestCIHealth
       parameters:
       - description: CI health payload
         in: body
@@ -4205,25 +4562,15 @@ paths:
       - Super Admin
   /api/v1/super-admin/users:
     get:
-      description: 'Returns a paginated list of all users across every organization,
-        including ban status. Query params: offset (default 0), limit (default 50,
-        max 100).'
-      parameters:
-      - description: Pagination offset
-        in: query
-        name: offset
-        type: integer
-      - description: Page size (max 100)
-        in: query
-        name: limit
-        type: integer
+      description: Renders the Users page showing the global user directory and RBAC.
+      operationId: superAdminUsersPage
       produces:
-      - application/json
+      - text/html
       responses:
         "200":
-          description: OK
+          description: HTML page
           schema:
-            $ref: '#/definitions/handlers.UserListResponse'
+            type: string
         "401":
           description: Unauthorized
           schema:
@@ -4232,19 +4579,16 @@ paths:
           description: Forbidden
           schema:
             $ref: '#/definitions/utils.Envelope'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/utils.Envelope'
       security:
       - BearerAuth: []
-      summary: List all users
+      summary: Users page (HTML)
       tags:
       - Super Admin
   /api/v1/super-admin/users/{user_id}:
     get:
       description: Returns full details for a specific user by ID, including ban status
         and organization memberships.
+      operationId: getUserDetail
       parameters:
       - description: User ID
         in: path
@@ -4285,6 +4629,7 @@ paths:
       - application/json
       description: Bans a user platform-wide with a mandatory reason. Banned users
         cannot authenticate.
+      operationId: banUser
       parameters:
       - description: User ID
         in: path
@@ -4329,6 +4674,7 @@ paths:
     post:
       description: Removes a platform-wide ban from a user, restoring their ability
         to authenticate.
+      operationId: unbanUser
       parameters:
       - description: User ID
         in: path
@@ -4363,6 +4709,83 @@ paths:
       summary: Unban a user
       tags:
       - Super Admin
+  /api/v1/super-admin/users/fragment:
+    get:
+      description: Returns the global user directory table body as an HTML fragment
+        for HTMX partial swaps.
+      operationId: listUsersFragment
+      parameters:
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - default: 50
+        description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML fragment
+          schema:
+            type: string
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: Users table fragment (HTML)
+      tags:
+      - Super Admin
+  /api/v1/super-admin/users/json:
+    get:
+      description: 'Returns a paginated list of all users across every organization,
+        including ban status. Query params: offset (default 0), limit (default 50,
+        max 100).'
+      operationId: listAllUsers
+      parameters:
+      - default: 0
+        description: Pagination offset
+        in: query
+        name: offset
+        type: integer
+      - default: 50
+        description: Page size (max 100)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserListResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.Envelope'
+      security:
+      - BearerAuth: []
+      summary: List all users
+      tags:
+      - Super Admin
   /api/v1/workflows/trigger:
     post:
       consumes:
@@ -4371,6 +4794,7 @@ paths:
         (e.g., invoice.paid). Matches active workflows by event_type and executes
         their action steps. Accepts both Bearer token and webhook signature authentication.
         Requires `workflows.execute` permission.
+      operationId: triggerWorkflow
       parameters:
       - description: Event trigger payload
         in: body
@@ -4409,7 +4833,8 @@ paths:
   /health:
     get:
       description: Returns the current health status of the API and its dependencies
-        (e.g. database).
+        (e.g. database, redis).
+      operationId: health
       produces:
       - application/json
       responses:

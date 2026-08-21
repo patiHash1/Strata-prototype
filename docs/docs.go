@@ -37,6 +37,7 @@ const docTemplate = `{
                     "Account"
                 ],
                 "summary": "Get own profile",
+                "operationId": "getAccount",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -72,6 +73,7 @@ const docTemplate = `{
                     "Account"
                 ],
                 "summary": "Delete own account",
+                "operationId": "deleteAccount",
                 "responses": {
                     "204": {
                         "description": "No Content"
@@ -107,6 +109,7 @@ const docTemplate = `{
                     "Account"
                 ],
                 "summary": "Update own profile",
+                "operationId": "updateAccount",
                 "parameters": [
                     {
                         "description": "Fields to update",
@@ -161,6 +164,7 @@ const docTemplate = `{
                     "Account"
                 ],
                 "summary": "List my organizations",
+                "operationId": "listMyOrganizations",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -204,6 +208,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Register fixed asset",
+                "operationId": "createAsset",
                 "parameters": [
                     {
                         "description": "Asset payload",
@@ -258,6 +263,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Calculate asset depreciation",
+                "operationId": "getDepreciation",
                 "parameters": [
                     {
                         "type": "string",
@@ -333,6 +339,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Import bank statement",
+                "operationId": "importBankStatement",
                 "parameters": [
                     {
                         "description": "Bank statement payload",
@@ -379,7 +386,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Auto-matches bank transactions from a statement to journal entries by amount proximity. Requires ` + "`" + `accounting.bankrec.write` + "`" + ` permission.",
+                "description": "Runs AI auto-matching to reconcile a bank statement against journal entries. Requires ` + "`" + `accounting.bankrec.write` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -390,6 +397,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Reconcile bank statement",
+                "operationId": "reconcileBankStatement",
                 "parameters": [
                     {
                         "type": "string",
@@ -423,6 +431,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/utils.Envelope"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
                     }
                 }
             }
@@ -434,7 +448,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Converts a monetary amount between two currencies using the effective exchange rate. Requires ` + "`" + `accounting.currencyconvert.read` + "`" + ` permission.",
+                "description": "Converts an amount between two currencies using the latest exchange rate. Requires ` + "`" + `accounting.currencyconvert.read` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -445,6 +459,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Convert currency",
+                "operationId": "convertCurrency",
                 "parameters": [
                     {
                         "description": "Currency conversion payload",
@@ -491,7 +506,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates or updates an exchange rate between two currencies for multi-currency accounting. Requires ` + "`" + `accounting.exchangerates.write` + "`" + ` permission.",
+                "description": "Creates a new currency exchange rate. Requires ` + "`" + `accounting.exchangerates.write` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -502,6 +517,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Create exchange rate",
+                "operationId": "createExchangeRate",
                 "parameters": [
                     {
                         "description": "Exchange rate payload",
@@ -559,6 +575,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Submit expense with AI fraud audit",
+                "operationId": "createExpense",
                 "parameters": [
                     {
                         "description": "Expense payload",
@@ -616,6 +633,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Upload invoice for vision OCR",
+                "operationId": "processInvoiceOCR",
                 "parameters": [
                     {
                         "type": "file",
@@ -671,6 +689,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Post general ledger entry",
+                "operationId": "createJournalEntry",
                 "parameters": [
                     {
                         "description": "Journal entry payload",
@@ -728,6 +747,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Create tax rate",
+                "operationId": "createTaxRate",
                 "parameters": [
                     {
                         "description": "Tax rate payload",
@@ -785,6 +805,7 @@ const docTemplate = `{
                     "Accounting"
                 ],
                 "summary": "Calculate tax",
+                "operationId": "calculateTax",
                 "parameters": [
                     {
                         "description": "Tax calculation payload",
@@ -842,6 +863,7 @@ const docTemplate = `{
                     "AI \u0026 Platform"
                 ],
                 "summary": "Execute AI copilot text-to-SQL query",
+                "operationId": "copilotQuery",
                 "parameters": [
                     {
                         "description": "Natural language prompt (e.g., 'Show top 5 sales reps by revenue in Q2')",
@@ -900,6 +922,7 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "User login",
+                "operationId": "login",
                 "parameters": [
                     {
                         "description": "Login payload",
@@ -946,6 +969,7 @@ const docTemplate = `{
                     "Auth"
                 ],
                 "summary": "Register organization \u0026 owner",
+                "operationId": "register",
                 "parameters": [
                     {
                         "description": "Registration payload",
@@ -994,6 +1018,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "List BI dashboards",
+                "operationId": "listDashboards",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1038,6 +1063,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "Create BI dashboard",
+                "operationId": "createDashboard",
                 "parameters": [
                     {
                         "description": "Dashboard creation payload",
@@ -1098,6 +1124,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "Get dashboard data",
+                "operationId": "getDashboardData",
                 "parameters": [
                     {
                         "type": "string",
@@ -1159,6 +1186,7 @@ const docTemplate = `{
                     "Billing"
                 ],
                 "summary": "Create / upgrade subscription",
+                "operationId": "createOrUpgradeSubscription",
                 "parameters": [
                     {
                         "description": "Subscription payload",
@@ -1205,7 +1233,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new marketing campaign with AI-powered audience segmentation. Requires ` + "`" + `crm.campaigns.write` + "`" + ` permission.",
+                "description": "Creates a new marketing campaign with AI-generated target segment criteria. Requires ` + "`" + `crm.campaigns.write` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1216,6 +1244,7 @@ const docTemplate = `{
                     "CRM"
                 ],
                 "summary": "Create marketing campaign",
+                "operationId": "createCampaign",
                 "parameters": [
                     {
                         "description": "Campaign payload",
@@ -1262,10 +1291,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Launches a draft campaign, activating it and returning AI-estimated reach. Requires ` + "`" + `crm.campaigns.write` + "`" + ` permission.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Launches a previously created campaign, transitioning it to active status and returning the estimated reach. Requires ` + "`" + `crm.campaigns.write` + "`" + ` permission.",
                 "produces": [
                     "application/json"
                 ],
@@ -1273,6 +1299,7 @@ const docTemplate = `{
                     "CRM"
                 ],
                 "summary": "Launch marketing campaign",
+                "operationId": "launchCampaign",
                 "parameters": [
                     {
                         "type": "string",
@@ -1323,7 +1350,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a field sales visit and simulates AI route optimization, returning estimated travel time. Requires ` + "`" + `crm.fieldvisits.write` + "`" + ` permission.",
+                "description": "Schedules an in-person field sales visit for a contact, returning the estimated travel time. Requires ` + "`" + `crm.fieldvisits.write` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1334,6 +1361,7 @@ const docTemplate = `{
                     "CRM"
                 ],
                 "summary": "Schedule field sales visit",
+                "operationId": "scheduleFieldVisit",
                 "parameters": [
                     {
                         "description": "Field visit payload",
@@ -1369,6 +1397,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/utils.Envelope"
                         }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
                     }
                 }
             }
@@ -1391,6 +1425,7 @@ const docTemplate = `{
                     "CRM"
                 ],
                 "summary": "Create lead \u0026 trigger AI scoring",
+                "operationId": "createLead",
                 "parameters": [
                     {
                         "description": "Lead payload",
@@ -1448,6 +1483,7 @@ const docTemplate = `{
                     "CRM"
                 ],
                 "summary": "Analyze contract risk",
+                "operationId": "analyzeContractRisk",
                 "parameters": [
                     {
                         "description": "Risk analysis payload",
@@ -1500,7 +1536,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a helpdesk ticket, runs AI sentiment analysis on the description, auto-assigns priority and routing. Requires ` + "`" + `crm.tickets.write` + "`" + ` permission.",
+                "description": "Creates a helpdesk ticket, runs AI sentiment analysis on the description, auto-assigns priority and routing. Requires ` + "`" + `crm.tickets.write` + "`" + ` permission.\nCreates a helpdesk ticket with AI sentiment analysis, auto-assigned priority, and an AI-generated suggested response. Requires ` + "`" + `crm.tickets.write` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1510,7 +1546,8 @@ const docTemplate = `{
                 "tags": [
                     "CRM"
                 ],
-                "summary": "Auto-route support ticket \u0026 analyze sentiment",
+                "summary": "Create support ticket \u0026 auto-route",
+                "operationId": "createTicket",
                 "parameters": [
                     {
                         "description": "Ticket payload",
@@ -1574,6 +1611,7 @@ const docTemplate = `{
                     "Fleet"
                 ],
                 "summary": "Generate AI optimized routes \u0026 ETAs",
+                "operationId": "optimizeRoutes",
                 "parameters": [
                     {
                         "description": "Route optimization payload",
@@ -1637,6 +1675,7 @@ const docTemplate = `{
                     "Fleet"
                 ],
                 "summary": "Ingest vehicle telemetry stream",
+                "operationId": "ingestTelemetry",
                 "parameters": [
                     {
                         "description": "Telemetry payload",
@@ -1700,6 +1739,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Parse resume \u0026 score match",
+                "operationId": "parseResume",
                 "parameters": [
                     {
                         "type": "file",
@@ -1768,6 +1808,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Geofenced clock-in",
+                "operationId": "clockIn",
                 "parameters": [
                     {
                         "description": "Clock-in payload with GPS coordinates",
@@ -1831,6 +1872,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Clock out",
+                "operationId": "clockOut",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1874,6 +1916,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "List employees",
+                "operationId": "listEmployees",
                 "parameters": [
                     {
                         "type": "string",
@@ -1923,6 +1966,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Create employee",
+                "operationId": "createEmployee",
                 "parameters": [
                     {
                         "description": "Employee details",
@@ -1977,6 +2021,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Get employee",
+                "operationId": "getEmployee",
                 "parameters": [
                     {
                         "type": "string",
@@ -2030,6 +2075,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Update employee",
+                "operationId": "updateEmployee",
                 "parameters": [
                     {
                         "type": "string",
@@ -2100,6 +2146,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "RAG knowledge base semantic search",
+                "operationId": "knowledgeSearch",
                 "parameters": [
                     {
                         "description": "Search query",
@@ -2154,6 +2201,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "List payroll runs",
+                "operationId": "listPayrollRuns",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2195,6 +2243,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Run payroll",
+                "operationId": "runPayroll",
                 "parameters": [
                     {
                         "description": "Payroll period",
@@ -2249,6 +2298,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Get payroll run",
+                "operationId": "getPayrollRun",
                 "parameters": [
                     {
                         "type": "string",
@@ -2304,6 +2354,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Get payroll run detail",
+                "operationId": "getPayrollRunDetail",
                 "parameters": [
                     {
                         "type": "string",
@@ -2365,6 +2416,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Set employee tax profile",
+                "operationId": "setEmployeeTaxProfile",
                 "parameters": [
                     {
                         "description": "Tax profile payload",
@@ -2422,6 +2474,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Assign shift",
+                "operationId": "assignShift",
                 "parameters": [
                     {
                         "description": "Shift assignment payload",
@@ -2479,6 +2532,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Predict shift needs",
+                "operationId": "predictShiftNeeds",
                 "parameters": [
                     {
                         "type": "string",
@@ -2547,6 +2601,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Get employee schedule",
+                "operationId": "getEmployeeSchedule",
                 "parameters": [
                     {
                         "type": "string",
@@ -2616,6 +2671,7 @@ const docTemplate = `{
                     "HR"
                 ],
                 "summary": "Create shift template",
+                "operationId": "createShiftTemplate",
                 "parameters": [
                     {
                         "description": "Shift template payload",
@@ -2673,6 +2729,7 @@ const docTemplate = `{
                     "Supply Chain"
                 ],
                 "summary": "Issue stock",
+                "operationId": "issueStock",
                 "parameters": [
                     {
                         "description": "Stock issue payload",
@@ -2730,6 +2787,7 @@ const docTemplate = `{
                     "Supply Chain"
                 ],
                 "summary": "Receive stock",
+                "operationId": "receiveStock",
                 "parameters": [
                     {
                         "description": "Stock receipt payload",
@@ -2784,6 +2842,7 @@ const docTemplate = `{
                     "Inventory"
                 ],
                 "summary": "Get AI reorder \u0026 stockout predictions",
+                "operationId": "getReorderPredictions",
                 "parameters": [
                     {
                         "type": "string",
@@ -2827,10 +2886,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns the current inventory levels for a specified warehouse. Requires ` + "`" + `inventory.snapshot` + "`" + ` permission.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Returns a snapshot of current inventory levels, optionally filtered by warehouse. Requires ` + "`" + `inventory.snapshot` + "`" + ` permission.",
                 "produces": [
                     "application/json"
                 ],
@@ -2838,6 +2894,7 @@ const docTemplate = `{
                     "Supply Chain"
                 ],
                 "summary": "Get inventory snapshot",
+                "operationId": "getInventorySnapshot",
                 "parameters": [
                     {
                         "type": "string",
@@ -2882,7 +2939,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Moves stock from one warehouse to another and records transfer movements. Requires ` + "`" + `inventory.transfer` + "`" + ` permission.",
+                "description": "Moves stock from one warehouse to another and records transfer movements. Requires ` + "`" + `inventory.transfer` + "`" + ` permission.\nTransfers stock from one warehouse to another, recording both an issue and receipt movement. Requires ` + "`" + `inventory.transfer` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2892,7 +2949,8 @@ const docTemplate = `{
                 "tags": [
                     "Supply Chain"
                 ],
-                "summary": "Transfer stock",
+                "summary": "Transfer stock between warehouses",
+                "operationId": "transferStock",
                 "parameters": [
                     {
                         "description": "Stock transfer payload",
@@ -2947,6 +3005,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "List IoT devices",
+                "operationId": "listDevices",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2991,6 +3050,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "Register IoT device",
+                "operationId": "registerDevice",
                 "parameters": [
                     {
                         "description": "IoT device registration payload",
@@ -3054,6 +3114,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "Ingest device reading",
+                "operationId": "ingestReading",
                 "parameters": [
                     {
                         "description": "IoT device reading payload",
@@ -3117,6 +3178,7 @@ const docTemplate = `{
                     "BI \u0026 IoT"
                 ],
                 "summary": "Ingest device readings batch",
+                "operationId": "ingestReadingBatch",
                 "parameters": [
                     {
                         "description": "Batch IoT device readings payload",
@@ -3180,6 +3242,7 @@ const docTemplate = `{
                     "Manufacturing"
                 ],
                 "summary": "Create a bill of materials",
+                "operationId": "createBOM",
                 "parameters": [
                     {
                         "description": "BOM creation payload",
@@ -3237,6 +3300,7 @@ const docTemplate = `{
                     "Manufacturing"
                 ],
                 "summary": "Create a work order",
+                "operationId": "createWorkOrder",
                 "parameters": [
                     {
                         "description": "Work order creation payload",
@@ -3283,7 +3347,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Creates a new API key for machine integrations. The plain-text secret is shown only once. Requires ` + "`" + `apikeys.manage` + "`" + ` permission.",
+                "description": "Generates a new API key for machine-to-machine integrations. Requires ` + "`" + `apikeys.manage` + "`" + ` permission.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3293,7 +3357,8 @@ const docTemplate = `{
                 "tags": [
                     "Organizations"
                 ],
-                "summary": "Generate API key",
+                "summary": "Create API key",
+                "operationId": "createAPIKey",
                 "parameters": [
                     {
                         "description": "API key payload",
@@ -3351,6 +3416,7 @@ const docTemplate = `{
                     "Organizations"
                 ],
                 "summary": "Invite team member",
+                "operationId": "inviteMember",
                 "parameters": [
                     {
                         "description": "Invitation payload",
@@ -3397,7 +3463,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Deactivates (soft-deletes) a member account. Requires ` + "`" + `users.manage` + "`" + ` permission.",
+                "description": "Soft-deletes a member by setting is_active = false. Requires ` + "`" + `users.manage` + "`" + ` permission.",
                 "produces": [
                     "application/json"
                 ],
@@ -3405,6 +3471,7 @@ const docTemplate = `{
                     "Organizations"
                 ],
                 "summary": "Deactivate organization member",
+                "operationId": "deactivateMember",
                 "parameters": [
                     {
                         "type": "string",
@@ -3464,6 +3531,7 @@ const docTemplate = `{
                     "Organizations"
                 ],
                 "summary": "Update organization member",
+                "operationId": "updateMember",
                 "parameters": [
                     {
                         "type": "string",
@@ -3523,14 +3591,15 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Removes a member from the organization's member list without deleting the user account. Requires ` + "`" + `users.manage` + "`" + ` permission.",
+                "description": "Removes a member from the organization's member list without deleting the user account. Requires ` + "`" + `users.manage` + "`" + ` permission.\nPermanently removes a member from the organization by deleting the membership row. The user account is preserved. Requires ` + "`" + `users.manage` + "`" + ` permission.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Organizations"
                 ],
-                "summary": "Remove member from organization",
+                "summary": "Remove organization member",
+                "operationId": "removeMember",
                 "parameters": [
                     {
                         "type": "string",
@@ -3592,6 +3661,7 @@ const docTemplate = `{
                     "Organizations"
                 ],
                 "summary": "Create dynamic role",
+                "operationId": "createRole",
                 "parameters": [
                     {
                         "description": "Role payload",
@@ -3649,6 +3719,7 @@ const docTemplate = `{
                     "Procurement"
                 ],
                 "summary": "Create a purchase order",
+                "operationId": "createPurchaseOrder",
                 "parameters": [
                     {
                         "description": "Purchase order creation payload",
@@ -3703,6 +3774,7 @@ const docTemplate = `{
                     "Procurement"
                 ],
                 "summary": "Get supplier risk report",
+                "operationId": "getSupplierRisk",
                 "parameters": [
                     {
                         "type": "string",
@@ -3755,6 +3827,7 @@ const docTemplate = `{
                     "AI \u0026 Platform"
                 ],
                 "summary": "Fetch security audit anomalies",
+                "operationId": "auditAnomalies",
                 "parameters": [
                     {
                         "enum": [
@@ -3826,11 +3899,126 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Super Admin dashboard",
+                "operationId": "superAdminDashboard",
                 "responses": {
                     "200": {
                         "description": "HTML page",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/dashboard/activity": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the recent SOC activity items as an HTML fragment for HTMX polling.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Dashboard activity feed (HTML fragment)",
+                "operationId": "dashboardActivity",
+                "responses": {
+                    "200": {
+                        "description": "HTML fragment",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/dashboard/kpis": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the dashboard KPI cards (system uptime, active organizations, active users, security alerts) as an HTML fragment for HTMX polling.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Dashboard KPIs (HTML fragment)",
+                "operationId": "dashboardKPIs",
+                "responses": {
+                    "200": {
+                        "description": "HTML fragment",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/dashboard/traffic": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the real-time HTTP traffic time-series (2xx/5xx counts) for the dashboard chart.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Dashboard traffic series (JSON)",
+                "operationId": "dashboardTraffic",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
@@ -3863,6 +4051,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Module health scores",
+                "operationId": "getSuperAdminHealth",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -3893,7 +4082,7 @@ const docTemplate = `{
         },
         "/api/v1/super-admin/login": {
             "get": {
-                "description": "Renders the Super Admin login form.",
+                "description": "Renders the super-admin login page as an HTML form.",
                 "produces": [
                     "text/html"
                 ],
@@ -3901,6 +4090,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Super Admin login page",
+                "operationId": "superAdminLoginPage",
                 "responses": {
                     "200": {
                         "description": "HTML page",
@@ -3922,6 +4112,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Super Admin login",
+                "operationId": "superAdminLogin",
                 "parameters": [
                     {
                         "type": "string",
@@ -3964,6 +4155,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Super Admin logout",
+                "operationId": "superAdminLogout",
                 "responses": {
                     "302": {
                         "description": "Redirect to login",
@@ -3975,25 +4167,57 @@ const docTemplate = `{
             }
         },
         "/api/v1/super-admin/maintenance": {
-            "get": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns all currently active partitioned maintenance locks (by module, tenant, or feature).",
+                "description": "Creates a new partitioned maintenance rule (module, tenant, or feature scope). Form-encoded (application/x-www-form-urlencoded) with fields scope, target_id, reason. Returns an HTMX out-of-band swap HTML fragment.",
+                "consumes": [
+                    "application/x-www-form-urlencoded"
+                ],
                 "produces": [
-                    "application/json"
+                    "text/html"
                 ],
                 "tags": [
                     "Super Admin"
                 ],
-                "summary": "List active maintenance rules",
+                "summary": "Create maintenance rule",
+                "operationId": "createMaintenanceRule",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Scope: module, tenant_id, or feature",
+                        "name": "scope",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Target ID (module name, tenant UUID, or feature key)",
+                        "name": "target_id",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Reason for maintenance",
+                        "name": "reason",
+                        "in": "formData"
+                    }
+                ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "HTML row fragment (OOB swap)",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MaintenanceListResponse"
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
                         }
                     },
                     "401": {
@@ -4017,40 +4241,112 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/super-admin/maintenance/toggle": {
-            "post": {
+        "/api/v1/super-admin/maintenance/fragment": {
+            "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Activates or deactivates a partitioned maintenance lock for a given scope (module, tenant_id, feature) and target. Publishes cache-invalidation via Redis Pub/Sub for multi-node sync.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Returns the maintenance rules table body as an HTML fragment for HTMX partial swaps.",
                 "produces": [
-                    "application/json"
+                    "text/html"
                 ],
                 "tags": [
                     "Super Admin"
                 ],
-                "summary": "Toggle maintenance mode",
+                "summary": "Maintenance rules table fragment (HTML)",
+                "operationId": "listMaintenanceRulesFragment",
+                "responses": {
+                    "200": {
+                        "description": "HTML fragment",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/maintenance/rules": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Renders the partitioned maintenance control panel page inside the dashboard layout.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Maintenance rules page (HTML)",
+                "operationId": "listMaintenanceRulesPage",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/maintenance/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Soft-deactivates a maintenance rule by ID (sets is_active = FALSE). Returns an empty HTML row fragment for the fade-out transition.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Revoke maintenance rule",
+                "operationId": "deleteMaintenanceRule",
                 "parameters": [
                     {
-                        "description": "Maintenance toggle payload",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.MaintenanceToggleRequest"
-                        }
+                        "type": "integer",
+                        "description": "Maintenance rule ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "HTML row fragment",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MaintenanceToggleResponse"
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -4087,19 +4383,20 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Returns aggregated runtime, database, and HTTP metrics including latency percentiles and recent panics.",
+                "description": "Renders the Metrics page showing runtime telemetry and infrastructure profiling.",
                 "produces": [
-                    "application/json"
+                    "text/html"
                 ],
                 "tags": [
                     "Super Admin"
                 ],
-                "summary": "System telemetry (JSON)",
+                "summary": "Metrics page (HTML)",
+                "operationId": "superAdminMetricsPage",
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "HTML page",
                         "schema": {
-                            "$ref": "#/definitions/handlers.MetricsResponse"
+                            "type": "string"
                         }
                     },
                     "401": {
@@ -4132,11 +4429,50 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Metrics grid fragment (HTML)",
+                "operationId": "getSuperAdminMetricsFragment",
                 "responses": {
                     "200": {
                         "description": "HTML fragment",
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/metrics/json": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns aggregated runtime, database, and HTTP metrics including latency percentiles and recent panics.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "System telemetry (JSON)",
+                "operationId": "getSuperAdminMetrics",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handlers.MetricsResponse"
                         }
                     },
                     "401": {
@@ -4169,6 +4505,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "System telemetry (Prometheus)",
+                "operationId": "getSuperAdminMetricsPrometheus",
                 "responses": {
                     "200": {
                         "description": "Prometheus text format",
@@ -4198,6 +4535,98 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Renders the Organizations page showing the tenant directory and provisioning.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Organizations page (HTML)",
+                "operationId": "superAdminOrganizationsPage",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/organizations/fragment": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the tenant directory table body as an HTML fragment for HTMX partial swaps.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Organizations table fragment (HTML)",
+                "operationId": "listOrgsFragment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML fragment",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/organizations/json": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns a paginated list of all organizations with their status (active, suspended, pending_verification). Query params: offset (default 0), limit (default 50, max 100).",
                 "produces": [
                     "application/json"
@@ -4206,15 +4635,18 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "List all organizations",
+                "operationId": "listAllOrganizations",
                 "parameters": [
                     {
                         "type": "integer",
+                        "default": 0,
                         "description": "Pagination offset",
                         "name": "offset",
                         "in": "query"
                     },
                     {
                         "type": "integer",
+                        "default": 50,
                         "description": "Page size (max 100)",
                         "name": "limit",
                         "in": "query"
@@ -4263,6 +4695,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Get organization details",
+                "operationId": "getOrgDetail",
                 "parameters": [
                     {
                         "type": "string",
@@ -4321,6 +4754,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Activate an organization",
+                "operationId": "activateOrg",
                 "parameters": [
                     {
                         "type": "string",
@@ -4379,6 +4813,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Suspend an organization",
+                "operationId": "suspendOrg",
                 "parameters": [
                     {
                         "type": "string",
@@ -4422,6 +4857,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/super-admin/security": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Renders the Security page showing live streaming security events and audit trails.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Security \u0026 Audit page (HTML)",
+                "operationId": "superAdminSecurityPage",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/super-admin/security/stream": {
             "get": {
                 "security": [
@@ -4437,9 +4910,48 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Real-time security event stream (SSE)",
+                "operationId": "securityStream",
                 "responses": {
                     "200": {
                         "description": "SSE event stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/settings": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Renders the Settings page for global environment config, API keys, and webhook setups.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Settings page (HTML)",
+                "operationId": "superAdminSettingsPage",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
                         "schema": {
                             "type": "string"
                         }
@@ -4477,6 +4989,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Ingest CI health report",
+                "operationId": "ingestCIHealth",
                 "parameters": [
                     {
                         "description": "CI health payload",
@@ -4529,6 +5042,98 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
+                "description": "Renders the Users page showing the global user directory and RBAC.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Users page (HTML)",
+                "operationId": "superAdminUsersPage",
+                "responses": {
+                    "200": {
+                        "description": "HTML page",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/users/fragment": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the global user directory table body as an HTML fragment for HTMX partial swaps.",
+                "produces": [
+                    "text/html"
+                ],
+                "tags": [
+                    "Super Admin"
+                ],
+                "summary": "Users table fragment (HTML)",
+                "operationId": "listUsersFragment",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Pagination offset",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size (max 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "HTML fragment",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/super-admin/users/json": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Returns a paginated list of all users across every organization, including ban status. Query params: offset (default 0), limit (default 50, max 100).",
                 "produces": [
                     "application/json"
@@ -4537,15 +5142,18 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "List all users",
+                "operationId": "listAllUsers",
                 "parameters": [
                     {
                         "type": "integer",
+                        "default": 0,
                         "description": "Pagination offset",
                         "name": "offset",
                         "in": "query"
                     },
                     {
                         "type": "integer",
+                        "default": 50,
                         "description": "Page size (max 100)",
                         "name": "limit",
                         "in": "query"
@@ -4594,6 +5202,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Get user details",
+                "operationId": "getUserDetail",
                 "parameters": [
                     {
                         "type": "string",
@@ -4655,6 +5264,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Ban a user",
+                "operationId": "banUser",
                 "parameters": [
                     {
                         "type": "string",
@@ -4722,6 +5332,7 @@ const docTemplate = `{
                     "Super Admin"
                 ],
                 "summary": "Unban a user",
+                "operationId": "unbanUser",
                 "parameters": [
                     {
                         "type": "string",
@@ -4783,6 +5394,7 @@ const docTemplate = `{
                     "AI \u0026 Platform"
                 ],
                 "summary": "Trigger automated workflow",
+                "operationId": "triggerWorkflow",
                 "parameters": [
                     {
                         "description": "Event trigger payload",
@@ -4828,9 +5440,51 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/{module}/health": {
+            "get": {
+                "description": "Returns the current operational state of a module (operational, degraded, or maintenance). Public endpoint — no authentication required. Designed for load balancers and uptime monitors.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Get module health",
+                "operationId": "getModuleHealth",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Module name (e.g. crm, accounting, hr)",
+                        "name": "module",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/utils.Envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/health": {
             "get": {
-                "description": "Returns the current health status of the API and its dependencies (e.g. database).",
+                "description": "Returns the current health status of the API and its dependencies (e.g. database, redis).",
                 "produces": [
                     "application/json"
                 ],
@@ -4838,6 +5492,7 @@ const docTemplate = `{
                     "System"
                 ],
                 "summary": "Service health check",
+                "operationId": "health",
                 "responses": {
                     "200": {
                         "description": "Service is healthy",
@@ -5214,25 +5869,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "user_profile": {}
-            }
-        },
-        "handlers.MaintenanceListResponse": {
-            "type": "object",
-            "properties": {
-                "rules": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/services.MaintenanceRule"
-                    }
-                }
-            }
-        },
-        "handlers.MaintenanceToggleResponse": {
-            "type": "object",
-            "properties": {
-                "rule": {
-                    "$ref": "#/definitions/services.MaintenanceRule"
-                }
             }
         },
         "handlers.MetricsResponse": {
@@ -6386,61 +7022,6 @@ const docTemplate = `{
                 }
             }
         },
-        "services.MaintenanceRule": {
-            "type": "object",
-            "properties": {
-                "allowed_roles": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "scope": {
-                    "type": "string"
-                },
-                "target_id": {
-                    "type": "string"
-                },
-                "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "services.MaintenanceToggleRequest": {
-            "type": "object",
-            "properties": {
-                "allowed_roles": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "is_active": {
-                    "type": "boolean"
-                },
-                "reason": {
-                    "type": "string"
-                },
-                "scope": {
-                    "type": "string"
-                },
-                "target_id": {
-                    "type": "string"
-                }
-            }
-        },
         "services.ModuleHTTPMetrics": {
             "type": "object",
             "properties": {
@@ -6640,6 +7221,9 @@ const docTemplate = `{
         "services.TelemetrySnapshot": {
             "type": "object",
             "properties": {
+                "active_users": {
+                    "type": "integer"
+                },
                 "db": {
                     "$ref": "#/definitions/services.DBMetrics"
                 },
@@ -6680,6 +7264,9 @@ const docTemplate = `{
                 },
                 "is_banned": {
                     "type": "boolean"
+                },
+                "last_login_at": {
+                    "type": "string"
                 },
                 "mfa_enabled": {
                     "type": "boolean"

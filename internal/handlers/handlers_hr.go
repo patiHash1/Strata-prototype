@@ -28,6 +28,7 @@ type ClockInResponse struct {
 
 // clockInHandler records an employee attendance clock-in with geofence validation.
 //
+//	@ID			clockIn
 //	@Summary		Geofenced clock-in
 //	@Description	Records an employee attendance clock-in event with GPS coordinates. Validates whether the location is within a configured geofence. The employee is identified from the JWT token's user identity. Requires `hr.attendance.write` permission.
 //	@Tags			HR
@@ -106,6 +107,7 @@ type ParseResumeResponse struct {
 
 // parseResumeHandler parses a resume file (PDF/Docx) and scores match against a job description.
 //
+//	@ID			parseResume
 //	@Summary		Parse resume & score match
 //	@Description	Accepts a resume file (PDF or Docx) via multipart form upload, extracts candidate details and skills using AI, scores the match against a specified job description, and stores the application. Requires `hr.recruitment.write` permission.
 //	@Tags			HR
@@ -214,6 +216,7 @@ type KnowledgeSearchResponse struct {
 
 // knowledgeSearchHandler performs semantic search over the organization's knowledge base.
 //
+//	@ID			knowledgeSearch
 //	@Summary		RAG knowledge base semantic search
 //	@Description	Performs a RAG-powered semantic search over the organization's knowledge base documents (e.g., HR policies, onboarding guides) and returns an AI-synthesized answer with source citations. Requires `knowledge.read` permission.
 //	@Tags			HR
@@ -275,6 +278,7 @@ type createEmployeeRequest struct {
 
 // createEmployeeHandler creates a new employee record.
 //
+//	@ID			createEmployee
 //	@Summary		Create employee
 //	@Description	Creates a new employee record in the organization. Requires `hr.employees.write` permission.
 //	@Tags			HR
@@ -356,6 +360,7 @@ func (a *App) createEmployeeHandler(w http.ResponseWriter, r *http.Request) {
 
 // listEmployeesHandler lists all employees in the org, with optional department filter.
 //
+//	@ID			listEmployees
 //	@Summary		List employees
 //	@Description	Lists all employees in the organization. Optionally filter by department via query parameter. Requires `hr.employees.read` permission.
 //	@Tags			HR
@@ -399,6 +404,7 @@ func (a *App) listEmployeesHandler(w http.ResponseWriter, r *http.Request) {
 
 // getEmployeeHandler retrieves a single employee by ID.
 //
+//	@ID			getEmployee
 //	@Summary		Get employee
 //	@Description	Retrieves an employee record by ID. Requires `hr.employees.read` permission.
 //	@Tags			HR
@@ -450,6 +456,7 @@ type updateEmployeeRequest struct {
 
 // updateEmployeeHandler updates an employee's department, job title, or salary.
 //
+//	@ID			updateEmployee
 //	@Summary		Update employee
 //	@Description	Updates an employee's department, job title, or salary. Requires `hr.employees.write` permission.
 //	@Tags			HR
@@ -509,6 +516,7 @@ type runPayrollRequest struct {
 
 // runPayrollHandler creates a payroll run for the organization.
 //
+//	@ID			runPayroll
 //	@Summary		Run payroll
 //	@Description	Creates a payroll run, simulating wage calculations, deductions, and tax withholdings for all active employees. Requires `hr.payroll.write` permission.
 //	@Tags			HR
@@ -587,6 +595,7 @@ func (a *App) runPayrollHandler(w http.ResponseWriter, r *http.Request) {
 
 // listPayrollRunsHandler lists all payroll runs for the organization.
 //
+//	@ID			listPayrollRuns
 //	@Summary		List payroll runs
 //	@Description	Lists all payroll runs for the organization. Requires `hr.payroll.read` permission.
 //	@Tags			HR
@@ -624,6 +633,7 @@ func (a *App) listPayrollRunsHandler(w http.ResponseWriter, r *http.Request) {
 
 // getPayrollRunHandler retrieves a single payroll run by ID.
 //
+//	@ID			getPayrollRun
 //	@Summary		Get payroll run
 //	@Description	Retrieves a payroll run by ID. Requires `hr.payroll.read` permission.
 //	@Tags			HR

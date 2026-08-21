@@ -19,6 +19,7 @@ type receiveStockRequest struct {
 
 // receiveStockHandler receives stock into a warehouse.
 //
+//	@ID			receiveStock
 //	@Summary		Receive stock
 //	@Description	Adds stock to a warehouse and records a receipt movement. Requires `inventory.receive` permission.
 //	@Tags			Supply Chain
@@ -91,6 +92,7 @@ type issueStockRequest struct {
 
 // issueStockHandler issues stock from a warehouse.
 //
+//	@ID			issueStock
 //	@Summary		Issue stock
 //	@Description	Removes stock from a warehouse and records an issue movement. Requires `inventory.issue` permission.
 //	@Tags			Supply Chain
@@ -165,6 +167,9 @@ type transferStockRequest struct {
 //
 //	@Summary		Transfer stock
 //	@Description	Moves stock from one warehouse to another and records transfer movements. Requires `inventory.transfer` permission.
+//	@ID			transferStock
+//	@Summary		Transfer stock between warehouses
+//	@Description	Transfers stock from one warehouse to another, recording both an issue and receipt movement. Requires `inventory.transfer` permission.
 //	@Tags			Supply Chain
 //	@Accept			json
 //	@Produce		json
@@ -236,10 +241,10 @@ func (a *App) transferStockHandler(w http.ResponseWriter, r *http.Request) {
 
 // getInventorySnapshotHandler returns the current inventory snapshot for a warehouse.
 //
+//	@ID			getInventorySnapshot
 //	@Summary		Get inventory snapshot
-//	@Description	Returns the current inventory levels for a specified warehouse. Requires `inventory.snapshot` permission.
+//	@Description	Returns a snapshot of current inventory levels, optionally filtered by warehouse. Requires `inventory.snapshot` permission.
 //	@Tags			Supply Chain
-//	@Accept			json
 //	@Produce		json
 //	@Security		BearerAuth
 //	@Param			warehouse_id	query	string	true	"Warehouse ID"

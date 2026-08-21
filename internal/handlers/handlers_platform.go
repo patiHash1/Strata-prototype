@@ -29,6 +29,7 @@ type CopilotQueryResponse struct {
 
 // copilotQueryHandler executes a text-to-SQL AI copilot query.
 //
+//	@ID			copilotQuery
 //	@Summary		Execute AI copilot text-to-SQL query
 //	@Description	Converts a natural language prompt to SQL, executes the simulated query, and returns results with a chart recommendation. Requires `copilot.use` permission.
 //	@Tags			AI & Platform
@@ -103,6 +104,7 @@ type TriggerWorkflowResponse struct {
 
 // triggerWorkflowHandler triggers a low-code automated workflow by event type.
 //
+//	@ID			triggerWorkflow
 //	@Summary		Trigger automated workflow
 //	@Description	Triggers a low-code automation workflow in response to an event (e.g., invoice.paid). Matches active workflows by event_type and executes their action steps. Accepts both Bearer token and webhook signature authentication. Requires `workflows.execute` permission.
 //	@Tags			AI & Platform
@@ -176,6 +178,7 @@ type AuditAnomaliesResponse struct {
 
 // auditAnomaliesHandler fetches security threat and anomaly audit logs.
 //
+//	@ID			auditAnomalies
 //	@Summary		Fetch security audit anomalies
 //	@Description	Retrieves security audit log entries flagged as anomalies by the AI detection system. Filterable by severity level (low, medium, high, critical). Requires `security.audit.read` permission.
 //	@Tags			AI & Platform
@@ -260,6 +263,7 @@ type DashboardResponse struct {
 
 // createDashboardHandler creates a new BI executive dashboard.
 //
+//	@ID			createDashboard
 //	@Summary		Create BI dashboard
 //	@Description	Creates a new BI executive dashboard with optional widget configuration. Requires `bi.dashboards.write` permission.
 //	@Tags			BI & IoT
@@ -328,6 +332,7 @@ type ListDashboardsResponse struct {
 
 // listDashboardsHandler returns all BI dashboards for the organization.
 //
+//	@ID			listDashboards
 //	@Summary		List BI dashboards
 //	@Description	Returns all BI executive dashboards for the authenticated organization. Requires `bi.dashboards.read` permission.
 //	@Tags			BI & IoT
@@ -394,6 +399,7 @@ type DashboardDataResponse struct {
 
 // getDashboardDataHandler returns simulated dashboard data with AI anomaly detection.
 //
+//	@ID			getDashboardData
 //	@Summary		Get dashboard data
 //	@Description	Returns rendered widget data for a BI dashboard with AI-powered anomaly detection. Requires `bi.dashboards.read` permission.
 //	@Tags			BI & IoT
@@ -464,6 +470,7 @@ type IoTDeviceResponse struct {
 
 // registerDeviceHandler registers a new IoT device.
 //
+//	@ID			registerDevice
 //	@Summary		Register IoT device
 //	@Description	Registers a new IoT device for the organization. Requires `iot.devices.write` permission.
 //	@Tags			BI & IoT
@@ -532,6 +539,7 @@ type ListIoTDevicesResponse struct {
 
 // listDevicesHandler returns all IoT devices for the organization.
 //
+//	@ID			listDevices
 //	@Summary		List IoT devices
 //	@Description	Returns all registered IoT devices for the authenticated organization. Requires `iot.devices.write` permission.
 //	@Tags			BI & IoT
@@ -597,6 +605,7 @@ type IngestReadingResponse struct {
 
 // ingestReadingHandler processes an IoT device sensor reading.
 //
+//	@ID			ingestReading
 //	@Summary		Ingest device reading
 //	@Description	Processes a sensor reading from an IoT device and performs AI anomaly detection. Requires `iot.readings.ingest` permission.
 //	@Tags			BI & IoT

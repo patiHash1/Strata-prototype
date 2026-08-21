@@ -31,6 +31,7 @@ type RegisterResponse struct {
 
 // registerHandler creates a new organization with its owner user.
 //
+//	@ID			register
 //	@Summary		Register organization & owner
 //	@Description	Creates a new organization and a user as its owner. Returns a JWT access token.
 //	@Tags			Auth
@@ -126,6 +127,7 @@ type LoginResponse struct {
 
 // loginHandler authenticates a user and returns a JWT.
 //
+//	@ID			login
 //	@Summary		User login
 //	@Description	Authenticates with email/password (and optionally MFA code). Returns JWT + refresh token + profile.
 //	@Tags			Auth

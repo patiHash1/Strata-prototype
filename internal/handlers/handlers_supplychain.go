@@ -30,6 +30,7 @@ type TelemetryIngestResponse struct {
 
 // ingestTelemetryHandler processes a vehicle telemetry data point.
 //
+//	@ID			ingestTelemetry
 //	@Summary		Ingest vehicle telemetry stream
 //	@Description	Ingests real-time vehicle telemetry data (GPS, speed, engine temp) via API key authentication. Triggers AI predictive maintenance alerts when anomalies are detected. Requires API key with `fleet.telematics.ingest` scope.
 //	@Tags			Fleet
@@ -113,6 +114,7 @@ type RouteOptimizeResponse struct {
 
 // optimizeRoutesHandler generates AI-optimized delivery routes.
 //
+//	@ID			optimizeRoutes
 //	@Summary		Generate AI optimized routes & ETAs
 //	@Description	Generates AI-optimized delivery routes for a set of shipments using available vehicles. Returns a route plan with GeoJSON waypoints, ETA, and carbon offset estimate. Requires `fleet.routes.manage` permission.
 //	@Tags			Fleet
@@ -205,6 +207,7 @@ type ReorderPredictionsResponse struct {
 
 // getReorderPredictionsHandler returns AI-generated reorder predictions for inventory.
 //
+//	@ID			getReorderPredictions
 //	@Summary		Get AI reorder & stockout predictions
 //	@Description	Returns AI-driven reorder predictions and stockout forecasts for all products in the organization. Optionally filtered by warehouse. Requires `inventory.read` permission.
 //	@Tags			Inventory
@@ -265,6 +268,7 @@ type createBOMComponentEntry struct {
 
 // createBOMHandler creates a bill of materials with components.
 //
+//	@ID			createBOM
 //	@Summary		Create a bill of materials
 //	@Description	Creates a bill of materials (BOM) with its component products. Requires `manufacturing.boms.write` permission.
 //	@Tags			Manufacturing
@@ -351,6 +355,7 @@ type createWorkOrderRequest struct {
 
 // createWorkOrderHandler creates a manufacturing work order.
 //
+//	@ID			createWorkOrder
 //	@Summary		Create a work order
 //	@Description	Creates a manufacturing work order with AI bottleneck risk prediction. Requires `manufacturing.workorders.write` permission.
 //	@Tags			Manufacturing
@@ -430,6 +435,7 @@ type createPurchaseOrderRequest struct {
 
 // createPurchaseOrderHandler creates a procurement purchase order.
 //
+//	@ID			createPurchaseOrder
 //	@Summary		Create a purchase order
 //	@Description	Creates a purchase order with AI supplier risk rating. Requires `procurement.po.write` permission.
 //	@Tags			Procurement
@@ -498,6 +504,7 @@ func (a *App) createPurchaseOrderHandler(w http.ResponseWriter, r *http.Request)
 
 // getSupplierRiskHandler returns an AI-generated supplier risk report.
 //
+//	@ID			getSupplierRisk
 //	@Summary		Get supplier risk report
 //	@Description	Returns an AI-generated risk report for a supplier including risk score, open POs, and total spend. Requires `procurement.supplier.read` permission.
 //	@Tags			Procurement

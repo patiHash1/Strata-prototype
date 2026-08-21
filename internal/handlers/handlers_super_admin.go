@@ -62,8 +62,9 @@ type OrgListResponse struct {
 
 // superAdminLoginHandler renders the Super Admin login page.
 //
+//	@ID			superAdminLoginPage
 //	@Summary		Super Admin login page
-//	@Description	Renders the Super Admin login form.
+//	@Description	Renders the super-admin login page as an HTML form.
 //	@Tags			Super Admin
 //	@Produce		html
 //	@Success		200	{string}	string	"HTML page"
@@ -90,6 +91,7 @@ func (a *App) superAdminLoginPageHandler(w http.ResponseWriter, r *http.Request)
 // and redirects to the dashboard. On failure it re-renders the login page
 // with an error message.
 //
+//	@ID			superAdminLogin
 //	@Summary		Super Admin login
 //	@Description	Authenticates a super admin and redirects to the dashboard.
 //	@Tags			Super Admin
@@ -214,6 +216,7 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 // superAdminDashboardHandler renders the Super Admin dashboard page.
 //
+//	@ID			superAdminDashboard
 //	@Summary		Super Admin dashboard
 //	@Description	Renders the Super Admin dashboard with system metrics and quick actions.
 //	@Tags			Super Admin
@@ -239,6 +242,17 @@ func (a *App) superAdminDashboardHandler(w http.ResponseWriter, r *http.Request)
 // ── GET /api/v1/super-admin/dashboard/kpis ──
 
 // dashboardKPIsHandler returns the real-time KPI fragment for HTMX polling.
+//
+//	@ID			dashboardKPIs
+//	@Summary		Dashboard KPIs (HTML fragment)
+//	@Description	Returns the dashboard KPI cards (system uptime, active organizations, active users, security alerts) as an HTML fragment for HTMX polling.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML fragment"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/dashboard/kpis [get]
 func (a *App) dashboardKPIsHandler(w http.ResponseWriter, r *http.Request) {
 	kpis := templates.DashboardKPIs{
 		SystemUptime: "99.9%",
@@ -276,6 +290,17 @@ func (a *App) DashboardKPIsHandlerForTest(w http.ResponseWriter, r *http.Request
 // ── GET /api/v1/super-admin/dashboard/activity ──
 
 // dashboardActivityHandler returns the recent activity fragment for HTMX polling.
+//
+//	@ID			dashboardActivity
+//	@Summary		Dashboard activity feed (HTML fragment)
+//	@Description	Returns the recent SOC activity items as an HTML fragment for HTMX polling.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML fragment"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/dashboard/activity [get]
 func (a *App) dashboardActivityHandler(w http.ResponseWriter, r *http.Request) {
 	var items []templates.ActivityItem
 
@@ -312,6 +337,17 @@ func (a *App) DashboardActivityHandlerForTest(w http.ResponseWriter, r *http.Req
 
 // dashboardTrafficHandler returns the real-time API traffic time-series as JSON
 // for the ApexCharts client-side chart.
+//
+//	@ID			dashboardTraffic
+//	@Summary		Dashboard traffic series (JSON)
+//	@Description	Returns the real-time HTTP traffic time-series (2xx/5xx counts) for the dashboard chart.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		json
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/dashboard/traffic [get]
 func (a *App) dashboardTrafficHandler(w http.ResponseWriter, r *http.Request) {
 	var series []templates.TrafficDataPoint
 
@@ -371,6 +407,7 @@ func (a *App) SuperAdminDashboardHandlerForTest(w http.ResponseWriter, r *http.R
 // superAdminLogoutHandler clears the super-admin session cookie and the
 // client-side Bearer token, then redirects to the login page.
 //
+//	@ID			superAdminLogout
 //	@Summary		Super Admin logout
 //	@Description	Invalidates the super-admin session by clearing the strata_token cookie and redirects to the login page.
 //	@Tags			Super Admin
@@ -417,6 +454,7 @@ func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 // getSuperAdminMetricsHandler returns system telemetry in JSON format.
 //
+//	@ID			getSuperAdminMetrics
 //	@Summary		System telemetry (JSON)
 //	@Description	Returns aggregated runtime, database, and HTTP metrics including latency percentiles and recent panics.
 //	@Tags			Super Admin
@@ -425,7 +463,7 @@ func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
 //	@Success		200	{object}	MetricsResponse
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
-//	@Router			/api/v1/super-admin/metrics [get]
+//	@Router			/api/v1/super-admin/metrics/json [get]
 func (a *App) getSuperAdminMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	snapshot := a.SuperAdmin.CollectSnapshot()
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"metrics": snapshot})
@@ -436,6 +474,7 @@ func (a *App) getSuperAdminMetricsHandler(w http.ResponseWriter, r *http.Request
 // getSuperAdminMetricsFragmentHandler returns the MetricsGrid HTML fragment
 // for HTMX polling. It renders only the grid component, not the full layout.
 //
+//	@ID			getSuperAdminMetricsFragment
 //	@Summary		Metrics grid fragment (HTML)
 //	@Description	Returns the MetricsGrid Templ component as an HTML fragment for HTMX polling.
 //	@Tags			Super Admin
@@ -482,6 +521,7 @@ func (a *App) SecurityStreamHandlerForTest(w http.ResponseWriter, r *http.Reques
 
 // getSuperAdminMetricsPrometheusHandler returns system telemetry in Prometheus text format.
 //
+//	@ID			getSuperAdminMetricsPrometheus
 //	@Summary		System telemetry (Prometheus)
 //	@Description	Returns runtime, database, and HTTP metrics in Prometheus text exposition format suitable for scraping.
 //	@Tags			Super Admin
@@ -502,6 +542,7 @@ func (a *App) getSuperAdminMetricsPrometheusHandler(w http.ResponseWriter, r *ht
 
 // getSuperAdminHealthHandler returns module health scores.
 //
+//	@ID			getSuperAdminHealth
 //	@Summary		Module health scores
 //	@Description	Returns composite health scores (0-100%) for all modules factoring in CI coverage, linter issues, vulnerabilities, and 5xx error rates.
 //	@Tags			Super Admin
@@ -525,6 +566,18 @@ func (a *App) getSuperAdminHealthHandler(w http.ResponseWriter, r *http.Request)
 
 // getModuleHealthHandler returns the current state of a module including
 // maintenance status, CI health, and HTTP metrics.
+// getModuleHealthHandler returns the operational status of a specific module.
+//
+//	@ID			getModuleHealth
+//	@Summary		Get module health
+//	@Description	Returns the current operational state of a module (operational, degraded, or maintenance). Public endpoint — no authentication required. Designed for load balancers and uptime monitors.
+//	@Tags			System
+//	@Produce		json
+//	@Param			module	path	string	true	"Module name (e.g. crm, accounting, hr)"
+//	@Success		200	{object}	utils.Envelope
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		503	{object}	utils.Envelope
+//	@Router			/api/v1/{module}/health [get]
 func (a *App) getModuleHealthHandler(w http.ResponseWriter, r *http.Request) {
 	module := r.PathValue("module")
 	if module == "" {
@@ -561,6 +614,7 @@ func (a *App) GetModuleHealthHandlerForTest(w http.ResponseWriter, r *http.Reque
 
 // ingestCIHealthHandler ingests CI health data.
 //
+//	@ID			ingestCIHealth
 //	@Summary		Ingest CI health report
 //	@Description	Stores a CI health report with test coverage percentage, linter issue count, vulnerability count, and commit SHA for a given module.
 //	@Tags			Super Admin
@@ -599,6 +653,17 @@ func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 
 // listMaintenanceRulesPageHandler renders the full maintenance rules table
 // inside the dashboard layout.
+//
+//	@ID			listMaintenanceRulesPage
+//	@Summary		Maintenance rules page (HTML)
+//	@Description	Renders the partitioned maintenance control panel page inside the dashboard layout.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML page"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/maintenance/rules [get]
 func (a *App) listMaintenanceRulesPageHandler(w http.ResponseWriter, r *http.Request) {
 	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
 	if err != nil {
@@ -619,6 +684,17 @@ func (a *App) ListMaintenanceRulesPageHandlerForTest(w http.ResponseWriter, r *h
 
 // listMaintenanceRulesFragmentHandler returns an HTML table body fragment
 // for HTMX partial swaps.
+//
+//	@ID			listMaintenanceRulesFragment
+//	@Summary		Maintenance rules table fragment (HTML)
+//	@Description	Returns the maintenance rules table body as an HTML fragment for HTMX partial swaps.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Success		200	{string}	string	"HTML fragment"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/maintenance/fragment [get]
 func (a *App) listMaintenanceRulesFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
 	if err != nil {
@@ -639,6 +715,23 @@ func (a *App) ListMaintenanceRulesFragmentHandlerForTest(w http.ResponseWriter, 
 
 // createMaintenanceRuleHandler creates a new maintenance rule and returns
 // an HTMX out-of-band swap HTML fragment to append the row to the table.
+//
+//	@ID			createMaintenanceRule
+//	@Summary		Create maintenance rule
+//	@Description	Creates a new partitioned maintenance rule (module, tenant, or feature scope). Form-encoded (application/x-www-form-urlencoded) with fields scope, target_id, reason. Returns an HTMX out-of-band swap HTML fragment.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Accept			application/x-www-form-urlencoded
+//	@Produce		html
+//	@Param			scope		formData	string	true	"Scope: module, tenant_id, or feature"
+//	@Param			target_id	formData	string	true	"Target ID (module name, tenant UUID, or feature key)"
+//	@Param			reason		formData	string	false	"Reason for maintenance"
+//	@Success		200	{string}	string	"HTML row fragment (OOB swap)"
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/maintenance [post]
 func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -705,6 +798,20 @@ func (a *App) CreateMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http
 
 // deleteMaintenanceRuleHandler soft-deactivates a maintenance rule and returns
 // an empty HTML fragment so the row is replaced with nothing (fade-out effect).
+//
+//	@ID			deleteMaintenanceRule
+//	@Summary		Revoke maintenance rule
+//	@Description	Soft-deactivates a maintenance rule by ID (sets is_active = FALSE). Returns an empty HTML row fragment for the fade-out transition.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Param			id	path	int	true	"Maintenance rule ID"
+//	@Success		200	{string}	string	"HTML row fragment"
+//	@Failure		400	{object}	utils.Envelope
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Failure		500	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/maintenance/{id} [delete]
 func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	if idStr == "" {
@@ -751,6 +858,7 @@ func (a *App) DeleteMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http
 
 // securityStreamHandler streams real-time SOC events via Server-Sent Events.
 //
+//	@ID			securityStream
 //	@Summary		Real-time security event stream (SSE)
 //	@Description	Opens a Server-Sent Events connection that streams real-time SOC security events (failed auth, RLS violations, anomalies) as they occur across all nodes. Events are fanned out via Redis Pub/Sub.
 //	@Tags			Super Admin
@@ -836,18 +944,19 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 
 // listAllUsersHandler returns a paginated list of all users across all organizations.
 //
+//	@ID			listAllUsers
 //	@Summary		List all users
 //	@Description	Returns a paginated list of all users across every organization, including ban status. Query params: offset (default 0), limit (default 50, max 100).
 //	@Tags			Super Admin
 //	@Security		BearerAuth
 //	@Produce		json
-//	@Param			offset	query	int	false	"Pagination offset"
-//	@Param			limit	query	int	false	"Page size (max 100)"
+//	@Param			offset	query	int	false	"Pagination offset"	default(0)
+//	@Param			limit	query	int	false	"Page size (max 100)"	default(50)
 //	@Success		200	{object}	UserListResponse
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Failure		500	{object}	utils.Envelope
-//	@Router			/api/v1/super-admin/users [get]
+//	@Router			/api/v1/super-admin/users/json [get]
 func (a *App) listAllUsersHandler(w http.ResponseWriter, r *http.Request) {
 	offset, limit := parsePagination(r)
 	users, total, err := a.Users.ListAllUsers(r.Context(), offset, limit)
@@ -862,6 +971,7 @@ func (a *App) listAllUsersHandler(w http.ResponseWriter, r *http.Request) {
 
 // getUserDetailHandler returns details for a specific user.
 //
+//	@ID			getUserDetail
 //	@Summary		Get user details
 //	@Description	Returns full details for a specific user by ID, including ban status and organization memberships.
 //	@Tags			Super Admin
@@ -908,6 +1018,7 @@ type banUserRequest struct {
 // banUserHandler bans a user across the entire platform.
 //
 //	@Summary		Ban a user
+//	@ID			banUser
 //	@Description	Bans a user platform-wide with a mandatory reason. Banned users cannot authenticate.
 //	@Tags			Super Admin
 //	@Security		BearerAuth
@@ -968,6 +1079,7 @@ func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // unbanUserHandler removes a ban from a user.
 //
+//	@ID			unbanUser
 //	@Summary		Unban a user
 //	@Description	Removes a platform-wide ban from a user, restoring their ability to authenticate.
 //	@Tags			Super Admin
@@ -1016,18 +1128,19 @@ func (a *App) unbanUserHandler(w http.ResponseWriter, r *http.Request) {
 
 // listAllOrgsHandler returns a paginated list of all organizations.
 //
+//	@ID			listAllOrganizations
 //	@Summary		List all organizations
 //	@Description	Returns a paginated list of all organizations with their status (active, suspended, pending_verification). Query params: offset (default 0), limit (default 50, max 100).
 //	@Tags			Super Admin
 //	@Security		BearerAuth
 //	@Produce		json
-//	@Param			offset	query	int	false	"Pagination offset"
-//	@Param			limit	query	int	false	"Page size (max 100)"
+//	@Param			offset	query	int	false	"Pagination offset"	default(0)
+//	@Param			limit	query	int	false	"Page size (max 100)"	default(50)
 //	@Success		200	{object}	OrgListResponse
 //	@Failure		401	{object}	utils.Envelope
 //	@Failure		403	{object}	utils.Envelope
 //	@Failure		500	{object}	utils.Envelope
-//	@Router			/api/v1/super-admin/organizations [get]
+//	@Router			/api/v1/super-admin/organizations/json [get]
 func (a *App) listAllOrgsHandler(w http.ResponseWriter, r *http.Request) {
 	offset, limit := parsePagination(r)
 	orgs, total, err := a.Orgs.ListAllOrgs(r.Context(), offset, limit)
@@ -1042,6 +1155,7 @@ func (a *App) listAllOrgsHandler(w http.ResponseWriter, r *http.Request) {
 
 // getOrgDetailHandler returns details for a specific organization.
 //
+//	@ID			getOrgDetail
 //	@Summary		Get organization details
 //	@Description	Returns full details for a specific organization by ID, including status and metadata.
 //	@Tags			Super Admin
@@ -1078,6 +1192,7 @@ func (a *App) getOrgDetailHandler(w http.ResponseWriter, r *http.Request) {
 
 // suspendOrgHandler suspends an organization.
 //
+//	@ID			suspendOrg
 //	@Summary		Suspend an organization
 //	@Description	Suspends an organization, preventing all members from accessing the platform.
 //	@Tags			Super Admin
@@ -1126,6 +1241,7 @@ func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
 
 // activateOrgHandler activates (re-enables) an organization.
 //
+//	@ID			activateOrg
 //	@Summary		Activate an organization
 //	@Description	Re-activates a suspended or pending organization, restoring access for all members.
 //	@Tags			Super Admin
@@ -1174,6 +1290,7 @@ func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
 
 // superAdminMetricsPageHandler renders the Metrics page with runtime telemetry.
 //
+//	@ID			superAdminMetricsPage
 //	@Summary		Metrics page (HTML)
 //	@Description	Renders the Metrics page showing runtime telemetry and infrastructure profiling.
 //	@Tags			Super Admin
@@ -1204,6 +1321,7 @@ func (a *App) MetricsPageHandlerForTest(w http.ResponseWriter, r *http.Request) 
 
 // superAdminSecurityPageHandler renders the Security & Audit page with live streaming events.
 //
+//	@ID			superAdminSecurityPage
 //	@Summary		Security & Audit page (HTML)
 //	@Description	Renders the Security page showing live streaming security events and audit trails.
 //	@Tags			Super Admin
@@ -1234,6 +1352,7 @@ func (a *App) SecurityPageHandlerForTest(w http.ResponseWriter, r *http.Request)
 
 // superAdminSettingsPageHandler renders the Settings page for global configuration.
 //
+//	@ID			superAdminSettingsPage
 //	@Summary		Settings page (HTML)
 //	@Description	Renders the Settings page for global environment config, API keys, and webhook setups.
 //	@Tags			Super Admin
@@ -1264,6 +1383,7 @@ func (a *App) SettingsPageHandlerForTest(w http.ResponseWriter, r *http.Request)
 
 // superAdminUsersPageHandler renders the Users page with a global user directory.
 //
+//	@ID			superAdminUsersPage
 //	@Summary		Users page (HTML)
 //	@Description	Renders the Users page showing the global user directory and RBAC.
 //	@Tags			Super Admin
@@ -1293,6 +1413,19 @@ func (a *App) UsersPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
 // ── GET /api/v1/super-admin/users/fragment (HTML fragment) ──
 
 // listUsersFragmentHandler returns the users table body as an HTMX-swappable fragment.
+//
+//	@ID			listUsersFragment
+//	@Summary		Users table fragment (HTML)
+//	@Description	Returns the global user directory table body as an HTML fragment for HTMX partial swaps.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Param			offset	query	int	false	"Pagination offset"	default(0)
+//	@Param			limit	query	int	false	"Page size (max 100)"	default(50)
+//	@Success		200	{string}	string	"HTML fragment"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/users/fragment [get]
 func (a *App) listUsersFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	offset, limit := parsePagination(r)
 	users, total, err := a.Users.ListAllUsers(r.Context(), offset, limit)
@@ -1331,6 +1464,7 @@ func (a *App) ListUsersFragmentHandlerForTest(w http.ResponseWriter, r *http.Req
 
 // superAdminOrganizationsPageHandler renders the Organizations page with a tenant directory.
 //
+//	@ID			superAdminOrganizationsPage
 //	@Summary		Organizations page (HTML)
 //	@Description	Renders the Organizations page showing the tenant directory and provisioning.
 //	@Tags			Super Admin
@@ -1360,6 +1494,19 @@ func (a *App) OrganizationsPageHandlerForTest(w http.ResponseWriter, r *http.Req
 // ── GET /api/v1/super-admin/organizations/fragment (HTML fragment) ──
 
 // listOrgsFragmentHandler returns the organizations table body as an HTMX-swappable fragment.
+//
+//	@ID			listOrgsFragment
+//	@Summary		Organizations table fragment (HTML)
+//	@Description	Returns the tenant directory table body as an HTML fragment for HTMX partial swaps.
+//	@Tags			Super Admin
+//	@Security		BearerAuth
+//	@Produce		html
+//	@Param			offset	query	int	false	"Pagination offset"	default(0)
+//	@Param			limit	query	int	false	"Page size (max 100)"	default(50)
+//	@Success		200	{string}	string	"HTML fragment"
+//	@Failure		401	{object}	utils.Envelope
+//	@Failure		403	{object}	utils.Envelope
+//	@Router			/api/v1/super-admin/organizations/fragment [get]
 func (a *App) listOrgsFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	offset, limit := parsePagination(r)
 	orgs, total, err := a.Orgs.ListAllOrgs(r.Context(), offset, limit)
