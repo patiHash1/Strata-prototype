@@ -23,7 +23,7 @@ internal/
 |---|---|---|
 | services | `services_<domain>.go` | `services_users.go`, `services_orgs.go`, `services_supplychain.go` |
 | handlers | `handlers_<category>.go` | `handlers_auth.go`, `handlers_org.go`, `handlers_supplychain.go` |
-| utils | `<function>.go` | `response.go`, `middleware.go`, `validator.go` |
+| utils | `<function>.go` | `response.go`, `middleware.go`, `validator.go`, `ratelimit.go`, `csrf.go`, `totp.go` |
 
 ## Naming conventions
 

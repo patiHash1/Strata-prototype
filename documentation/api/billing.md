@@ -8,17 +8,19 @@ The Billing module manages subscriptions for organizations. It integrates with S
 
 ```go
 type Subscription struct {
-    ID               uuid.UUID
-    OrgID            uuid.UUID
-    PlanCode         string             // e.g., "starter", "professional", "enterprise"
-    Status           SubscriptionStatus
-    StripeCustomerID *string            // Stripe customer ID (sensitive)
-    StripeSubID      *string            // Stripe subscription ID (sensitive)
-    CurrentPeriodEnd *time.Time
-    CreatedAt        time.Time
-    UpdatedAt        time.Time
+    ID                   uuid.UUID
+    OrgID                uuid.UUID
+    PlanID               uuid.UUID          // FK to subscription_plans
+    Status               SubscriptionStatus
+    StripeCustomerID     *string            // Stripe customer ID (sensitive)
+    StripeSubscriptionID *string            // Stripe subscription ID (sensitive)
+    CurrentPeriodStart   time.Time
+    CurrentPeriodEnd     time.Time
+    CreatedAt            time.Time
 }
 ```
+
+Subscriptions reference a plan via `plan_id` (UUID foreign key to the seeded `subscription_plans` table). The API request still accepts a `plan_code` string (e.g. `starter`, `professional`, `enterprise`), which the service resolves to the plan's UUID.
 
 ### Subscription statuses
 

@@ -712,13 +712,13 @@ type SOCEvent struct {
 
 **File:** `services_mailer.go`
 
-Stub for transactional email sending. Currently logs to stdout:
+Stub for transactional email sending. Currently logs via the structured logger, redacting the invitation token to avoid leaking secrets:
 
 ```go
 type Mailer struct{}
 
 func (m *Mailer) SendInvitation(email, token string) error {
-    log.Printf("[MAILER] invitation to %s with token %s", email, token)
+    logger.Info("invitation sent", slog.String("email", email), slog.String("token_prefix", redactToken(token)))
     return nil
 }
 ```

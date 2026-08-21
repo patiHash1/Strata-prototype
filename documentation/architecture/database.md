@@ -2,7 +2,7 @@
 
 ## Overview
 
-The database is PostgreSQL 16. Tables are created via idempotent migrations stored as numbered `.up.sql` files in `internal/database/migrations/`, loaded via Go's `embed.FS` at startup. The schema uses UUID primary keys and `TIMESTAMPTZ` for timestamps.
+The database is PostgreSQL 16. Tables are created via version-tracked migrations stored as numbered `.up.sql` files in `internal/database/migrations/`, loaded via Go's `embed.FS` at startup. Each migration is applied once and recorded in the `schema_migrations` table. The schema uses UUID primary keys and `TIMESTAMPTZ` for timestamps.
 
 ## Entity-Relationship Diagram
 
@@ -634,6 +634,23 @@ CREATE TABLE ai_usage_logs (
 | `feature_used` | VARCHAR(100) | Feature identifier (e.g., `copilot.query`, `workflows.execute`) |
 | `credits_consumed` | INT | Number of AI credits consumed |
 | `created_at` | TIMESTAMPTZ | Auto-set |
+
+## Super Admin subsystem tables
+
+The super-admin subsystem persists operational data in four tables (created by migrations `000069` and `000074`):
+
+| Table | Purpose |
+|---|---|
+| `super_admin_maintenance_rules` | Partitioned maintenance locks (`scope`, `target_id`, `is_active`, `reason`, `allowed_roles`) |
+| `super_admin_system_errors` | Captured panic traces and system errors |
+| `super_admin_ci_health_reports` | CI coverage/linter/vulnerability reports per module |
+| `super_admin_soc_events` | Persisted security events with JSONB `metadata` |
+
+Additional columns added by later migrations:
+
+- `users.is_banned` (BOOLEAN, default FALSE) and `users.ban_reason` (TEXT, default '') — migration `000071`
+- `users.last_login_at` (TIMESTAMPTZ) — migration `000075`
+- `api_keys.key_prefix` (VARCHAR(16)) with a partial index — migration `000072`
 
 ## Performance indexes
 

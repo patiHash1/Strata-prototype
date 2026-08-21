@@ -29,7 +29,8 @@ The `AuthService` in `internal/services/services_auth.go` handles JWT operations
 | `org_id` | string | UUID of the user's organization |
 | `role_id` | string | UUID of the user's assigned role |
 | `permissions` | string[] | Permission keys granted by the role |
-| `iss` | string | JWT issuer (configurable) |
+| `iss` | string | JWT issuer (configurable via `JWT_ISSUER`) |
+| `aud` | string[] | Audience — always `["strata-api"]` |
 | `iat` | number | Issued-at timestamp (epoch) |
 | `exp` | number | Expiration timestamp (epoch) — tokens are valid for 24 hours |
 

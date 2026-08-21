@@ -17,23 +17,33 @@ Global middleware is applied in `routes()` in `handlers_routes.go`. The order de
 
 ```go
 var handler http.Handler = mux
-handler = utils.CORSMiddleware(handler)                           // 1. CORS headers
-handler = utils.LoggingMiddleware(adminSvc)(handler)              // 2. Request logging + latency tracking
-handler = utils.RecoveryMiddleware(adminSvc)(handler)             // 3. Panic recovery + stack capture
-handler = utils.PartitionedMaintenanceMiddleware(adminSvc)(handler) // 4. Maintenance mode enforcement
+handler = utils.MaxBodySizeMiddleware(1 << 20)(handler)                          // 1. 1 MiB body limit
+handler = utils.CORSMiddleware(a.Config.AllowedOrigins)(handler)                 // 2. CORS headers
+handler = utils.LoggingMiddleware(a.SuperAdmin)(handler)                         // 3. Request logging + latency tracking
+handler = utils.RecoveryMiddleware(a.SuperAdmin)(handler)                        // 4. Panic recovery + stack capture
+handler = utils.PartitionedMaintenanceMiddleware(a.SuperAdmin)(handler)          // 5. Maintenance mode enforcement
 ```
+
+### MaxBodySizeMiddleware
+
+```go
+func MaxBodySizeMiddleware(maxBytes int64) func(http.Handler) http.Handler
+```
+
+Limits the maximum request body size to prevent memory exhaustion from oversized payloads. Applied globally with a `1 << 20` (1 MiB) limit. If `maxBytes <= 0`, it defaults to 1 MiB.
 
 ### CORSMiddleware
 
 ```go
-func CORSMiddleware(next http.Handler) http.Handler
+func CORSMiddleware(allowedOrigins string) func(http.Handler) http.Handler
 ```
 
-Sets permissive CORS headers for development:
+Sets CORS headers based on a **configurable comma-separated list of allowed origins** (from the `ALLOWED_ORIGINS` env var):
 
-- `Access-Control-Allow-Origin: *`
+- For a matching `Origin`, sets `Access-Control-Allow-Origin` to that origin plus `Vary: Origin` and `Access-Control-Allow-Credentials: true`
 - `Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS`
 - `Access-Control-Allow-Headers: Content-Type, Authorization, X-Tenant-Domain, X-API-Key`
+- If `allowedOrigins` is empty, no `Access-Control-Allow-Origin` header is set, which blocks cross-origin browser requests
 
 Preflight `OPTIONS` requests are handled immediately with `204 No Content`.
 
@@ -272,9 +282,10 @@ The order of middleware composition matters:
 - **Route-level middleware** is applied in the order it's composed: `RequireAuth` runs before `RequirePermission`, which runs before the handler
 
 **Current global stack (execution order):**
-1. `PartitionedMaintenanceMiddleware` — blocks maintenance-locked requests first (outermost)
-2. `RecoveryMiddleware` — catches panics from all inner layers
+1. `MaxBodySizeMiddleware` — enforces the 1 MiB body limit (outermost)
+2. `CORSMiddleware` — sets CORS headers for allowed origins
 3. `LoggingMiddleware` — logs request + records latency metrics
-4. `CORSMiddleware` — sets CORS headers (innermost global)
+4. `RecoveryMiddleware` — catches panics from all inner layers
+5. `PartitionedMaintenanceMiddleware` — blocks maintenance-locked requests (innermost global)
 
 For route-level middleware, `RequireAuth` (or `RequireAuthCookie`) must always come before `RequirePermission` because the permission check depends on claims being present in the context.

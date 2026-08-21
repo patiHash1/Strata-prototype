@@ -106,17 +106,22 @@ var (
 
 ```go
 type App struct {
-    Config  config.Config
-    DB      *database.DB
-    Auth    *services.AuthService
-    Users   *services.UserService
-    Orgs    *services.OrgService
-    RBAC    *services.RBACService
-    Billing *services.BillingService
-    Mailer  *services.Mailer
-    CRM     *services.CRMService       // <-- new field
-    SupplyChain *services.SupplyChainService
-    server  *http.Server
+    Config       config.Config
+    DB           *database.DB
+    Auth         *services.AuthService
+    Users        *services.UserService
+    Orgs         *services.OrgService
+    RBAC         *services.RBACService
+    Billing      *services.BillingService
+    Mailer       *services.Mailer
+    CRM          *services.CRMService       // <-- new field
+    Accounting   *services.AccountingService
+    SupplyChain  *services.SupplyChainService
+    HR           *services.HRService
+    Platform     *services.PlatformService
+    SuperAdmin   *services.SuperAdminService
+    Registration *services.RegistrationService
+    server       *http.Server
 }
 ```
 
@@ -135,11 +140,17 @@ func New(
     crmSvc *services.CRMService,   // <-- new parameter
     accountingSvc *services.AccountingService,
     supplyChainSvc *services.SupplyChainService,
+    hrSvc *services.HRService,
+    platformSvc *services.PlatformService,
+    superAdminSvc *services.SuperAdminService,
+    registrationSvc *services.RegistrationService,
 ) *App {
     return &App{
         // ...
-        CRM:         crmSvc,
-        SupplyChain: supplyChainSvc,
+        CRM:          crmSvc,
+        SupplyChain:  supplyChainSvc,
+        SuperAdmin:   superAdminSvc,
+        Registration: registrationSvc,
     }
 }
 ```
@@ -149,30 +160,26 @@ func New(
 ```go
 crmSvc := services.NewCRMService(db.Pool)
 
-app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc)
+app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, superAdminSvc, registrationSvc)
 ```
 
-> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification), accept them in the constructor. See `SupplyChainService` for an example: `NewSupplyChainService(pool, authSvc)`.
+> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification, or `*redis.Client` for pub/sub), accept them in the constructor. See `SupplyChainService` (`NewSupplyChainService(pool, authSvc)`) and `SuperAdminService` (`NewSuperAdminService(pool, rdb)`) for examples.
 
 ## Step 3: Add the database table
 
-Add the table migration to `internal/database/database.go`:
+Add a new numbered migration file in `internal/database/migrations/` (e.g. `000076_create_leads.up.sql`):
 
-```go
-{
-    name: "create_leads",
-    sql: `
-        CREATE TABLE IF NOT EXISTS leads (
-            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-            org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-            name VARCHAR(150) NOT NULL,
-            email VARCHAR(255) NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT NOW()
-        )`,
-},
+```sql
+CREATE TABLE IF NOT EXISTS leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-Migrations run on startup and are idempotent (`CREATE TABLE IF NOT EXISTS`).
+Migrations run on startup and are version-tracked in the `schema_migrations` table, so each runs once. See [Adding Migrations](adding-migrations.md) for details.
 
 ## Step 4: Use the service from a handler
 

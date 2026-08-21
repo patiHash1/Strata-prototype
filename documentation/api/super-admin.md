@@ -41,6 +41,29 @@ Renders the super-admin dashboard as an HTML page. Protected by `RequireAuthCook
 - Collapsible sidebar with hamburger button (works on all screen sizes)
 - User menu pop-out card with sign-out option (Alpine.js)
 
+### Dashboard data endpoints (JSON, Bearer auth)
+
+These feed the dashboard widgets via HTMX polling:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/v1/super-admin/dashboard/kpis` | KPI cards (system uptime, active organizations, active users, etc.) |
+| `GET /api/v1/super-admin/dashboard/activity` | Recent activity feed (latest SOC events) |
+| `GET /api/v1/super-admin/dashboard/traffic` | HTTP traffic series (2xx/5xx counts over time) |
+
+### Additional HTML pages
+
+The super-admin UI includes several full pages reachable from the sidebar, all protected by `RequireAuthCookie` + `RequirePermission(services.PermSuperAdmin)`:
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/v1/super-admin/metrics` | System metrics page (runtime, DB, HTTP, panics) |
+| `GET /api/v1/super-admin/security` | Security & Audit page with the live SOC event feed |
+| `GET /api/v1/super-admin/settings` | Settings page |
+| `GET /api/v1/super-admin/users` | Global user directory page |
+| `GET /api/v1/super-admin/organizations` | Global organization (tenant) directory page |
+| `GET /api/v1/super-admin/maintenance/rules` | Partitioned maintenance control panel |
+
 ## Metrics
 
 ### GET `/api/v1/super-admin/metrics`
@@ -270,9 +293,7 @@ Soft-deactivates a maintenance rule (sets `is_active = FALSE`). Returns an empty
 
 Publishes a cache-invalidation event to all connected nodes via Redis Pub/Sub channel `strata:events:maintenance-sync`.
 
-### Legacy JSON API
-
-The `POST /api/v1/super-admin/maintenance/toggle` endpoint remains available for programmatic access (JSON request/response).
+> **Note:** The maintenance API is form/HTML-oriented (`POST /api/v1/super-admin/maintenance` and `DELETE /api/v1/super-admin/maintenance/{id}`). There is no separate JSON `toggle` endpoint.
 
 ## Security Event Stream (SSE)
 

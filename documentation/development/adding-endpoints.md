@@ -137,18 +137,14 @@ Strata supports three authentication modes at the route level:
 
 If your endpoint needs a new permission:
 
-1. Add it to the seed migration in `internal/database/database.go`:
+1. Add it to the seed migration in `internal/database/migrations/000067_seed_default_permissions.up.sql`:
 
-```go
-{
-    name: "seed_default_permissions",
-    sql: `
-        INSERT INTO permissions (permission_key, module, description)
-        VALUES
-            ...
-            ('users.read', 'users', 'Read user information')
-        ON CONFLICT (permission_key) DO NOTHING`,
-},
+```sql
+INSERT INTO permissions (permission_key, module, description)
+VALUES
+    ...
+    ('users.read', 'users', 'Read user information')
+ON CONFLICT (permission_key) DO NOTHING;
 ```
 
 2. Add a constant in `internal/services/services_rbac.go`:
@@ -165,7 +161,9 @@ const (
 ## Step 4: Regenerate Swagger spec
 
 ```bash
-swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency --parseInternal
+swag init -g cmd/api/main.go -o docs
+# or via make
+make swagger
 ```
 
 ## Pattern summary
@@ -174,6 +172,6 @@ swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency 
 |---|---|---|
 | 1 | `internal/handlers/handlers_<category>.go` | Write handler function with Swagger annotations |
 | 2 | `internal/handlers/handlers_routes.go` | Register route with middleware (Bearer or API key) |
-| 3 | `internal/database/database.go` | Add new permission to seed (if needed) |
+| 3 | `internal/database/migrations/000067_seed_default_permissions.up.sql` | Add new permission to seed (if needed) |
 | 4 | `internal/services/services_rbac.go` | Add permission constant (if needed) |
 | 5 | — | Regenerate Swagger spec |

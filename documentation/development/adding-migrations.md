@@ -2,7 +2,7 @@
 
 ## Overview
 
-Database migrations are **embedded SQL files** loaded via Go's `embed.FS` package. Each migration is a numbered `.up.sql` file in `internal/database/migrations/`, executed in lexicographic order at server startup.
+Database migrations are **embedded SQL files** loaded via Go's `embed.FS` package. Each migration is a numbered `.up.sql` file in `internal/database/migrations/`, executed in lexicographic order at server startup. Every migration also has a matching `.down.sql` file (for reference/rollback), though only `.up.sql` files are embedded and executed.
 
 The loader lives in `internal/database/migrations.go`:
 
@@ -19,25 +19,34 @@ func loadMigrations() ([]migration, error) {
 }
 ```
 
-The `Migrate()` method in `internal/database/database.go` calls `loadMigrations()` and executes each SQL file:
+The `Migrate()` method in `internal/database/database.go` calls `loadMigrations()` and executes each SQL file **only if it has not already been recorded** in the `schema_migrations` table:
 
 ```go
 func (db *DB) Migrate(ctx context.Context) error {
+    // Ensure the tracking table exists.
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+        version VARCHAR(255) PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+
     migrations, err := loadMigrations()
-    if err != nil {
-        return fmt.Errorf("load migrations: %w", err)
-    }
-
+    // ...
     for _, m := range migrations {
-        if _, err := db.Pool.Exec(ctx, m.sql); err != nil {
-            return fmt.Errorf("migration %q: %w", m.name, err)
-        }
-        fmt.Printf("  ✓ %s\n", m.name)
-    }
+        // Skip the schema_migrations table creation itself.
+        if m.name == "create_schema_migrations" { continue }
 
-    return nil
+        // Check if already applied.
+        SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)
+        if alreadyApplied { continue }
+
+        // Apply the migration, then record it.
+        db.Pool.Exec(ctx, m.sql)
+        INSERT INTO schema_migrations (version, applied_at) VALUES ($1, NOW())
+    }
 }
 ```
+
+Migrations are **version-tracked**: each is applied once and recorded, so only new migrations run on subsequent startups. This differs from the older idempotent-only approach.
 
 ## Adding a new migration
 
@@ -61,19 +70,19 @@ CREATE TABLE IF NOT EXISTS leads (
 
 ## File naming convention
 
-Files follow the pattern `NNNNNN_<descriptive_name>.up.sql`:
+Files follow the pattern `NNNNNN_<descriptive_name>.up.sql` (with a matching `NNNNNN_<descriptive_name>.down.sql`):
 
 | Prefix | Purpose |
 |---|---|
 | `000001`–`000005` | Custom enum types |
-| `000006`–`000067` | Tables, indexes, and seed data |
-| `000068+` | Future additions |
+| `000006`–`000067` | Core tables, indexes, and seed data |
+| `000069`–`000075` | Super-admin subsystem, API key prefix, schema tracking, SOC events, last-login tracking |
 
 The six-digit zero-padded prefix ensures lexicographic sort order matches execution order. The descriptive name after the first underscore is used as the console log label (e.g., `✓ create_leads`).
 
 ## Idempotency requirements
 
-All migrations **must be idempotent** because they run on every startup:
+Although migrations are version-tracked (each runs once), the SQL is still written idempotently as a safety net for partially-applied or manually-managed databases:
 
 | Operation | Safe pattern |
 |---|---|
@@ -83,7 +92,7 @@ All migrations **must be idempotent** because they run on every startup:
 | Add column | `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` |
 | Add index | `CREATE INDEX IF NOT EXISTS` |
 
-## Current migration list (67 files)
+## Current migration list (74 `.up.sql` files)
 
 | # | Name | Purpose |
 |---|---|---|
@@ -153,14 +162,22 @@ All migrations **must be idempotent** because they run on every startup:
 | 64 | `create_indexes_category5` | Performance indexes (12 indexes) |
 | 65 | `seed_default_currencies` | Seeds 10 default currencies |
 | 66 | `seed_default_plans` | Seeds 3 subscription plans |
-| 67 | `seed_default_permissions` | Seeds 47 default permissions |
+| 67 | `seed_default_permissions` | Seeds default permissions |
+| 69 | `super_admin_system` | Super-admin maintenance rules, system errors, CI health tables |
+| 70 | `seed_super_admin_permission` | Seeds the `super_admin.access` permission |
+| 71 | `super_admin_user_org_columns` | Adds `is_banned` / `ban_reason` to users, org status columns |
+| 72 | `add_api_key_prefix` | Adds `key_prefix` column + partial index to `api_keys` |
+| 73 | `create_schema_migrations` | Creates the migration version-tracking table |
+| 74 | `super_admin_soc_events` | SOC security events table + indexes |
+| 75 | `add_users_last_login_at` | Adds `last_login_at` to users |
 
+> **Note:** There is no migration `000068`; the sequence jumps from `000067` to `000069`. In total there are **74 `.up.sql` files** (and 74 matching `.down.sql` files).
 ## Limitations & roadmap
 
-The current migration system is simple and runs on every startup. Known limitations:
+The current migration system is simple and runs on startup. Known limitations:
 
-- **No version tracking** — migrations run unconditionally; they rely on idempotency
-- **No rollback** — schema changes cannot be reverted
-- **No down migrations** — only `.up.sql` files are supported
+- **Version tracking is present** via the `schema_migrations` table, so migrations run once each
+- **No automatic rollback** — `.down.sql` files exist for reference, but the runner does not execute them
+- **No CLI migration tool** — migrations run only at server startup
 
-For production use, a versioned migration runner (e.g., `golang-migrate`, `atlas`, or `goose`) is recommended. The embedded file approach makes it easy to migrate to such a tool later — the SQL files are already structured and numbered.
+For more advanced workflows (explicit up/down commands, environment-specific migrations), a dedicated runner (e.g., `golang-migrate`, `atlas`, or `goose`) could be adopted. The embedded, numbered file approach makes this migration straightforward.

@@ -71,18 +71,20 @@ One file per domain, each containing:
 
 Current services:
 ```
-services_auth.go        → AuthService: JWT, bcrypt
-services_users.go       → UserService: users, organization memberships
-services_orgs.go        → OrgService: organizations, invitations, API keys
-services_rbac.go        → RBACService: roles, permissions
-services_billing.go     → BillingService: subscriptions
-services_crm.go         → CRMService: leads, deals, quotes, AI analysis
-services_accounting.go  → AccountingService: journal entries, OCR, expenses, bank reconciliation, multi-currency exchange rates
-services_supplychain.go → SupplyChainService: fleet, telematics, inventory levels per warehouse, stock movements, routes
-services_hr.go          → HRService: attendance, resume parsing, knowledge search, shift management, AI shift prediction, payroll tax withholding
-services_platform.go    → PlatformService: text-to-SQL, workflows, audit anomalies, batch IoT ingestion
-services_super_admin.go → SuperAdminService: observability, SOC events, maintenance locks, CI health, user/org CRUD
-services_mailer.go      → Mailer: transactional email (stub)
+services_auth.go         → AuthService: JWT, bcrypt, refresh tokens
+services_users.go        → UserService: users, organization memberships
+services_orgs.go         → OrgService: organizations, invitations, API keys
+services_rbac.go         → RBACService: roles, permissions
+services_billing.go      → BillingService: subscriptions
+services_crm.go          → CRMService: leads, deals, quotes, AI analysis
+services_accounting.go   → AccountingService: journal entries, OCR, expenses, bank reconciliation, multi-currency exchange rates
+services_supplychain.go  → SupplyChainService: fleet, telematics, inventory levels per warehouse, stock movements, routes
+services_hr.go           → HRService: attendance, resume parsing, knowledge search, shift management, AI shift prediction, payroll tax withholding
+services_platform.go     → PlatformService: text-to-SQL, workflows, audit anomalies, batch IoT ingestion
+services_super_admin.go  → SuperAdminService: observability, SOC events, maintenance locks, CI health, user/org CRUD
+services_registration.go → RegistrationService: atomic org+owner+role+membership registration
+services_seed.go         → SeedService: idempotent super-admin seeding
+services_mailer.go       → Mailer: transactional email (stub)
 ```
 
 ### `internal/utils` — Shared helpers
@@ -90,7 +92,10 @@ services_mailer.go      → Mailer: transactional email (stub)
 Pure functions with no dependency on other project packages:
 
 - **response.go** — `WriteJSON`, `WriteErr`, `Envelope`
-- **middleware.go** — `RequireAuth`, `RequireAuthCookie`, `RequirePermission`, `RequireAPIKey`, `LoggingMiddleware`, `CORSMiddleware`, `RecoveryMiddleware`, `GetClaims`, `GetAPIKeyClaims`
+- **middleware.go** — `RequireAuth`, `RequireAuthCookie`, `RequirePermission`, `RequireAPIKey`, `LoggingMiddleware`, `CORSMiddleware`, `RecoveryMiddleware`, `MaxBodySizeMiddleware`, `PartitionedMaintenanceMiddleware`, `GetClaims`, `GetAPIKeyClaims`
+- **ratelimit.go** — `RateLimitMiddleware`
+- **csrf.go** — `ValidateCSRF` (double-submit cookie pattern)
+- **totp.go** — `ValidateTOTP`
 - **validator.go** — `IsEmail`, `IsDomainSlug`, `NotBlank`, `MinLen`
 
 ### `internal/config` & `internal/env`
@@ -99,7 +104,7 @@ Configuration is loaded from environment variables at startup. `env` provides sa
 
 ### `internal/database`
 
-Owns the `pgxpool.Pool` with connection retry logic (5 attempts, 2s delay). Schema migrations are embedded as numbered `.up.sql` files in `internal/database/migrations/`, loaded via `embed.FS` at startup, and executed in lexicographic order (idempotent `CREATE TABLE IF NOT EXISTS`).
+Owns the `pgxpool.Pool` with connection retry logic (5 attempts, 2s delay). Schema migrations are embedded as numbered `.up.sql` files in `internal/database/migrations/`, loaded via `embed.FS` at startup, and executed in lexicographic order. Migrations are **version-tracked** in the `schema_migrations` table — each migration is applied once and recorded, so only new migrations run on subsequent startups. Both `.up.sql` and `.down.sql` files exist for every migration (74 each).
 
 ## Dependency injection
 
@@ -107,23 +112,26 @@ All dependencies are constructed in `cmd/api/main.go` and injected into `App` vi
 
 ```
 main.go
-  ├── database.New(ctx, dsn)            → *database.DB
-  ├── services.NewAuthService(...)      → *AuthService
-  ├── services.NewUserService(pool)     → *UserService
-  ├── services.NewOrgService(pool)      → *OrgService
-  ├── services.NewRBACService(pool)     → *RBACService
-  ├── services.NewBillingService(pool)  → *BillingService
-  ├── services.NewMailer()              → *Mailer
-  ├── services.NewCRMService(pool)      → *CRMService
-  ├── services.NewAccountingService(pool)      → *AccountingService
-  ├── services.NewSupplyChainService(pool, authSvc) → *SupplyChainService
-  ├── services.NewHRService(pool)                   → *HRService
-  └── handlers.New(cfg, db, ...)        → *App
+  ├── database.New(ctx, dsn)                       → *database.DB
+  ├── services.NewAuthService(...)                 → *AuthService
+  ├── services.NewUserService(pool)                → *UserService
+  ├── services.NewOrgService(pool)                 → *OrgService
+  ├── services.NewRBACService(pool)                → *RBACService
+  ├── services.NewBillingService(pool)             → *BillingService
+  ├── services.NewMailer()                         → *Mailer
+  ├── services.NewCRMService(pool)                 → *CRMService
+  ├── services.NewAccountingService(pool)          → *AccountingService
+  ├── services.NewSupplyChainService(pool, authSvc)→ *SupplyChainService
+  ├── services.NewHRService(pool)                  → *HRService
+  ├── services.NewPlatformService(pool)            → *PlatformService
+  ├── services.NewSuperAdminService(pool, rdb)     → *SuperAdminService
+  ├── services.NewRegistrationService(pool)        → *RegistrationService
+  └── handlers.New(cfg, db, ...)                   → *App
 ```
 
-Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification.
+Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification. The `SuperAdminService` additionally accepts an optional `*redis.Client` for multi-node sync and SSE fan-out.
 
-> **Note:** The `BillingService` now references `subscription_plans` via `plan_id` (UUID FK) instead of the previous `plan_code` (string). This was refactored to support proper relational integrity with the seeded `subscription_plans` table.
+> **Note:** The `BillingService` references `subscription_plans` via `plan_id` (UUID FK) instead of a `plan_code` string. The request payload still uses `plan_code` (e.g. `professional`), which is resolved to the plan's UUID at the service layer.
 
 ## Middleware stack
 
@@ -131,9 +139,11 @@ Global middleware wraps the entire mux (outermost first):
 
 ```go
 var handler http.Handler = mux
-handler = utils.CORSMiddleware(handler)    // outermost
-handler = utils.LoggingMiddleware(handler)
-handler = utils.RecoveryMiddleware(handler) // innermost
+handler = utils.MaxBodySizeMiddleware(1 << 20)(handler)          // outermost — 1 MiB body limit
+handler = utils.CORSMiddleware(a.Config.AllowedOrigins)(handler) // configurable CORS origins
+handler = utils.LoggingMiddleware(a.SuperAdmin)(handler)          // request logging + latency metrics
+handler = utils.RecoveryMiddleware(a.SuperAdmin)(handler)         // panic recovery + stack capture
+handler = utils.PartitionedMaintenanceMiddleware(a.SuperAdmin)(handler) // maintenance enforcement
 ```
 
 Route-level middleware wraps individual handlers:

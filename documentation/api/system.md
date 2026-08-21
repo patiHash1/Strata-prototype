@@ -16,11 +16,12 @@ Returns the current health status of the API and its dependencies.
 GET /health
 ```
 
-**Response** `200 OK`:
+**Response** `200 OK` (with Redis configured):
 ```json
 {
     "status": "ok",
-    "database": "connected"
+    "database": "connected",
+    "redis": "connected"
 }
 ```
 
@@ -36,6 +37,7 @@ GET /health
 - Always returns HTTP 200 unless the database check fails
 - If a database connection is configured, it performs a `Ping` to verify connectivity
 - If the database ping fails, HTTP 503 is returned with `"database": "unavailable"`
+- If Redis is configured, a `redis` field is included (`connected` or `unavailable`); Redis failures do **not** affect the HTTP status code
 - The `"status"` field always reads `"ok"` — this is the service's own status, not the DB's
 
 ### Swagger UI
@@ -50,7 +52,9 @@ This provides an interactive API documentation explorer. The OpenAPI spec is aut
 
 **Regenerating the spec:**
 ```bash
-swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency --parseInternal
+swag init -g cmd/api/main.go -o docs
+# or via make
+make swagger
 ```
 
 ### Module Health Endpoints

@@ -11,6 +11,8 @@ The project is in early prototype stage. The API is under active development and
 ### Getting Started
 - [Getting Started](getting-started.md)
 - [Development Setup](development/setup.md)
+- [Environment Variables](environment-variables.md)
+- [Deployment & Operations](deployment-and-operations.md)
 - [System Health](api/system.md)
 
 ### Core Platform

@@ -3,9 +3,10 @@
 ## Prerequisites
 
 - **Go 1.26+** (check `go.mod` for exact version)
-- **Docker** and **Docker Compose** (for PostgreSQL)
+- **Docker** and **Docker Compose** (for PostgreSQL and Redis)
 - **Air** (optional, for hot reload) — `go install github.com/air-verse/air@latest`
-- **swaggo/swag** (optional, for Swagger spec regeneration) — `go install github.com/swaggo/swag/v2/cmd/swag@latest`
+- **swaggo/swag** (optional, for Swagger spec regeneration) — `go install github.com/swaggo/swag@latest`
+- **templ** (optional, for regenerating the super-admin dashboard templates) — `go install github.com/a-h/templ/cmd/templ@latest`
 
 ## Quick start
 
@@ -19,17 +20,23 @@ cd Strata-prototype
 docker compose up -d
 ```
 
-### 2. Create a .env file (optional)
+### 2. Create a .env file (required for JWT_SECRET)
 
 ```bash
 # .env
 PORT=8080
 DATABASE_URL=postgres://strata-user:strata-pass@localhost:5432/strata-db-beta?sslmode=disable
 REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=strata-redis-pass
 JWT_SECRET=change-this-to-a-secure-secret-in-production
 JWT_ISSUER=strata
 ENABLE_SWAGGER=true
+ALLOWED_ORIGINS=http://localhost:8080
+SUPERADMIN_UNAME=admin@strata.local
+SUPERADMIN_PWORD=SuperAdmin123!
 ```
+
+> **Note:** `JWT_SECRET` and `DATABASE_URL` are **required** — the server panics at startup if either is missing. See [Environment Variables](../environment-variables.md) for the full reference.
 
 ### 3. Run the server
 
@@ -37,8 +44,8 @@ ENABLE_SWAGGER=true
 # Standard (reads PORT from env, defaults to 8080)
 go run ./cmd/api
 
-# Or with hot-reload
-air
+# Or with hot-reload (installs air + templ, checks Redis, then runs air)
+make dev
 
 # Custom port (for cloud deployments like Railway)
 PORT=3000 go run ./cmd/api
@@ -60,7 +67,11 @@ Expected response:
 
 ### 5. Access Swagger UI
 
-Open [http://localhost:8080/swagger/](http://localhost:8080/swagger/) in your browser.
+Open [http://localhost:8080/swagger/](http://localhost:8080/swagger/) in your browser. The root `/` redirects to the Swagger UI.
+
+### 6. Access the Super Admin dashboard
+
+Login at [http://localhost:8080/api/v1/super-admin/login](http://localhost:8080/api/v1/super-admin/login) using the `SUPERADMIN_UNAME` / `SUPERADMIN_PWORD` credentials (seeded on startup).
 
 ## Smoke test — register and login
 
@@ -143,14 +154,21 @@ go mod tidy
 | Command | Description |
 |---|---|
 | `go run ./cmd/api` | Start the API server |
-| `air` | Start with hot-reload |
+| `make dev` | Start with hot-reload (installs tools, checks Redis) |
+| `make build` | Build the production binary to `./tmp/main` |
+| `make test` | Run all tests |
+| `make swagger` | Regenerate Swagger spec |
+| `make templ-generate` | Regenerate templ files |
+| `make data-seed` | Seed dummy data (20 records/table) |
+| `make data-wipe` | Wipe dummy data |
+| `make testsoc` | Publish mock SOC events to Redis |
+| `make check-redis` | Check Redis connectivity |
 | `go test ./...` | Run all tests |
 | `go vet ./...` | Static analysis |
 | `go fmt ./...` | Format all Go files |
 | `go mod tidy` | Clean up module dependencies |
-| `swag init ...` | Regenerate Swagger spec |
-| `docker compose up -d` | Start PostgreSQL |
-| `docker compose down` | Stop PostgreSQL |
+| `docker compose up -d` | Start PostgreSQL + Redis |
+| `docker compose down` | Stop PostgreSQL + Redis |
 
 ## Troubleshooting
 
@@ -181,5 +199,7 @@ PORT=8081 go run ./cmd/api
 Ensure `ENABLE_SWAGGER=true` is set and the Swagger spec has been generated:
 
 ```bash
-swag init --dir ./cmd/api,./internal/handlers --output ./docs --parseDependency --parseInternal
+swag init -g cmd/api/main.go -o docs
+# or via make
+make swagger
 ```

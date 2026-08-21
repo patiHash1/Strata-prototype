@@ -9,6 +9,8 @@ docs_dir: documentation
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Environment Variables: environment-variables.md
+  - Deployment & Operations: deployment-and-operations.md
   - API Reference:
       - User Accounts: api/account.md
       - Finance & Accounting: api/accounting.md
