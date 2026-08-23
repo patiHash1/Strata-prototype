@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -34,8 +33,7 @@ type receiveStockRequest struct {
 //	@Router			/api/v1/inventory/receive [post]
 func (a *App) receiveStockHandler(w http.ResponseWriter, r *http.Request) {
 	var req receiveStockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -54,15 +52,8 @@ func (a *App) receiveStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -107,8 +98,7 @@ type issueStockRequest struct {
 //	@Router			/api/v1/inventory/issue [post]
 func (a *App) issueStockHandler(w http.ResponseWriter, r *http.Request) {
 	var req issueStockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -127,15 +117,8 @@ func (a *App) issueStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -182,8 +165,7 @@ type transferStockRequest struct {
 //	@Router			/api/v1/inventory/transfer [post]
 func (a *App) transferStockHandler(w http.ResponseWriter, r *http.Request) {
 	var req transferStockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -207,15 +189,8 @@ func (a *App) transferStockHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -261,15 +236,8 @@ func (a *App) getInventorySnapshotHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

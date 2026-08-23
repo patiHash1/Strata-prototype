@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/static"
@@ -630,8 +629,7 @@ func (a *App) GetModuleHealthHandlerForTest(w http.ResponseWriter, r *http.Reque
 //	@Router			/api/v1/super-admin/telemetry/ci-health [post]
 func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 	var req services.CIHealthIngestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -813,15 +811,8 @@ func (a *App) CreateMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/maintenance/{id} [delete]
 func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Request) {
-	idStr := r.PathValue("id")
-	if idStr == "" {
-		utils.WriteErr(w, http.StatusBadRequest, "missing rule id")
-		return
-	}
-
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid rule id")
+	id, ok := requirePathID(w, r, "rule id")
+	if !ok {
 		return
 	}
 
@@ -985,9 +976,8 @@ func (a *App) listAllUsersHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/users/{user_id} [get]
 func (a *App) getUserDetailHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := uuid.Parse(r.PathValue("user_id"))
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requirePathUUID(w, r, "user_id")
+	if !ok {
 		return
 	}
 
@@ -1033,15 +1023,13 @@ type banUserRequest struct {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/users/{user_id}/ban [post]
 func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := uuid.Parse(r.PathValue("user_id"))
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requirePathUUID(w, r, "user_id")
+	if !ok {
 		return
 	}
 
 	var req banUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 	if req.Reason == "" {
@@ -1093,9 +1081,8 @@ func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/users/{user_id}/unban [post]
 func (a *App) unbanUserHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := uuid.Parse(r.PathValue("user_id"))
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid user_id")
+	userID, ok := requirePathUUID(w, r, "user_id")
+	if !ok {
 		return
 	}
 
@@ -1169,9 +1156,8 @@ func (a *App) listAllOrgsHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/organizations/{org_id} [get]
 func (a *App) getOrgDetailHandler(w http.ResponseWriter, r *http.Request) {
-	orgID, err := uuid.Parse(r.PathValue("org_id"))
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid org_id")
+	orgID, ok := requirePathUUID(w, r, "org_id")
+	if !ok {
 		return
 	}
 
@@ -1206,9 +1192,8 @@ func (a *App) getOrgDetailHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/organizations/{org_id}/suspend [post]
 func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
-	orgID, err := uuid.Parse(r.PathValue("org_id"))
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid org_id")
+	orgID, ok := requirePathUUID(w, r, "org_id")
+	if !ok {
 		return
 	}
 
@@ -1255,9 +1240,8 @@ func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/organizations/{org_id}/activate [post]
 func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
-	orgID, err := uuid.Parse(r.PathValue("org_id"))
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid org_id")
+	orgID, ok := requirePathUUID(w, r, "org_id")
+	if !ok {
 		return
 	}
 

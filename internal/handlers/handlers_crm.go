@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -45,8 +44,7 @@ type CreateLeadResponse struct {
 //	@Router			/api/v1/crm/leads [post]
 func (a *App) createLeadHandler(w http.ResponseWriter, r *http.Request) {
 	var req createLeadRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -59,15 +57,8 @@ func (a *App) createLeadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -123,8 +114,7 @@ type AnalyzeRiskResponse struct {
 //	@Router			/api/v1/crm/quotes/risk-analysis [post]
 func (a *App) analyzeRiskHandler(w http.ResponseWriter, r *http.Request) {
 	var req analyzeRiskRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -138,15 +128,8 @@ func (a *App) analyzeRiskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -206,8 +189,7 @@ type CreateTicketResponse struct {
 //	@Router			/api/v1/crm/tickets [post]
 func (a *App) createTicketHandler(w http.ResponseWriter, r *http.Request) {
 	var req createTicketRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -225,15 +207,8 @@ func (a *App) createTicketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -303,8 +278,7 @@ type ScheduleFieldVisitResponse struct {
 //	@Router			/api/v1/crm/field-visits [post]
 func (a *App) scheduleFieldVisitHandler(w http.ResponseWriter, r *http.Request) {
 	var req scheduleFieldVisitRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -319,15 +293,8 @@ func (a *App) scheduleFieldVisitHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -403,8 +370,7 @@ type CreateCampaignResponse struct {
 //	@Router			/api/v1/crm/campaigns [post]
 func (a *App) createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 	var req createCampaignRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -417,15 +383,8 @@ func (a *App) createCampaignHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -471,22 +430,13 @@ type launchCampaignResponse struct {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/crm/campaigns/{campaign_id}/launch [post]
 func (a *App) launchCampaignHandler(w http.ResponseWriter, r *http.Request) {
-	campaignIDStr := r.PathValue("campaign_id")
-	campaignID, err := uuid.Parse(campaignIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid campaign_id")
+	campaignID, ok := requirePathUUID(w, r, "campaign_id")
+	if !ok {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

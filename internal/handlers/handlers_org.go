@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -34,8 +33,7 @@ type inviteRequest struct {
 //	@Router			/api/v1/org/invitations [post]
 func (a *App) inviteHandler(w http.ResponseWriter, r *http.Request) {
 	var req inviteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -50,15 +48,8 @@ func (a *App) inviteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -110,8 +101,7 @@ type createRoleRequest struct {
 //	@Router			/api/v1/org/roles [post]
 func (a *App) createRoleHandler(w http.ResponseWriter, r *http.Request) {
 	var req createRoleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -124,15 +114,8 @@ func (a *App) createRoleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -214,8 +197,7 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req updateMemberRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -398,8 +380,7 @@ type createAPIKeyRequest struct {
 //	@Router			/api/v1/org/api-keys [post]
 func (a *App) createAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
 	var req createAPIKeyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -408,15 +389,8 @@ func (a *App) createAPIKeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

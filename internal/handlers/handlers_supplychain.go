@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 	"time"
@@ -52,8 +51,7 @@ func (a *App) ingestTelemetryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req telemetryIngestRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -130,8 +128,7 @@ type RouteOptimizeResponse struct {
 //	@Router			/api/v1/fleet/routes/optimize [post]
 func (a *App) optimizeRoutesHandler(w http.ResponseWriter, r *http.Request) {
 	var req routeOptimizeRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -144,15 +141,8 @@ func (a *App) optimizeRoutesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -220,15 +210,8 @@ type ReorderPredictionsResponse struct {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/inventory/reorder-predictions [get]
 func (a *App) getReorderPredictionsHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -282,21 +265,13 @@ type createBOMComponentEntry struct {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/manufacturing/boms [post]
 func (a *App) createBOMHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
 	var req createBOMRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -369,21 +344,13 @@ type createWorkOrderRequest struct {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/manufacturing/work-orders [post]
 func (a *App) createWorkOrderHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
 	var req createWorkOrderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -449,21 +416,13 @@ type createPurchaseOrderRequest struct {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/procurement/purchase-orders [post]
 func (a *App) createPurchaseOrderHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
 	var req createPurchaseOrderRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -517,15 +476,8 @@ func (a *App) createPurchaseOrderHandler(w http.ResponseWriter, r *http.Request)
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/procurement/supplier-risk [get]
 func (a *App) getSupplierRiskHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

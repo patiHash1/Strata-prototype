@@ -1,5 +1,7 @@
 ## 2026-08-23
 
+**Backlog cleared** — Migrated the remaining handler inline boilerplate to the `request_helpers.go` helpers across `handlers_{accounting,accounting_extra,billing,crm,hr,hr_extra,org,platform,platform_extra,supplychain,supplychain_extra,super_admin,auth}.go`. Remaining non-helper cases are intentional: API-key claim handlers (`GetAPIKeyClaims`), the optional-claims logout handler, and non-UUID path params.
+
 **Update** — Added glossary term [Request Handler](/knowledge/glossary/request-handler.md).
 
 **Backlog** — Extracted request-handler helpers in `internal/handlers/request_helpers.go` and migrated a representative subset (account, org members, accounting journal entry). Remaining handlers still use the inline pattern and should migrate to the helpers incrementally — tracked as a follow-up.

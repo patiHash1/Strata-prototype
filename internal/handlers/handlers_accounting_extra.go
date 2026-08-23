@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
@@ -37,8 +35,7 @@ type importBankStatementRequest struct {
 //	@Router			/api/v1/accounting/bank-statements [post]
 func (a *App) importBankStatementHandler(w http.ResponseWriter, r *http.Request) {
 	var req importBankStatementRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -55,15 +52,8 @@ func (a *App) importBankStatementHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -107,22 +97,13 @@ func (a *App) importBankStatementHandler(w http.ResponseWriter, r *http.Request)
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/accounting/bank-statements/{statement_id}/reconcile [post]
 func (a *App) reconcileBankStatementHandler(w http.ResponseWriter, r *http.Request) {
-	statementIDStr := r.PathValue("statement_id")
-	statementID, err := uuid.Parse(statementIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid statement_id")
+	statementID, ok := requirePathUUID(w, r, "statement_id")
+	if !ok {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -169,8 +150,7 @@ type createExchangeRateRequest struct {
 //	@Router			/api/v1/accounting/exchange-rates [post]
 func (a *App) createExchangeRateHandler(w http.ResponseWriter, r *http.Request) {
 	var req createExchangeRateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -191,15 +171,8 @@ func (a *App) createExchangeRateHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -243,8 +216,7 @@ type convertCurrencyRequest struct {
 //	@Router			/api/v1/accounting/convert [post]
 func (a *App) convertCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 	var req convertCurrencyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -261,15 +233,8 @@ func (a *App) convertCurrencyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

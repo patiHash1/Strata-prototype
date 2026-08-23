@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
-	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
 
@@ -32,8 +30,7 @@ type createSubscriptionRequest struct {
 //	@Router			/api/v1/billing/subscriptions [post]
 func (a *App) createSubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	var req createSubscriptionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -46,15 +43,8 @@ func (a *App) createSubscriptionHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

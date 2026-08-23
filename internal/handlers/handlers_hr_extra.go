@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -25,21 +24,8 @@ import (
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/hr/attendance/clock-out [post]
 func (a *App) clockOutHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid user in token")
+	orgID, userID, ok := requireBothIDs(w, r)
+	if !ok {
 		return
 	}
 
@@ -85,8 +71,7 @@ type createShiftTemplateRequest struct {
 //	@Router			/api/v1/hr/shifts/templates [post]
 func (a *App) createShiftTemplateHandler(w http.ResponseWriter, r *http.Request) {
 	var req createShiftTemplateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -103,15 +88,8 @@ func (a *App) createShiftTemplateHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -155,8 +133,7 @@ type assignShiftRequest struct {
 //	@Router			/api/v1/hr/shifts/assignments [post]
 func (a *App) assignShiftHandler(w http.ResponseWriter, r *http.Request) {
 	var req assignShiftRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -175,15 +152,8 @@ func (a *App) assignShiftHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -234,15 +204,8 @@ func (a *App) predictShiftNeedsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -300,15 +263,8 @@ func (a *App) getEmployeeScheduleHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -343,22 +299,13 @@ func (a *App) getEmployeeScheduleHandler(w http.ResponseWriter, r *http.Request)
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/hr/payroll/runs/{run_id}/detail [get]
 func (a *App) getPayrollRunDetailHandler(w http.ResponseWriter, r *http.Request) {
-	runIDStr := r.PathValue("run_id")
-	runID, err := uuid.Parse(runIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid run_id")
+	runID, ok := requirePathUUID(w, r, "run_id")
+	if !ok {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	_, err = uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	_, orgOK := requireOrgID(w, r)
+	if !orgOK {
 		return
 	}
 
@@ -402,8 +349,7 @@ type setEmployeeTaxProfileRequest struct {
 //	@Router			/api/v1/hr/payroll/tax-profiles [post]
 func (a *App) setEmployeeTaxProfileHandler(w http.ResponseWriter, r *http.Request) {
 	var req setEmployeeTaxProfileRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -421,15 +367,8 @@ func (a *App) setEmployeeTaxProfileHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

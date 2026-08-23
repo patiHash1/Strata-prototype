@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
@@ -137,15 +135,8 @@ type OCRResponse struct {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/accounting/invoices/ocr [post]
 func (a *App) processInvoiceOCRHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -216,8 +207,7 @@ type CreateExpenseResponse struct {
 //	@Router			/api/v1/accounting/expenses [post]
 func (a *App) createExpenseHandler(w http.ResponseWriter, r *http.Request) {
 	var req createExpenseRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -230,21 +220,8 @@ func (a *App) createExpenseHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid user in token")
+	orgID, userID, ok := requireBothIDs(w, r)
+	if !ok {
 		return
 	}
 
@@ -298,8 +275,7 @@ type createAssetRequest struct {
 //	@Router			/api/v1/accounting/assets [post]
 func (a *App) createAssetHandler(w http.ResponseWriter, r *http.Request) {
 	var req createAssetRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -326,15 +302,8 @@ func (a *App) createAssetHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -373,10 +342,8 @@ func (a *App) createAssetHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/accounting/assets/{asset_id}/depreciation [get]
 func (a *App) getDepreciationHandler(w http.ResponseWriter, r *http.Request) {
-	assetIDStr := r.PathValue("asset_id")
-	assetID, err := uuid.Parse(assetIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid asset_id")
+	assetID, ok := requirePathUUID(w, r, "asset_id")
+	if !ok {
 		return
 	}
 
@@ -398,9 +365,8 @@ func (a *App) getDepreciationHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+	_, ok = requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -447,8 +413,7 @@ type createTaxRateRequest struct {
 //	@Router			/api/v1/accounting/tax-rates [post]
 func (a *App) createTaxRateHandler(w http.ResponseWriter, r *http.Request) {
 	var req createTaxRateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -465,15 +430,8 @@ func (a *App) createTaxRateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -515,8 +473,7 @@ type calculateTaxRequest struct {
 //	@Router			/api/v1/accounting/tax/calculate [post]
 func (a *App) calculateTaxHandler(w http.ResponseWriter, r *http.Request) {
 	var req calculateTaxRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -529,15 +486,8 @@ func (a *App) calculateTaxHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 

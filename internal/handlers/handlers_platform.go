@@ -45,8 +45,7 @@ type CopilotQueryResponse struct {
 //	@Router			/api/v1/ai/copilot/query [post]
 func (a *App) copilotQueryHandler(w http.ResponseWriter, r *http.Request) {
 	var req copilotQueryRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -55,21 +54,8 @@ func (a *App) copilotQueryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid user in token")
+	orgID, userID, ok := requireBothIDs(w, r)
+	if !ok {
 		return
 	}
 
@@ -120,8 +106,7 @@ type TriggerWorkflowResponse struct {
 //	@Router			/api/v1/workflows/trigger [post]
 func (a *App) triggerWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 	var req triggerWorkflowRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -134,15 +119,8 @@ func (a *App) triggerWorkflowHandler(w http.ResponseWriter, r *http.Request) {
 		req.Payload = make(map[string]interface{})
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -208,15 +186,8 @@ func (a *App) auditAnomaliesHandler(w http.ResponseWriter, r *http.Request) {
 		limit = parsed
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -279,8 +250,7 @@ type DashboardResponse struct {
 //	@Router			/api/v1/bi/dashboards [post]
 func (a *App) createDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	var req createDashboardRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -289,15 +259,8 @@ func (a *App) createDashboardHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -344,15 +307,8 @@ type ListDashboardsResponse struct {
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/bi/dashboards [get]
 func (a *App) listDashboardsHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -413,16 +369,8 @@ type DashboardDataResponse struct {
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/bi/dashboards/{dashboard_id}/data [get]
 func (a *App) getDashboardDataHandler(w http.ResponseWriter, r *http.Request) {
-	dashboardIDStr := r.PathValue("dashboard_id")
-	dashboardID, err := uuid.Parse(dashboardIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid dashboard_id")
-		return
-	}
-
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
+	dashboardID, ok := requirePathUUID(w, r, "dashboard_id")
+	if !ok {
 		return
 	}
 
@@ -486,8 +434,7 @@ type IoTDeviceResponse struct {
 //	@Router			/api/v1/iot/devices [post]
 func (a *App) registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	var req registerDeviceRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -501,15 +448,8 @@ func (a *App) registerDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -551,15 +491,8 @@ type ListIoTDevicesResponse struct {
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/iot/devices [get]
 func (a *App) listDevicesHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
@@ -621,8 +554,7 @@ type IngestReadingResponse struct {
 //	@Router			/api/v1/iot/readings [post]
 func (a *App) ingestReadingHandler(w http.ResponseWriter, r *http.Request) {
 	var req ingestReadingRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -644,15 +576,8 @@ func (a *App) ingestReadingHandler(w http.ResponseWriter, r *http.Request) {
 		RecordedAt:  time.Now(),
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, ok := requireOrgID(w, r)
+	if !ok {
 		return
 	}
 
