@@ -137,9 +137,8 @@ func main() {
 		}
 	}
 
-	// ── Super Admin ──
-	superAdminSvc := services.NewSuperAdminService(db.Pool, rdb)
-	superAdminSvc.SetUserSvc(userSvc)
+	// ── Super Admin (observability composition root) ──
+	superAdminSvc := services.NewSuperAdmin(db.Pool, rdb, userSvc)
 	defer superAdminSvc.Shutdown()
 
 	registrationSvc := services.NewRegistrationService(db.Pool)

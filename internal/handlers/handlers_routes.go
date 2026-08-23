@@ -819,9 +819,9 @@ func (a *App) routes() http.Handler {
 	var handler http.Handler = mux
 	handler = utils.MaxBodySizeMiddleware(1 << 20)(handler)
 	handler = utils.CORSMiddleware(a.Config.AllowedOrigins)(handler)
-	handler = utils.LoggingMiddleware(a.SuperAdmin)(handler)
-	handler = utils.RecoveryMiddleware(a.SuperAdmin)(handler)
-	handler = utils.PartitionedMaintenanceMiddleware(a.SuperAdmin)(handler)
+	handler = utils.LoggingMiddleware(a.Telemetry)(handler)
+	handler = utils.RecoveryMiddleware(a.Telemetry)(handler)
+	handler = utils.PartitionedMaintenanceMiddleware(a.Maintenance)(handler)
 
 	return handler
 }

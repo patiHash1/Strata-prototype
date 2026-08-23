@@ -119,7 +119,7 @@ type App struct {
     SupplyChain  *services.SupplyChainService
     HR           *services.HRService
     Platform     *services.PlatformService
-    SuperAdmin   *services.SuperAdminService
+    SuperAdmin   *services.SuperAdmin
     Registration *services.RegistrationService
     server       *http.Server
 }
@@ -142,7 +142,7 @@ func New(
     supplyChainSvc *services.SupplyChainService,
     hrSvc *services.HRService,
     platformSvc *services.PlatformService,
-    superAdminSvc *services.SuperAdminService,
+    superAdminSvc *services.SuperAdmin,
     registrationSvc *services.RegistrationService,
 ) *App {
     return &App{
@@ -163,7 +163,7 @@ crmSvc := services.NewCRMService(db.Pool, aiSvc)
 app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, superAdminSvc, registrationSvc)
 ```
 
-> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification, `*redis.Client` for pub/sub, or `ai.Inferrer` for AI inference), accept them in the constructor. See `SupplyChainService` (`NewSupplyChainService(pool, authSvc, aiSvc)`) and `SuperAdminService` (`NewSuperAdminService(pool, rdb)`) for examples.
+> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification, `*redis.Client` for pub/sub, or `ai.Inferrer` for AI inference), accept them in the constructor. See `SupplyChainService` (`NewSupplyChainService(pool, authSvc, aiSvc)`) and `SuperAdmin` (`NewSuperAdmin(pool, rdb, userSvc)`) for examples.
 
 ## Step 3: Add the database table
 

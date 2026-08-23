@@ -50,10 +50,10 @@ Preflight `OPTIONS` requests are handled immediately with `204 No Content`.
 ### LoggingMiddleware
 
 ```go
-func LoggingMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler
+func LoggingMiddleware(telemetry *services.Telemetry) func(http.Handler) http.Handler
 ```
 
-Logs every request with method, path, status code, and duration. Also pushes latency records into the `SuperAdminService` for percentile computation and per-module HTTP metrics aggregation:
+Logs every request with method, path, status code, and duration. Also pushes latency records into the `Telemetry` module for percentile computation and per-module HTTP metrics aggregation:
 
 ```
 2026/08/01 12:00:00 POST /api/v1/auth/login 200 12.345µs
@@ -64,15 +64,15 @@ Uses a custom `loggingResponseWriter` to capture the status code.
 ### RecoveryMiddleware
 
 ```go
-func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler
+func RecoveryMiddleware(telemetry *services.Telemetry) func(http.Handler) http.Handler
 ```
 
-Catches panics in handler code and returns `500 Internal Server Error` with a JSON error body. Captures the full stack trace into the `SuperAdminService` ring buffer and persists it asynchronously to `super_admin_system_errors`.
+Catches panics in handler code and returns `500 Internal Server Error` with a JSON error body. Captures the full stack trace into the `Telemetry` ring buffer and persists it asynchronously to `super_admin_system_errors`.
 
 ### PartitionedMaintenanceMiddleware
 
 ```go
-func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler
+func PartitionedMaintenanceMiddleware(maint *services.Maintenance) func(http.Handler) http.Handler
 ```
 
 Runs on **every incoming HTTP request** and checks the local in-memory maintenance cache (`sync.RWMutex` map) for active maintenance locks. Returns HTTP 503 with a JSON error body if the request's module or tenant is under maintenance.

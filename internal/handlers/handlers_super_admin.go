@@ -195,7 +195,7 @@ func (a *App) superAdminLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Publish SOC event for super-admin login.
 	if a.SuperAdmin != nil {
-		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 			Type:      "super_admin.login",
 			Severity:  "info",
 			Message:   fmt.Sprintf("Super admin logged in: %s", email),
@@ -270,7 +270,7 @@ func (a *App) dashboardKPIsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Count recent security alerts (high/critical from ring buffer).
 	if a.SuperAdmin != nil {
-		events := a.SuperAdmin.RecentSOCEvents()
+		events := a.SOCMonitor.RecentSOCEvents()
 		for _, e := range events {
 			if e.Severity == "high" || e.Severity == "critical" {
 				kpis.SecurityAlerts++
@@ -305,7 +305,7 @@ func (a *App) dashboardActivityHandler(w http.ResponseWriter, r *http.Request) {
 	var items []templates.ActivityItem
 
 	if a.SuperAdmin != nil {
-		events := a.SuperAdmin.RecentSOCEvents()
+		events := a.SOCMonitor.RecentSOCEvents()
 		// Take the latest 5 events (most recent are at the end).
 		start := 0
 		if len(events) > 5 {
@@ -352,7 +352,7 @@ func (a *App) dashboardTrafficHandler(w http.ResponseWriter, r *http.Request) {
 	var series []templates.TrafficDataPoint
 
 	if a.SuperAdmin != nil {
-		buckets := a.SuperAdmin.TrafficSeries()
+		buckets := a.Telemetry.TrafficSeries()
 		for _, b := range buckets {
 			series = append(series, templates.TrafficDataPoint{
 				Timestamp: b.Timestamp.UnixMilli(),
@@ -438,7 +438,7 @@ func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Publish SOC event for super-admin logout.
 	if a.SuperAdmin != nil {
-		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 			Type:      "super_admin.logout",
 			Severity:  "info",
 			Message:   "Super admin logged out",
@@ -465,7 +465,7 @@ func (a *App) superAdminLogoutHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/metrics/json [get]
 func (a *App) getSuperAdminMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	snapshot := a.SuperAdmin.CollectSnapshot()
+	snapshot := a.Telemetry.CollectSnapshot()
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"metrics": snapshot})
 }
 
@@ -488,7 +488,7 @@ func (a *App) getSuperAdminMetricsFragmentHandler(w http.ResponseWriter, r *http
 	var metrics templates.SystemMetricsView
 
 	if a.SuperAdmin != nil {
-		snapshot := a.SuperAdmin.CollectSnapshot()
+		snapshot := a.Telemetry.CollectSnapshot()
 		metrics = templates.SystemMetricsView{
 			AllocatedMB:   snapshot.Runtime.AllocatedMB,
 			GCRuns:        snapshot.Runtime.GCRuns,
@@ -532,7 +532,7 @@ func (a *App) SecurityStreamHandlerForTest(w http.ResponseWriter, r *http.Reques
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/metrics/prometheus [get]
 func (a *App) getSuperAdminMetricsPrometheusHandler(w http.ResponseWriter, r *http.Request) {
-	metrics := a.SuperAdmin.PrometheusMetrics()
+	metrics := a.Telemetry.PrometheusMetrics()
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, metrics)
@@ -554,7 +554,7 @@ func (a *App) getSuperAdminMetricsPrometheusHandler(w http.ResponseWriter, r *ht
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/health [get]
 func (a *App) getSuperAdminHealthHandler(w http.ResponseWriter, r *http.Request) {
-	health, err := a.SuperAdmin.GetModuleHealth(r.Context())
+	health, err := a.ModuleHealth.GetModuleHealth(r.Context())
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module health")
 		return
@@ -590,7 +590,7 @@ func (a *App) getModuleHealthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	status, err := a.SuperAdmin.GetModuleStatus(r.Context(), module)
+	status, err := a.ModuleHealth.GetModuleStatus(r.Context(), module)
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to get module status")
 		return
@@ -640,7 +640,7 @@ func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	report, err := a.SuperAdmin.IngestCIHealth(r.Context(), req)
+	report, err := a.ModuleHealth.IngestCIHealth(r.Context(), req)
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to ingest CI health")
 		return
@@ -665,7 +665,7 @@ func (a *App) ingestCIHealthHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/maintenance/rules [get]
 func (a *App) listMaintenanceRulesPageHandler(w http.ResponseWriter, r *http.Request) {
-	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
+	rules, err := a.Maintenance.ListAllMaintenanceRules(r.Context())
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules")
 		return
@@ -696,7 +696,7 @@ func (a *App) ListMaintenanceRulesPageHandlerForTest(w http.ResponseWriter, r *h
 //	@Failure		403	{object}	utils.Envelope
 //	@Router			/api/v1/super-admin/maintenance/fragment [get]
 func (a *App) listMaintenanceRulesFragmentHandler(w http.ResponseWriter, r *http.Request) {
-	rules, err := a.SuperAdmin.ListAllMaintenanceRules(r.Context())
+	rules, err := a.Maintenance.ListAllMaintenanceRules(r.Context())
 	if err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to list maintenance rules")
 		return
@@ -760,7 +760,7 @@ func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 	// Force is_active = TRUE on creation.
 	req.IsActive = true
 
-	rule, err := a.SuperAdmin.ToggleMaintenance(r.Context(), req)
+	rule, err := a.Maintenance.ToggleMaintenance(r.Context(), req)
 	if err != nil {
 		logger.Error("maintenance rule create error", slog.String("error", err.Error()))
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -775,7 +775,7 @@ func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 
 	// Publish SOC event for maintenance rule creation.
 	if a.SuperAdmin != nil {
-		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 			Type:      "maintenance.created",
 			Severity:  "warning",
 			Message:   fmt.Sprintf("Maintenance rule created: %s/%s — %s", req.Scope, req.TargetID, req.Reason),
@@ -825,7 +825,7 @@ func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := a.SuperAdmin.DeleteMaintenanceRule(r.Context(), id); err != nil {
+	if err := a.Maintenance.DeleteMaintenanceRule(r.Context(), id); err != nil {
 		utils.WriteErr(w, http.StatusInternalServerError, "failed to delete maintenance rule")
 		return
 	}
@@ -837,7 +837,7 @@ func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 
 	// Publish SOC event for maintenance rule revocation.
 	if a.SuperAdmin != nil {
-		a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+		a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 			Type:      "maintenance.revoked",
 			Severity:  "warning",
 			Message:   fmt.Sprintf("Maintenance rule revoked (id=%d)", id),
@@ -880,7 +880,7 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	ch, cleanup := a.SuperAdmin.AddSSESubscriber()
+	ch, cleanup := a.SOCMonitor.AddSSESubscriber()
 	defer cleanup()
 
 	// Send initial connection event.
@@ -889,7 +889,7 @@ func (a *App) securityStreamHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Replay recent SOC events from the in-memory ring buffer so the client
 	// sees events that occurred between page load and SSE connection open.
-	for _, evt := range a.SuperAdmin.RecentSOCEvents() {
+	for _, evt := range a.SOCMonitor.RecentSOCEvents() {
 		event := templates.SecurityEvent{
 			ID:        evt.ID,
 			Type:      evt.Type,
@@ -1065,7 +1065,7 @@ func (a *App) banUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Publish SOC event.
-	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+	a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 		Type:     "user.banned",
 		Severity: "high",
 		Message:  fmt.Sprintf("User %s banned: %s", user.Email, req.Reason),
@@ -1114,7 +1114,7 @@ func (a *App) unbanUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+	a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 		Type:     "user.unbanned",
 		Severity: "low",
 		Message:  fmt.Sprintf("User %s unbanned", user.Email),
@@ -1227,7 +1227,7 @@ func (a *App) suspendOrgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+	a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 		Type:     "org.suspended",
 		Severity: "high",
 		Message:  fmt.Sprintf("Organization %s (%s) suspended", org.CompanyName, org.DomainSlug),
@@ -1276,7 +1276,7 @@ func (a *App) activateOrgHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.SuperAdmin.PublishSOCEvent(r.Context(), services.SOCEvent{
+	a.SOCMonitor.PublishSOCEvent(r.Context(), services.SOCEvent{
 		Type:     "org.activated",
 		Severity: "low",
 		Message:  fmt.Sprintf("Organization %s (%s) activated", org.CompanyName, org.DomainSlug),

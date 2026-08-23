@@ -28,7 +28,11 @@ type App struct {
 	SupplyChain  *services.SupplyChainService
 	HR           *services.HRService
 	Platform     *services.PlatformService
-	SuperAdmin   *services.SuperAdminService
+	Telemetry    *services.Telemetry
+	SOCMonitor   *services.SOCMonitor
+	Maintenance  *services.Maintenance
+	ModuleHealth *services.ModuleHealthSvc
+	SuperAdmin   *services.SuperAdmin
 	Registration *services.RegistrationService
 	startedAt    time.Time
 	server       *http.Server
@@ -49,10 +53,10 @@ func New(
 	supplyChainSvc *services.SupplyChainService,
 	hrSvc *services.HRService,
 	platformSvc *services.PlatformService,
-	superAdminSvc *services.SuperAdminService,
+	superAdminSvc *services.SuperAdmin,
 	registrationSvc *services.RegistrationService,
 ) *App {
-	return &App{
+	app := &App{
 		Config:       cfg,
 		DB:           db,
 		Auth:         authSvc,
@@ -66,10 +70,17 @@ func New(
 		SupplyChain:  supplyChainSvc,
 		HR:           hrSvc,
 		Platform:     platformSvc,
-		SuperAdmin:   superAdminSvc,
 		Registration: registrationSvc,
 		startedAt:    time.Now(),
 	}
+	if superAdminSvc != nil {
+		app.Telemetry = superAdminSvc.Telemetry
+		app.SOCMonitor = superAdminSvc.SOCMonitor
+		app.Maintenance = superAdminSvc.Maintenance
+		app.ModuleHealth = superAdminSvc.ModuleHealth
+		app.SuperAdmin = superAdminSvc
+	}
+	return app
 }
 
 // Serve starts the HTTP server and blocks until a fatal error occurs

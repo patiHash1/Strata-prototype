@@ -81,7 +81,7 @@ services_accounting.go   → AccountingService: journal entries, OCR, expenses, 
 services_supplychain.go  → SupplyChainService: fleet, telematics, inventory levels per warehouse, stock movements, routes
 services_hr.go           → HRService: attendance, resume parsing, knowledge search, shift management, AI shift prediction, payroll tax withholding
 services_platform.go     → PlatformService: text-to-SQL, workflows, audit anomalies, batch IoT ingestion
-services_super_admin.go  → SuperAdminService: observability, SOC events, maintenance locks, CI health, user/org CRUD
+super_admin.go           → SuperAdmin composition root + Telemetry, SOCMonitor, Maintenance, ModuleHealthSvc
 services_registration.go → RegistrationService: atomic org+owner+role+membership registration
 services_seed.go         → SeedService: idempotent super-admin seeding
 services_mailer.go       → Mailer: transactional email (stub)
@@ -125,12 +125,12 @@ main.go
   ├── services.NewSupplyChainService(pool, authSvc, aiSvc) → *SupplyChainService
   ├── services.NewHRService(pool, aiSvc)           → *HRService
   ├── services.NewPlatformService(pool, aiSvc)     → *PlatformService
-  ├── services.NewSuperAdminService(pool, rdb)     → *SuperAdminService
+  ├── services.NewSuperAdmin(pool, rdb, userSvc)   → *SuperAdmin (Telemetry, SOCMonitor, Maintenance, ModuleHealthSvc)
   ├── services.NewRegistrationService(pool)        → *RegistrationService
   └── handlers.New(cfg, db, ...)                   → *App
 ```
 
-Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification. The `SuperAdminService` additionally accepts an optional `*redis.Client` for multi-node sync and SSE fan-out.
+Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification. The observability `SuperAdmin` composition root accepts an optional `*redis.Client` for multi-node sync and SSE fan-out, plus `userSvc` for active-user telemetry. Middleware consumes the split `Telemetry` and `Maintenance` modules directly.
 
 The five domain services (CRM, Accounting, SupplyChain, HR, Platform) accept an `ai.Inferrer` — the seam behind which all AI inference lives. `main.go` selects the adapter via `AI_PROVIDER` (`stub` by default, `internal` for the placeholder provider).
 

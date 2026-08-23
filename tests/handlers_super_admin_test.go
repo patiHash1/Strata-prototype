@@ -342,12 +342,11 @@ func TestMetricsFragmentHandler(t *testing.T) {
 }
 
 // TestSecuritySSEStream verifies that the SSE endpoint streams properly
-// formatted HTML chunks when a mock SOC event is published via the
-// FanoutSSEForTest helper (no Redis required).
+// formatted HTML chunks when a mock SOC event is published (no Redis required).
 func TestSecuritySSEStream(t *testing.T) {
-	// Create a SuperAdminService with nil Redis and nil pool so it uses
-	// only local fan-out without DB.
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	// Create a SuperAdmin composition root with nil Redis and nil pool so it
+	// uses only local fan-out without DB.
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -394,7 +393,7 @@ func TestSecuritySSEStream(t *testing.T) {
 		IPAddress: "192.168.1.100",
 		Timestamp: time.Now(),
 	}
-	superAdminSvc.FanoutSSEForTest(mockEvent)
+	superAdminSvc.SOCMonitor.PublishSOCEvent(context.Background(), mockEvent)
 
 	// Give the handler time to process and write.
 	time.Sleep(50 * time.Millisecond)
@@ -455,7 +454,7 @@ func (w *sseTestWriter) Flush()                      {}
 // TestMaintenanceRulesPageRendered verifies that the maintenance rules page
 // renders the full HTML layout with the rules table.
 func TestMaintenanceRulesPageRendered(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -525,7 +524,7 @@ func TestMaintenanceRulesPageRendered(t *testing.T) {
 // TestMaintenanceRulesFragmentRendered verifies the HTMX fragment returns
 // only the <tbody> without the full HTML layout shell.
 func TestMaintenanceRulesFragmentRendered(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -583,7 +582,7 @@ func TestMaintenanceRulesFragmentRendered(t *testing.T) {
 // TestCreateMaintenanceRuleValidation verifies that POST with missing fields
 // returns a 400 with an HTML validation error fragment.
 func TestCreateMaintenanceRuleValidation(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -640,7 +639,7 @@ func TestCreateMaintenanceRuleValidation(t *testing.T) {
 // TestCreateMaintenanceRuleInvalidJSON verifies that POST with malformed JSON
 // returns a 400 with a validation error.
 func TestCreateMaintenanceRuleInvalidJSON(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -685,7 +684,7 @@ func TestCreateMaintenanceRuleInvalidJSON(t *testing.T) {
 // TestDeleteMaintenanceRuleInvalidID verifies that DELETE with a non-numeric
 // ID returns a 400.
 func TestDeleteMaintenanceRuleInvalidID(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -724,7 +723,7 @@ func TestDeleteMaintenanceRuleInvalidID(t *testing.T) {
 // TestModuleHealthEndpoint verifies that GET /api/v1/{module}/health returns
 // a JSON response with the module's current state.
 func TestModuleHealthEndpoint(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -775,7 +774,7 @@ func TestModuleHealthEndpoint(t *testing.T) {
 // TestModuleHealthEndpointUnderMaintenance verifies that GET /api/v1/{module}/health
 // returns 503 when the module has an active maintenance rule.
 func TestModuleHealthEndpointUnderMaintenance(t *testing.T) {
-	superAdminSvc := services.NewSuperAdminService(nil, nil)
+	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
@@ -812,7 +811,7 @@ func TestModuleHealthEndpointUnderMaintenance(t *testing.T) {
 }
 
 // TestModuleHealthEndpointNilService verifies that GET /api/v1/{module}/health
-// handles a nil SuperAdminService gracefully.
+// handles a nil SuperAdmin gracefully.
 func TestModuleHealthEndpointNilService(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},

@@ -39,8 +39,8 @@ func GetAPIKeyClaims(r *http.Request) *APIKeyClaims {
 }
 
 // LoggingMiddleware logs every incoming request and pushes latency records
-// into the SuperAdminService for metrics aggregation.
-func LoggingMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler {
+// into the Telemetry module for metrics aggregation.
+func LoggingMiddleware(telemetry *services.Telemetry) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -58,8 +58,8 @@ func LoggingMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) 
 				slog.String("module", extractModule(r.URL.Path)),
 			)
 
-			if adminSvc != nil {
-				adminSvc.RecordHTTPLatency(services.HTTPLatencyRecord{
+			if telemetry != nil {
+				telemetry.RecordHTTPLatency(services.HTTPLatencyRecord{
 					Path:       r.URL.Path,
 					Method:     r.Method,
 					StatusCode: lw.status,
@@ -90,9 +90,9 @@ func (lw *loggingResponseWriter) Flush() {
 }
 
 // RecoveryMiddleware catches panics and returns 500.
-// If an adminSvc is provided via the closure, panic traces are recorded
+// If telemetry is provided via the closure, panic traces are recorded
 // into the ring buffer and persisted asynchronously.
-func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler {
+func RecoveryMiddleware(telemetry *services.Telemetry) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
@@ -103,8 +103,8 @@ func RecoveryMiddleware(adminSvc *services.SuperAdminService) func(http.Handler)
 						slog.Any("panic", rec),
 					)
 
-					if adminSvc != nil {
-						adminSvc.RecordPanic("system", fmt.Sprintf("%v", rec), stack, http.StatusInternalServerError)
+					if telemetry != nil {
+						telemetry.RecordPanic("system", fmt.Sprintf("%v", rec), stack, http.StatusInternalServerError)
 					}
 
 					WriteErr(w, http.StatusInternalServerError, "internal server error")
@@ -341,7 +341,7 @@ func MaxBodySizeMiddleware(maxBytes int64) func(http.Handler) http.Handler {
 // PartitionedMaintenanceMiddleware checks the local in-memory maintenance cache
 // and blocks requests targeting modules/tenants/features under maintenance.
 // Routes matching /api/v1/super-admin/* and users with PermSuperAdmin bypass checks.
-func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func(http.Handler) http.Handler {
+func PartitionedMaintenanceMiddleware(maint *services.Maintenance) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Bypass: super-admin routes are always accessible.
@@ -360,7 +360,7 @@ func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func
 				}
 			}
 
-			if adminSvc == nil {
+			if maint == nil {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -369,7 +369,7 @@ func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func
 			module := extractModule(r.URL.Path)
 
 			// Check module-level maintenance.
-			if rule, ok := adminSvc.IsUnderMaintenance("module", module); ok {
+			if rule, ok := maint.IsUnderMaintenance("module", module); ok {
 				http.Error(w, fmt.Sprintf(`{"error":"service under maintenance","reason":"%s"}`, rule.Reason),
 					http.StatusServiceUnavailable)
 				return
@@ -377,7 +377,7 @@ func PartitionedMaintenanceMiddleware(adminSvc *services.SuperAdminService) func
 
 			// Check tenant-level maintenance.
 			if claims := GetClaims(r); claims != nil && claims.OrgID != "" {
-				if rule, ok := adminSvc.IsUnderMaintenance("tenant_id", claims.OrgID); ok {
+				if rule, ok := maint.IsUnderMaintenance("tenant_id", claims.OrgID); ok {
 					http.Error(w, fmt.Sprintf(`{"error":"organization under maintenance","reason":"%s"}`, rule.Reason),
 						http.StatusServiceUnavailable)
 					return
