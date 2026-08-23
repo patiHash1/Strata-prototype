@@ -183,22 +183,13 @@ type updateMemberRequest struct {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/org/members/{member_id} [patch]
 func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
-	memberIDStr := r.PathValue("member_id")
-	memberID, err := uuid.Parse(memberIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid member_id")
+	memberID, ok := requirePathUUID(w, r, "member_id")
+	if !ok {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, userID, ok := requireBothIDs(w, r)
+	if !ok {
 		return
 	}
 
@@ -217,7 +208,7 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prevent self-targeting (admin cannot update their own membership via this endpoint)
-	if member.UserID.String() == claims.UserID {
+	if member.UserID.String() == userID.String() {
 		utils.WriteErr(w, http.StatusForbidden, "cannot update your own membership through this endpoint")
 		return
 	}
@@ -276,22 +267,13 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/org/members/{member_id} [delete]
 func (a *App) deleteMemberHandler(w http.ResponseWriter, r *http.Request) {
-	memberIDStr := r.PathValue("member_id")
-	memberID, err := uuid.Parse(memberIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid member_id")
+	memberID, ok := requirePathUUID(w, r, "member_id")
+	if !ok {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, userID, ok := requireBothIDs(w, r)
+	if !ok {
 		return
 	}
 
@@ -310,7 +292,7 @@ func (a *App) deleteMemberHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prevent self-deactivation
-	if member.UserID.String() == claims.UserID {
+	if member.UserID.String() == userID.String() {
 		utils.WriteErr(w, http.StatusForbidden, "cannot deactivate your own membership")
 		return
 	}
@@ -352,22 +334,13 @@ func (a *App) deleteMemberHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/org/members/{member_id}/remove [post]
 func (a *App) removeMemberHandler(w http.ResponseWriter, r *http.Request) {
-	memberIDStr := r.PathValue("member_id")
-	memberID, err := uuid.Parse(memberIDStr)
-	if err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid member_id")
+	memberID, ok := requirePathUUID(w, r, "member_id")
+	if !ok {
 		return
 	}
 
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	orgID, err := uuid.Parse(claims.OrgID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "invalid org in token")
+	orgID, userID, ok := requireBothIDs(w, r)
+	if !ok {
 		return
 	}
 
@@ -386,7 +359,7 @@ func (a *App) removeMemberHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prevent self-removal
-	if member.UserID.String() == claims.UserID {
+	if member.UserID.String() == userID.String() {
 		utils.WriteErr(w, http.StatusForbidden, "cannot remove yourself from the organization")
 		return
 	}

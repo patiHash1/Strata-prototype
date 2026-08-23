@@ -61,11 +61,26 @@ func (a *App) listUsersHandler(w http.ResponseWriter, r *http.Request) {
 ### Handler conventions
 
 - **Signature:** `func (a *App) actionHandler(w http.ResponseWriter, r *http.Request)`
-- **Parse input:** Use `json.NewDecoder(r.Body).Decode()` for JSON bodies
+- **Parse input:** Use `decodeJSON(w, r, &req)` for JSON bodies
+- **Identity / paths:** Use the package helpers in `internal/handlers/request_helpers.go` instead of hand-rolling:
+  - `requireUserID(w, r) (uuid.UUID, bool)` — validated authenticated user ID (writes 401 on failure)
+  - `requireOrgID(w, r) (uuid.UUID, bool)` — validated org ID from the token
+  - `requireBothIDs(w, r) (uuid.UUID, uuid.UUID, bool)` — user + org IDs
+  - `requirePathUUID(w, r, name) (uuid.UUID, bool)` — parses a UUID path param (400 on failure)
+  - `requirePathID(w, r, name) (int64, bool)` — parses an int64 path param
 - **Validate:** Use `utils` validators (`NotBlank`, `IsEmail`, `MinLen`, etc.)
 - **Call service:** Delegate to the appropriate service via `a.ServiceName.Method()`
 - **Write response:** Use `utils.WriteJSON()` or `utils.WriteErr()`
 - **Swagger annotations:** Add Go comments above the handler with `@Summary`, `@Description`, `@Param`, `@Success`, `@Failure`, `@Router`, etc.
+
+The identity/path/decode helpers follow a **write-and-return** pattern: they write the error response themselves and return `false` on failure, so handlers do:
+
+```go
+userID, ok := requireUserID(w, r)
+if !ok {
+    return
+}
+```
 
 ## Step 2: Register the route
 

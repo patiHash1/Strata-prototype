@@ -1,11 +1,8 @@
 package handlers
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
-
-	"github.com/google/uuid"
 
 	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
@@ -36,15 +33,8 @@ type AccountProfileResponse struct {
 //	@Failure		404	{object}	utils.Envelope
 //	@Router			/api/v1/account [get]
 func (a *App) getAccountHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "invalid user identity")
+	userID, ok := requireUserID(w, r)
+	if !ok {
 		return
 	}
 
@@ -92,21 +82,13 @@ type updateAccountRequest struct {
 //	@Failure		409	{object}	utils.Envelope
 //	@Router			/api/v1/account [patch]
 func (a *App) updateAccountHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "invalid user identity")
+	userID, ok := requireUserID(w, r)
+	if !ok {
 		return
 	}
 
 	var req updateAccountRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
+	if !decodeJSON(w, r, &req) {
 		return
 	}
 
@@ -171,15 +153,8 @@ func (a *App) updateAccountHandler(w http.ResponseWriter, r *http.Request) {
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/account [delete]
 func (a *App) deleteAccountHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "invalid user identity")
+	userID, ok := requireUserID(w, r)
+	if !ok {
 		return
 	}
 
@@ -214,15 +189,8 @@ type AccountOrgResponse struct {
 //	@Failure		500	{object}	utils.Envelope
 //	@Router			/api/v1/account/organizations [get]
 func (a *App) listMyOrganizationsHandler(w http.ResponseWriter, r *http.Request) {
-	claims := utils.GetClaims(r)
-	if claims == nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "authentication required")
-		return
-	}
-
-	userID, err := uuid.Parse(claims.UserID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusUnauthorized, "invalid user identity")
+	userID, ok := requireUserID(w, r)
+	if !ok {
 		return
 	}
 
