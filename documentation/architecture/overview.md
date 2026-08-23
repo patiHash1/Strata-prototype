@@ -119,17 +119,20 @@ main.go
   ├── services.NewRBACService(pool)                → *RBACService
   ├── services.NewBillingService(pool)             → *BillingService
   ├── services.NewMailer()                         → *Mailer
-  ├── services.NewCRMService(pool)                 → *CRMService
-  ├── services.NewAccountingService(pool)          → *AccountingService
-  ├── services.NewSupplyChainService(pool, authSvc)→ *SupplyChainService
-  ├── services.NewHRService(pool)                  → *HRService
-  ├── services.NewPlatformService(pool)            → *PlatformService
+  ├── ai.New(ai.ProviderKind(cfg.AIProvider))      → ai.Inferrer
+  ├── services.NewCRMService(pool, aiSvc)          → *CRMService
+  ├── services.NewAccountingService(pool, aiSvc)   → *AccountingService
+  ├── services.NewSupplyChainService(pool, authSvc, aiSvc) → *SupplyChainService
+  ├── services.NewHRService(pool, aiSvc)           → *HRService
+  ├── services.NewPlatformService(pool, aiSvc)     → *PlatformService
   ├── services.NewSuperAdminService(pool, rdb)     → *SuperAdminService
   ├── services.NewRegistrationService(pool)        → *RegistrationService
   └── handlers.New(cfg, db, ...)                   → *App
 ```
 
 Services that need database access accept `*pgxpool.Pool` directly. Services that need API key validation (supply chain) also accept `*AuthService` for bcrypt verification. The `SuperAdminService` additionally accepts an optional `*redis.Client` for multi-node sync and SSE fan-out.
+
+The five domain services (CRM, Accounting, SupplyChain, HR, Platform) accept an `ai.Inferrer` — the seam behind which all AI inference lives. `main.go` selects the adapter via `AI_PROVIDER` (`stub` by default, `internal` for the placeholder provider).
 
 > **Note:** The `BillingService` references `subscription_plans` via `plan_id` (UUID FK) instead of a `plan_code` string. The request payload still uses `plan_code` (e.g. `professional`), which is resolved to the plan's UUID at the service layer.
 

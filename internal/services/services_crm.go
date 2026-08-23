@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patiHash1/Strata-prototype/internal/ai"
 )
 
 // ---- Types ----
@@ -221,10 +222,11 @@ func (r *crmRepository) UpdateCampaignStatus(ctx context.Context, id uuid.UUID, 
 
 type CRMService struct {
 	repo *crmRepository
+	ai   ai.Inferrer
 }
 
-func NewCRMService(pool *pgxpool.Pool) *CRMService {
-	return &CRMService{repo: newCRMRepository(pool)}
+func NewCRMService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *CRMService {
+	return &CRMService{repo: newCRMRepository(pool), ai: aiSvc}
 }
 
 // CreateLead creates a new contact as a lead, triggers AI scoring, and creates a deal.
@@ -290,14 +292,27 @@ func (s *CRMService) AnalyzeContractRisk(ctx context.Context, orgID uuid.UUID, q
 	}
 
 	// Simulate AI risk analysis based on contract text heuristics
-	riskScore, clauses := aiAnalyzeContract(contractText)
+	resp, err := s.ai.Infer(ctx, &ai.ContractRiskRequest{ContractText: contractText})
+	if err != nil {
+		return 0, nil, err
+	}
+	cr := resp.(*ai.ContractRiskResponse)
 
 	// Persist the risk score
-	if err := s.repo.UpdateQuoteRisk(ctx, quoteID, riskScore); err != nil {
+	if err := s.repo.UpdateQuoteRisk(ctx, quoteID, cr.RiskScore); err != nil {
 		return 0, nil, err
 	}
 
-	return riskScore, clauses, nil
+	clauses := make([]FlaggedClause, 0, len(cr.Clauses))
+	for _, c := range cr.Clauses {
+		clauses = append(clauses, FlaggedClause{
+			Clause:       c.Clause,
+			RiskLevel:    c.RiskLevel,
+			SuggestedFix: c.SuggestedFix,
+		})
+	}
+
+	return cr.RiskScore, clauses, nil
 }
 
 // CreateTicket creates a support ticket with AI sentiment analysis and auto-routing.
@@ -315,10 +330,15 @@ func (s *CRMService) CreateTicket(ctx context.Context, orgID uuid.UUID, contactI
 	}
 
 	// Simulate AI sentiment analysis
-	sentimentScore, suggestedResponse := aiAnalyzeSentiment(subject, description)
+	resp, err := s.ai.Infer(ctx, &ai.SentimentRequest{Subject: subject, Description: description})
+	if err != nil {
+		return nil, err
+	}
+	sr := resp.(*ai.SentimentResponse)
 
-	// Determine priority based on sentiment (negative → higher priority)
-	priority := aiDeterminePriority(sentimentScore)
+	sentimentScore := sr.Score
+	suggestedResponse := sr.SuggestedResponse
+	priority := sr.Priority
 
 	// Auto-route to an assignee (in production this would use a routing engine)
 	assignedTo := uuid.New()

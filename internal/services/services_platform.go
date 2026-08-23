@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patiHash1/Strata-prototype/internal/ai"
 )
 
 // ---- Types ----
@@ -368,19 +369,30 @@ func (r *platformRepository) ListDevices(ctx context.Context, orgID uuid.UUID) (
 // PlatformService provides AI Copilot, Workflow Automation, and Security intelligence.
 type PlatformService struct {
 	repo *platformRepository
+	ai   ai.Inferrer
 }
 
-// NewPlatformService creates a new PlatformService backed by the given pool.
-func NewPlatformService(pool *pgxpool.Pool) *PlatformService {
-	return &PlatformService{repo: newPlatformRepository(pool)}
+func NewPlatformService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *PlatformService {
+	return &PlatformService{repo: newPlatformRepository(pool), ai: aiSvc}
 }
 
 // ExecuteCopilotQuery simulates a text-to-SQL AI copilot. It takes a natural language
 // prompt, generates SQL, simulates query results, and recommends a chart type.
 func (s *PlatformService) ExecuteCopilotQuery(ctx context.Context, orgID uuid.UUID, userID *uuid.UUID, prompt string) (*AICopilotQueryResult, error) {
 	// Simulate AI text-to-SQL generation
-	generatedSQL, tableName := simulateTextToSQL(prompt)
-	dataTable := simulateQueryResults(prompt, tableName)
+	sqlResp, err := s.ai.Infer(ctx, &ai.TextToSQLRequest{Prompt: prompt})
+	if err != nil {
+		return nil, err
+	}
+	ts := sqlResp.(*ai.TextToSQLResponse)
+	generatedSQL := ts.SQL
+	tableName := ts.TableName
+
+	dataResp, err := s.ai.Infer(ctx, &ai.QueryResultsRequest{Prompt: prompt, TableName: tableName})
+	if err != nil {
+		return nil, err
+	}
+	dataTable := dataResp.(*ai.QueryResultsResponse).Data
 	chartRec := recommendChart(prompt, dataTable)
 
 	// Persist the conversation
@@ -467,7 +479,13 @@ func (s *PlatformService) FetchAuditAnomalies(ctx context.Context, orgID uuid.UU
 
 	anomalies := make([]SecurityAnomaly, 0, len(logs))
 	for _, l := range logs {
-		anomalyType, riskScore := simulateAnomalyClassification(l.Action, l.IPAddress)
+		resp, err := s.ai.Infer(ctx, &ai.AnomalyRequest{Action: l.Action, IPAddress: l.IPAddress})
+		if err != nil {
+			return nil, err
+		}
+		anom := resp.(*ai.AnomalyResponse)
+		anomalyType := anom.Type
+		riskScore := anom.RiskScore
 
 		// Apply severity filter
 		if !matchesSeverity(riskScore, severity) {

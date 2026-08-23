@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patiHash1/Strata-prototype/internal/ai"
 )
 
 // ---- Types ----
@@ -253,10 +254,11 @@ func (r *accountingRepository) GetTaxRatesByCountry(ctx context.Context, orgID u
 
 type AccountingService struct {
 	repo *accountingRepository
+	ai   ai.Inferrer
 }
 
-func NewAccountingService(pool *pgxpool.Pool) *AccountingService {
-	return &AccountingService{repo: newAccountingRepository(pool)}
+func NewAccountingService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *AccountingService {
+	return &AccountingService{repo: newAccountingRepository(pool), ai: aiSvc}
 }
 
 // PostJournalEntry creates a journal entry with balanced debit/credit items.
@@ -328,7 +330,26 @@ func (s *AccountingService) PostJournalEntry(ctx context.Context, orgID uuid.UUI
 // ProcessInvoiceOCR simulates AI-powered OCR extraction from an uploaded invoice file.
 func (s *AccountingService) ProcessInvoiceOCR(ctx context.Context, orgID uuid.UUID, fileName string, fileSize int64) (*OCRResult, error) {
 	// Simulate OCR processing — in production this would call a vision AI service
-	result := aiSimulateOCR(fileName, fileSize)
+	resp, err := s.ai.Infer(ctx, &ai.OCRRequest{FileName: fileName, FileSize: fileSize})
+	if err != nil {
+		return nil, err
+	}
+	ocr := resp.(*ai.OCRResponse)
+
+	result := &OCRResult{
+		VendorName:    ocr.VendorName,
+		InvoiceNumber: ocr.InvoiceNumber,
+		TaxAmount:     ocr.TaxAmount,
+		TotalAmount:   ocr.TotalAmount,
+	}
+	for _, li := range ocr.LineItems {
+		result.LineItems = append(result.LineItems, OCRLineItem{
+			Description: li.Description,
+			Quantity:    li.Quantity,
+			UnitPrice:   li.UnitPrice,
+			Total:       li.Total,
+		})
+	}
 
 	// Create an invoice record from the OCR result
 	dueDate := time.Now().Add(30 * 24 * time.Hour)
@@ -350,7 +371,20 @@ func (s *AccountingService) ProcessInvoiceOCR(ctx context.Context, orgID uuid.UU
 // SubmitExpense creates an expense with AI fraud audit.
 func (s *AccountingService) SubmitExpense(ctx context.Context, orgID uuid.UUID, userID uuid.UUID, amount float64, category string, receiptFileName string) (*Expense, error) {
 	// Simulate AI fraud audit
-	fraudFlag, auditNotes := aiAuditExpense(amount, category, receiptFileName)
+	now := time.Now()
+	resp, err := s.ai.Infer(ctx, &ai.ExpenseAuditRequest{
+		Amount:           amount,
+		Category:         category,
+		ReceiptFileName:  receiptFileName,
+		SubmittedWeekend: now.Weekday() == time.Saturday || now.Weekday() == time.Sunday,
+	})
+	if err != nil {
+		return nil, err
+	}
+	audit := resp.(*ai.ExpenseAuditResponse)
+
+	fraudFlag := audit.FraudFlag
+	auditNotes := audit.AuditNotes
 
 	receiptURL := fmt.Sprintf("https://storage.strata.dev/receipts/%s/%s", orgID.String(), receiptFileName)
 

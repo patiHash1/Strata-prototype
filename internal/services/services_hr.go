@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patiHash1/Strata-prototype/internal/ai"
 )
 
 // ---- Types ----
@@ -562,10 +563,11 @@ var (
 
 type HRService struct {
 	repo *hrRepository
+	ai   ai.Inferrer
 }
 
-func NewHRService(pool *pgxpool.Pool) *HRService {
-	return &HRService{repo: newHRRepository(pool)}
+func NewHRService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *HRService {
+	return &HRService{repo: newHRRepository(pool), ai: aiSvc}
 }
 
 // CreateEmployee creates a new employee record in the organization.
@@ -813,13 +815,17 @@ func (s *HRService) PredictShiftNeeds(ctx context.Context, orgID uuid.UUID, depa
 	var predictions []ShiftPrediction
 	for d := from; !d.After(to); d = d.AddDate(0, 0, 1) {
 		dateStr := d.Format("2006-01-02")
-		predicted, confidence, reasoning := simulateShiftPrediction(d, baseHeadcount, department)
+		resp, err := s.ai.Infer(ctx, &ai.ShiftPredictionRequest{Date: d, BaseHeadcount: baseHeadcount, Department: department})
+		if err != nil {
+			return nil, err
+		}
+		sp := resp.(*ai.ShiftPredictionResponse)
 		predictions = append(predictions, ShiftPrediction{
 			Date:               dateStr,
 			Department:         department,
-			PredictedHeadcount: predicted,
-			Confidence:         confidence,
-			Reasoning:          reasoning,
+			PredictedHeadcount: sp.Predicted,
+			Confidence:         sp.Confidence,
+			Reasoning:          sp.Reasoning,
 		})
 	}
 
@@ -954,10 +960,19 @@ func (s *HRService) GetPayrollRunDetail(ctx context.Context, runID uuid.UUID) (*
 // and stores the application.
 func (s *HRService) ParseResume(ctx context.Context, orgID uuid.UUID, jobDescriptionID uuid.UUID, resumeBytes []byte, fileName string) (*ResumeParseResult, error) {
 	// Simulate AI extraction from the resume "file"
-	name, email, skills := simulateResumeExtraction(resumeBytes, fileName)
+	resp, err := s.ai.Infer(ctx, &ai.ResumeParseRequest{Data: resumeBytes, FileName: fileName})
+	if err != nil {
+		return nil, err
+	}
+	rp := resp.(*ai.ResumeParseResponse)
+	name, email, skills := rp.Name, rp.Email, rp.Skills
 
 	// Simulate AI match scoring against the job description
-	matchScore := simulateAIMatchScore(skills)
+	matchResp, err := s.ai.Infer(ctx, &ai.MatchScoreRequest{Skills: skills})
+	if err != nil {
+		return nil, err
+	}
+	matchScore := matchResp.(*ai.MatchScoreResponse).Score
 
 	// Store the job application
 	aiMatchScore := matchScore
@@ -992,11 +1007,23 @@ func (s *HRService) SearchKnowledge(ctx context.Context, orgID uuid.UUID, query 
 	sources := make([]SourceDocument, 0, len(docs))
 	var answerBuilder strings.Builder
 
-	answerBuilder.WriteString(synthesizeAIAnswer(query, docs))
+	aiDocs := make([]ai.KnowledgeDoc, 0, len(docs))
+	for _, d := range docs {
+		aiDocs = append(aiDocs, ai.KnowledgeDoc{Title: d.Title, Content: d.Content})
+	}
+	ansResp, err := s.ai.Infer(ctx, &ai.KnowledgeAnswerRequest{Query: query, Docs: aiDocs})
+	if err != nil {
+		return nil, err
+	}
+	answerBuilder.WriteString(ansResp.(*ai.KnowledgeAnswerResponse).Answer)
 	answerBuilder.WriteString("\n\nThe following documents provide more detail:")
 
 	for i, d := range docs {
-		relevance := simulateRelevanceScore(query, d.Content)
+		relResp, err := s.ai.Infer(ctx, &ai.RelevanceRequest{Query: query, Content: d.Content})
+		if err != nil {
+			return nil, err
+		}
+		relevance := relResp.(*ai.RelevanceResponse).Score
 		sources = append(sources, SourceDocument{
 			Title:          d.Title,
 			RelevanceScore: relevance,

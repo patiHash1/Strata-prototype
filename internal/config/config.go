@@ -28,6 +28,7 @@ type Config struct {
 	SuperAdminUname string
 	SuperAdminPword string
 	AllowedOrigins  string
+	AIProvider      string
 }
 
 // Load reads configuration from environment variables.
@@ -61,5 +62,6 @@ func Load() Config {
 		SuperAdminUname: superAdminUname,
 		SuperAdminPword: superAdminPword,
 		AllowedOrigins:  env.GetString("ALLOWED_ORIGINS", ""),
+		AIProvider:      env.GetString("AI_PROVIDER", "stub"),
 	}
 }

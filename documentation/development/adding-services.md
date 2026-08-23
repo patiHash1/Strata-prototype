@@ -77,8 +77,8 @@ type CRMService struct {
     repo *crmRepository
 }
 
-func NewCRMService(pool *pgxpool.Pool) *CRMService {
-    return &CRMService{repo: newCRMRepository(pool)}
+func NewCRMService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *CRMService {
+    return &CRMService{repo: newCRMRepository(pool), ai: aiSvc}
 }
 
 func (s *CRMService) Create(ctx context.Context, orgID uuid.UUID, name, email string) (*Lead, error) {
@@ -158,12 +158,12 @@ func New(
 ### 2c. Create the service in `cmd/api/main.go`
 
 ```go
-crmSvc := services.NewCRMService(db.Pool)
+crmSvc := services.NewCRMService(db.Pool, aiSvc)
 
 app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, superAdminSvc, registrationSvc)
 ```
 
-> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification, or `*redis.Client` for pub/sub), accept them in the constructor. See `SupplyChainService` (`NewSupplyChainService(pool, authSvc)`) and `SuperAdminService` (`NewSuperAdminService(pool, rdb)`) for examples.
+> **Note:** If your service needs additional dependencies beyond `*pgxpool.Pool` (e.g., `*AuthService` for API key verification, `*redis.Client` for pub/sub, or `ai.Inferrer` for AI inference), accept them in the constructor. See `SupplyChainService` (`NewSupplyChainService(pool, authSvc, aiSvc)`) and `SuperAdminService` (`NewSuperAdminService(pool, rdb)`) for examples.
 
 ## Step 3: Add the database table
 

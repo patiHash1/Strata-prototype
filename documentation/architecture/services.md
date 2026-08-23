@@ -291,9 +291,9 @@ Manages accounting operations: journal entries, invoice OCR processing, expense 
 
 Manages supply chain, manufacturing, fleet telematics, inventory levels per warehouse, stock movements, and route optimization. Also handles API key validation for machine-to-machine endpoints.
 
-**Constructor:** `NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService)`
+**Constructor:** `NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService, aiSvc ai.Inferrer)`
 
-Accepts an `*AuthService` for bcrypt verification of API keys during authentication.
+Accepts an `*AuthService` for bcrypt verification of API keys during authentication, and an `ai.Inferrer` for route optimization, stockout prediction, and supplier risk scoring.
 
 | Method | Description |
 |---|---|

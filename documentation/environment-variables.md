@@ -16,6 +16,7 @@ The typed `Config` struct that consumes these is defined in `internal/config/con
 | `ALLOWED_ORIGINS` | string | No | *(empty)* | Comma-separated list of allowed CORS origins (e.g. `https://app.example.com,https://admin.example.com`). When empty, no `Access-Control-Allow-Origin` header is set, which blocks cross-origin browser requests. |
 | `SUPERADMIN_UNAME` | string | No | *(empty)* | Email of the platform super-admin. If both this and `SUPERADMIN_PWORD` are set, the super-admin account is seeded (idempotently) on startup. |
 | `SUPERADMIN_PWORD` | string | No | *(empty)* | Password for the super-admin account. Seeded on startup only when paired with `SUPERADMIN_UNAME`. |
+| `AI_PROVIDER` | string | No | `stub` | Selects the AI inference adapter: `stub` (keyword/rule-based heuristics) or `internal` (placeholder for the internal provider). |
 
 ## Redis variables (optional)
 
@@ -63,6 +64,9 @@ ALLOWED_ORIGINS=http://localhost:8080
 # Super admin seeding (optional)
 SUPERADMIN_UNAME=admin@strata.local
 SUPERADMIN_PWORD=SuperAdmin123!
+
+# AI inference adapter (optional)
+AI_PROVIDER=stub
 ```
 
 > **Note:** `JWT_SECRET` and `DATABASE_URL` are the only two variables that cause a hard startup failure when missing. All others fall back to safe defaults.

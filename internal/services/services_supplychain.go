@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/patiHash1/Strata-prototype/internal/ai"
 )
 
 // ---- Types ----
@@ -492,11 +493,12 @@ func (r *supplyChainRepository) GetPurchaseOrdersBySupplier(ctx context.Context,
 type SupplyChainService struct {
 	repo    *supplyChainRepository
 	authSvc *AuthService
+	ai      ai.Inferrer
 }
 
 // NewSupplyChainService creates a new SupplyChainService.
-func NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService) *SupplyChainService {
-	return &SupplyChainService{repo: newSupplyChainRepository(pool), authSvc: authSvc}
+func NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService, aiSvc ai.Inferrer) *SupplyChainService {
+	return &SupplyChainService{repo: newSupplyChainRepository(pool), authSvc: authSvc, ai: aiSvc}
 }
 
 // IngestTelemetry processes a vehicle telemetry data point from an API key-authenticated source.
@@ -578,7 +580,27 @@ func (s *SupplyChainService) OptimizeRoutes(ctx context.Context, orgID uuid.UUID
 	}
 
 	routePlanID := uuid.New()
-	waypoints := aiOptimizeRoute(shipments, vehicles)
+
+	aiShipments := make([]ai.Shipment, 0, len(shipments))
+	for _, sh := range shipments {
+		aiShipments = append(aiShipments, ai.Shipment{ID: sh.ID.String(), TrackingNo: sh.TrackingNumber})
+	}
+	aiVehicles := make([]ai.FleetVehicle, 0, len(vehicles))
+	for _, v := range vehicles {
+		aiVehicles = append(aiVehicles, ai.FleetVehicle{ID: v.ID.String(), LicensePlate: v.LicensePlate})
+	}
+
+	resp, err := s.ai.Infer(ctx, &ai.RouteOptimizeRequest{Shipments: aiShipments, Vehicles: aiVehicles})
+	if err != nil {
+		return nil, err
+	}
+	ro := resp.(*ai.RouteOptimizeResponse)
+
+	waypoints := make([]Waypoint, 0, len(ro.Waypoints))
+	for _, wp := range ro.Waypoints {
+		waypoints = append(waypoints, Waypoint{Type: wp.Type, Coordinates: wp.Coordinates})
+	}
+
 	predictedETA := time.Now().Add(time.Duration(30+rand.Intn(120)) * time.Minute)
 	carbonOffsetKg := float64(len(shipments))*2.5 + rand.Float64()*5.0
 
@@ -644,15 +666,18 @@ func (s *SupplyChainService) GetReorderPredictions(ctx context.Context, orgID uu
 		}
 
 		currentStock := int(stockMap[p.ID])
-		stockoutDays := aiPredictStockout(currentStock, reorderPoint)
-		recommendedQty := aiRecommendReorderQty(currentStock, reorderPoint)
+		resp, err := s.ai.Infer(ctx, &ai.StockoutRequest{CurrentStock: currentStock, ReorderPoint: reorderPoint})
+		if err != nil {
+			return nil, err
+		}
+		so := resp.(*ai.StockoutResponse)
 
 		predictions = append(predictions, StockoutPrediction{
 			ProductID:             p.ID,
 			SKU:                   p.SKU,
 			CurrentStock:          currentStock,
-			PredictedStockoutDays: stockoutDays,
-			RecommendedReorderQty: recommendedQty,
+			PredictedStockoutDays: so.PredictedStockoutDays,
+			RecommendedReorderQty: so.RecommendedReorderQty,
 		})
 	}
 
@@ -824,8 +849,14 @@ func (s *SupplyChainService) GetSupplierRiskReport(ctx context.Context, orgID uu
 		}
 	}
 
-	riskScore := aiCalculateSupplierRiskScore(supplierName, openPOs, totalSpend)
-	riskRating := aiSupplierRiskRating(riskScore)
+	resp, err := s.ai.Infer(ctx, &ai.SupplierRiskRequest{SupplierName: supplierName, OpenPOs: openPOs, TotalSpend: totalSpend})
+	if err != nil {
+		return nil, err
+	}
+	sr := resp.(*ai.SupplierRiskResponse)
+
+	riskScore := sr.Score
+	riskRating := sr.Rating
 
 	return &SupplierRiskReport{
 		SupplierName: supplierName,

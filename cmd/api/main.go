@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/patiHash1/Strata-prototype/internal/ai"
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/database"
 	"github.com/patiHash1/Strata-prototype/internal/handlers"
@@ -99,11 +100,15 @@ func main() {
 	rbacSvc := services.NewRBACService(db.Pool)
 	billingSvc := services.NewBillingService(db.Pool)
 	mailerSvc := services.NewMailer()
-	crmSvc := services.NewCRMService(db.Pool)
-	accountingSvc := services.NewAccountingService(db.Pool)
-	supplyChainSvc := services.NewSupplyChainService(db.Pool, authSvc)
-	hrSvc := services.NewHRService(db.Pool)
-	platformSvc := services.NewPlatformService(db.Pool)
+
+	// ── AI inference (config-selected adapter) ──
+	aiSvc := ai.New(ai.ProviderKind(cfg.AIProvider))
+
+	crmSvc := services.NewCRMService(db.Pool, aiSvc)
+	accountingSvc := services.NewAccountingService(db.Pool, aiSvc)
+	supplyChainSvc := services.NewSupplyChainService(db.Pool, authSvc, aiSvc)
+	hrSvc := services.NewHRService(db.Pool, aiSvc)
+	platformSvc := services.NewPlatformService(db.Pool, aiSvc)
 
 	// ── Seed super admin (idempotent) ──
 	if cfg.SuperAdminUname != "" && cfg.SuperAdminPword != "" {
