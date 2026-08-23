@@ -14,6 +14,8 @@ import (
 	"github.com/patiHash1/Strata-prototype/internal/config"
 	"github.com/patiHash1/Strata-prototype/internal/handlers"
 	"github.com/patiHash1/Strata-prototype/internal/services"
+
+	"github.com/google/uuid"
 )
 
 // TestStaticCSSHandler verifies that the embedded static file server
@@ -195,22 +197,27 @@ func TestSuperAdminDashboardRedirect(t *testing.T) {
 }
 
 // TestSuperAdminDashboardRendered verifies the dashboard HTML output by
-// calling the templ component directly (bypassing auth middleware).
+// hitting the real protected route with a valid JWT.
 // Post-Tailwind removal, we check for semantic HTML elements and
 // content rather than Tailwind utility classes.
 func TestSuperAdminDashboardRendered(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/super-admin/dashboard", app.SuperAdminDashboardHandlerForTest)
+	handler := app.RoutesForTest()
 
+	// Mint the token in a later second than the app's startedAt so
+	// RequireAuthCookie accepts it.
+	waitForNextSecond()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/dashboard", nil)
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -275,18 +282,20 @@ func TestSuperAdminDashboardRendered(t *testing.T) {
 // returns an HTML fragment containing metric values and does NOT include the
 // full <html> layout shell.
 func TestMetricsFragmentHandler(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/super-admin/metrics/fragment", app.MetricsFragmentHandlerForTest)
+	handler := app.RoutesForTest()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/metrics/fragment", nil)
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -346,12 +355,13 @@ func TestMetricsFragmentHandler(t *testing.T) {
 func TestSecuritySSEStream(t *testing.T) {
 	// Create a SuperAdmin composition root with nil Redis and nil pool so it
 	// uses only local fan-out without DB.
+	authSvc := services.NewAuthService("test-secret", "strata")
 	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -370,14 +380,20 @@ func TestSecuritySSEStream(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	handler := app.RoutesForTest()
 
+	// Mint the token in a later second than the app's startedAt so
+	// RequireAuthCookie accepts it.
+	waitForNextSecond()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/security/stream", nil)
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	req = req.WithContext(ctx)
 
 	// Run the handler in a goroutine.
 	go func() {
 		w := &sseTestWriter{w: pw, h: make(http.Header)}
-		app.SecurityStreamHandlerForTest(w, req)
+		handler.ServeHTTP(w, req)
 		pw.Close()
 	}()
 
@@ -449,28 +465,43 @@ func (w *sseTestWriter) Write(b []byte) (int, error) { return w.w.Write(b) }
 func (w *sseTestWriter) WriteHeader(statusCode int)  {}
 func (w *sseTestWriter) Flush()                      {}
 
+// waitForNextSecond blocks until the start of the next wall-clock second.
+// RequireAuthCookie rejects tokens whose IssuedAt (second-truncated by the
+// JWT NumericDate encoding) falls in the same second as the app's startedAt,
+// so tokens for those routes must be minted in a strictly later second.
+func waitForNextSecond() {
+	now := time.Now()
+	nanos := time.Duration(now.Nanosecond())
+	time.Sleep(time.Second - nanos + time.Millisecond)
+}
+
 // ── Maintenance Control Panel Tests ──
 
 // TestMaintenanceRulesPageRendered verifies that the maintenance rules page
 // renders the full HTML layout with the rules table.
 func TestMaintenanceRulesPageRendered(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/super-admin/maintenance/rules", app.ListMaintenanceRulesPageHandlerForTest)
+	handler := app.RoutesForTest()
 
+	// Mint the token in a later second than the app's startedAt so
+	// RequireAuthCookie accepts it.
+	waitForNextSecond()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/maintenance/rules", nil)
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -524,23 +555,25 @@ func TestMaintenanceRulesPageRendered(t *testing.T) {
 // TestMaintenanceRulesFragmentRendered verifies the HTMX fragment returns
 // only the <tbody> without the full HTML layout shell.
 func TestMaintenanceRulesFragmentRendered(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/super-admin/maintenance/fragment", app.ListMaintenanceRulesFragmentHandlerForTest)
+	handler := app.RoutesForTest()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/super-admin/maintenance/fragment", nil)
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -582,18 +615,18 @@ func TestMaintenanceRulesFragmentRendered(t *testing.T) {
 // TestCreateMaintenanceRuleValidation verifies that POST with missing fields
 // returns a 400 with an HTML validation error fragment.
 func TestCreateMaintenanceRuleValidation(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/super-admin/maintenance", app.CreateMaintenanceRuleHandlerForTest)
+	handler := app.RoutesForTest()
 
 	// Send request with missing scope and target_id.
 	form := url.Values{}
@@ -602,9 +635,11 @@ func TestCreateMaintenanceRuleValidation(t *testing.T) {
 	reqBody := strings.NewReader(form.Encode())
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/super-admin/maintenance", reqBody)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -639,26 +674,28 @@ func TestCreateMaintenanceRuleValidation(t *testing.T) {
 // TestCreateMaintenanceRuleInvalidJSON verifies that POST with malformed JSON
 // returns a 400 with a validation error.
 func TestCreateMaintenanceRuleInvalidJSON(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/super-admin/maintenance", app.CreateMaintenanceRuleHandlerForTest)
+	handler := app.RoutesForTest()
 
 	// Send a request with no form fields and no Content-Type, triggering ParseForm to still
 	// work (returns empty values). Instead, test with an empty body.
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/super-admin/maintenance", nil)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -684,23 +721,25 @@ func TestCreateMaintenanceRuleInvalidJSON(t *testing.T) {
 // TestDeleteMaintenanceRuleInvalidID verifies that DELETE with a non-numeric
 // ID returns a 400.
 func TestDeleteMaintenanceRuleInvalidID(t *testing.T) {
+	authSvc := services.NewAuthService("test-secret", "strata")
 	superAdminSvc := services.NewSuperAdmin(nil, nil, nil)
 	defer superAdminSvc.Shutdown()
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("DELETE /api/v1/super-admin/maintenance/{id}", app.DeleteMaintenanceRuleHandlerForTest)
+	handler := app.RoutesForTest()
 
 	req := httptest.NewRequest(http.MethodDelete, "/api/v1/super-admin/maintenance/not-a-number", nil)
+	token, _ := authSvc.CreateToken(uuid.New(), uuid.New(), uuid.New(), []string{services.PermSuperAdmin})
+	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -733,13 +772,12 @@ func TestModuleHealthEndpoint(t *testing.T) {
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/{module}/health", app.GetModuleHealthHandlerForTest)
+	handler := app.RoutesForTest()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/crm/health", nil)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -784,13 +822,12 @@ func TestModuleHealthEndpointUnderMaintenance(t *testing.T) {
 		nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/{module}/health", app.GetModuleHealthHandlerForTest)
+	handler := app.RoutesForTest()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounting/health", nil)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()
@@ -818,13 +855,12 @@ func TestModuleHealthEndpointNilService(t *testing.T) {
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v1/{module}/health", app.GetModuleHealthHandlerForTest)
+	handler := app.RoutesForTest()
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/crm/health", nil)
 	rec := httptest.NewRecorder()
 
-	mux.ServeHTTP(rec, req)
+	handler.ServeHTTP(rec, req)
 
 	resp := rec.Result()
 	defer resp.Body.Close()

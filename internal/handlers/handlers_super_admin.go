@@ -281,10 +281,6 @@ func (a *App) dashboardKPIsHandler(w http.ResponseWriter, r *http.Request) {
 	templates.DashboardKPIGrid(kpis).Render(r.Context(), w)
 }
 
-// DashboardKPIsHandlerForTest exposes the KPI handler for httptest.
-func (a *App) DashboardKPIsHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.dashboardKPIsHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/dashboard/activity ──
 
@@ -327,10 +323,6 @@ func (a *App) dashboardActivityHandler(w http.ResponseWriter, r *http.Request) {
 	templates.DashboardActivityList(items).Render(r.Context(), w)
 }
 
-// DashboardActivityHandlerForTest exposes the activity handler for httptest.
-func (a *App) DashboardActivityHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.dashboardActivityHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/dashboard/traffic ──
 
@@ -364,10 +356,6 @@ func (a *App) dashboardTrafficHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, utils.Envelope{"series": series})
 }
 
-// DashboardTrafficHandlerForTest exposes the traffic handler for httptest.
-func (a *App) DashboardTrafficHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.dashboardTrafficHandler(w, r)
-}
 
 // humanDuration returns a human-readable relative time string.
 func humanDuration(d time.Duration) string {
@@ -395,11 +383,6 @@ func humanDuration(d time.Duration) string {
 	}
 }
 
-// SuperAdminDashboardHandlerForTest exposes the dashboard handler for httptest
-// without the auth middleware chain.
-func (a *App) SuperAdminDashboardHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.superAdminDashboardHandler(w, r)
-}
 
 // ── POST /api/v1/super-admin/logout ──
 
@@ -504,17 +487,7 @@ func (a *App) getSuperAdminMetricsFragmentHandler(w http.ResponseWriter, r *http
 	templates.MetricsGrid(metrics).Render(r.Context(), w)
 }
 
-// MetricsFragmentHandlerForTest exposes the metrics fragment handler for
-// httptest without the auth middleware chain.
-func (a *App) MetricsFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.getSuperAdminMetricsFragmentHandler(w, r)
-}
 
-// SecurityStreamHandlerForTest exposes the SSE security stream handler for
-// httptest without the auth middleware chain.
-func (a *App) SecurityStreamHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.securityStreamHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/metrics/prometheus ──
 
@@ -604,10 +577,6 @@ func (a *App) getModuleHealthHandler(w http.ResponseWriter, r *http.Request) {
 	utils.WriteJSON(w, http.StatusOK, status)
 }
 
-// GetModuleHealthHandlerForTest exposes the module health handler for httptest.
-func (a *App) GetModuleHealthHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.getModuleHealthHandler(w, r)
-}
 
 // ── POST /api/v1/super-admin/telemetry/ci-health ──
 
@@ -673,10 +642,6 @@ func (a *App) listMaintenanceRulesPageHandler(w http.ResponseWriter, r *http.Req
 	templates.MaintenancePage(rules).Render(r.Context(), w)
 }
 
-// ListMaintenanceRulesPageHandlerForTest exposes the page handler for httptest.
-func (a *App) ListMaintenanceRulesPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.listMaintenanceRulesPageHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/maintenance/fragment ──
 
@@ -704,10 +669,6 @@ func (a *App) listMaintenanceRulesFragmentHandler(w http.ResponseWriter, r *http
 	templates.MaintenanceRulesTableBody(rules).Render(r.Context(), w)
 }
 
-// ListMaintenanceRulesFragmentHandlerForTest exposes the fragment handler for httptest.
-func (a *App) ListMaintenanceRulesFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.listMaintenanceRulesFragmentHandler(w, r)
-}
 
 // ── POST /api/v1/super-admin/maintenance ──
 
@@ -787,10 +748,6 @@ func (a *App) createMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// CreateMaintenanceRuleHandlerForTest exposes the create handler for httptest.
-func (a *App) CreateMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.createMaintenanceRuleHandler(w, r)
-}
 
 // ── DELETE /api/v1/super-admin/maintenance/{id} ──
 
@@ -840,10 +797,6 @@ func (a *App) deleteMaintenanceRuleHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// DeleteMaintenanceRuleHandlerForTest exposes the delete handler for httptest.
-func (a *App) DeleteMaintenanceRuleHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.deleteMaintenanceRuleHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/security/stream ──
 
@@ -1295,11 +1248,6 @@ func (a *App) superAdminMetricsPageHandler(w http.ResponseWriter, r *http.Reques
 	component.Render(r.Context(), w)
 }
 
-// MetricsPageHandlerForTest exposes the metrics page handler for httptest
-// without the auth middleware chain.
-func (a *App) MetricsPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.superAdminMetricsPageHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/security (HTML page) ──
 
@@ -1326,11 +1274,6 @@ func (a *App) superAdminSecurityPageHandler(w http.ResponseWriter, r *http.Reque
 	component.Render(r.Context(), w)
 }
 
-// SecurityPageHandlerForTest exposes the security page handler for httptest
-// without the auth middleware chain.
-func (a *App) SecurityPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.superAdminSecurityPageHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/settings (HTML page) ──
 
@@ -1357,11 +1300,6 @@ func (a *App) superAdminSettingsPageHandler(w http.ResponseWriter, r *http.Reque
 	component.Render(r.Context(), w)
 }
 
-// SettingsPageHandlerForTest exposes the settings page handler for httptest
-// without the auth middleware chain.
-func (a *App) SettingsPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.superAdminSettingsPageHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/users (HTML page) ──
 
@@ -1388,11 +1326,6 @@ func (a *App) superAdminUsersPageHandler(w http.ResponseWriter, r *http.Request)
 	component.Render(r.Context(), w)
 }
 
-// UsersPageHandlerForTest exposes the users page handler for httptest
-// without the auth middleware chain.
-func (a *App) UsersPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.superAdminUsersPageHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/users/fragment (HTML fragment) ──
 
@@ -1439,10 +1372,6 @@ func (a *App) listUsersFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(countHTML))
 }
 
-// ListUsersFragmentHandlerForTest exposes the users fragment handler for httptest.
-func (a *App) ListUsersFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.listUsersFragmentHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/organizations (HTML page) ──
 
@@ -1469,11 +1398,6 @@ func (a *App) superAdminOrganizationsPageHandler(w http.ResponseWriter, r *http.
 	component.Render(r.Context(), w)
 }
 
-// OrganizationsPageHandlerForTest exposes the organizations page handler for httptest
-// without the auth middleware chain.
-func (a *App) OrganizationsPageHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.superAdminOrganizationsPageHandler(w, r)
-}
 
 // ── GET /api/v1/super-admin/organizations/fragment (HTML fragment) ──
 
@@ -1518,10 +1442,6 @@ func (a *App) listOrgsFragmentHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(countHTML))
 }
 
-// ListOrgsFragmentHandlerForTest exposes the organizations fragment handler for httptest.
-func (a *App) ListOrgsFragmentHandlerForTest(w http.ResponseWriter, r *http.Request) {
-	a.listOrgsFragmentHandler(w, r)
-}
 
 // ── Helpers ──
 
