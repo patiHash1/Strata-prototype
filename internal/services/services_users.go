@@ -48,9 +48,18 @@ func newUserRepository(pool *pgxpool.Pool) *userRepository {
 }
 
 func (r *userRepository) Create(ctx context.Context, u *User) error {
+	return r.create(ctx, r.pool, u)
+}
+
+// CreateTx creates a user within the given transaction.
+func (r *userRepository) CreateTx(ctx context.Context, tx pgx.Tx, u *User) error {
+	return r.create(ctx, tx, u)
+}
+
+func (r *userRepository) create(ctx context.Context, e execer, u *User) error {
 	u.ID = uuid.New()
 	u.CreatedAt = time.Now()
-	_, err := r.pool.Exec(ctx, `
+	_, err := e.Exec(ctx, `
 		INSERT INTO users (id, email, password_hash, full_name, phone_number, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, u.ID, u.Email, u.PasswordHash, u.FullName, u.PhoneNumber, u.CreatedAt)
@@ -82,9 +91,18 @@ func (r *userRepository) GetByID(ctx context.Context, id uuid.UUID) (*User, erro
 }
 
 func (r *userRepository) AddMember(ctx context.Context, m *OrganizationMember) error {
+	return r.addMember(ctx, r.pool, m)
+}
+
+// AddMemberTx adds an organization member within the given transaction.
+func (r *userRepository) AddMemberTx(ctx context.Context, tx pgx.Tx, m *OrganizationMember) error {
+	return r.addMember(ctx, tx, m)
+}
+
+func (r *userRepository) addMember(ctx context.Context, e execer, m *OrganizationMember) error {
 	m.ID = uuid.New()
 	m.JoinedAt = time.Now()
-	_, err := r.pool.Exec(ctx, `
+	_, err := e.Exec(ctx, `
 		INSERT INTO organization_members (id, org_id, user_id, role_id, is_active, joined_at)
 		VALUES ($1, $2, $3, $4, $5, $6)
 	`, m.ID, m.OrgID, m.UserID, m.RoleID, m.IsActive, m.JoinedAt)

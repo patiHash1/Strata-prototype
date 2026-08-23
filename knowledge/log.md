@@ -1,5 +1,7 @@
 ## 2026-08-23
 
+**Creation** — Recorded [ADR-0003 — Registration composes the repositories](/knowledge/adr/adr-0003-registration-composes-repos.md).
+
 **Backlog cleared** — Migrated the remaining handler inline boilerplate to the `request_helpers.go` helpers across `handlers_{accounting,accounting_extra,billing,crm,hr,hr_extra,org,platform,platform_extra,supplychain,supplychain_extra,super_admin,auth}.go`. Remaining non-helper cases are intentional: API-key claim handlers (`GetAPIKeyClaims`), the optional-claims logout handler, and non-UUID path params.
 
 **Update** — Added glossary term [Request Handler](/knowledge/glossary/request-handler.md).

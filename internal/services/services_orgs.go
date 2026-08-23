@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -65,7 +66,22 @@ func newOrgRepository(pool *pgxpool.Pool) *orgRepository {
 	return &orgRepository{pool: pool}
 }
 
+// execer is satisfied by both *pgxpool.Pool and pgx.Tx so repo methods can
+// share SQL between single-statement and transactional paths.
+type execer interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+}
+
 func (r *orgRepository) Create(ctx context.Context, o *Organization) error {
+	return r.create(ctx, r.pool, o)
+}
+
+// CreateTx creates an organization within the given transaction.
+func (r *orgRepository) CreateTx(ctx context.Context, tx pgx.Tx, o *Organization) error {
+	return r.create(ctx, tx, o)
+}
+
+func (r *orgRepository) create(ctx context.Context, e execer, o *Organization) error {
 	o.ID = uuid.New()
 	o.CreatedAt = time.Now()
 	o.UpdatedAt = o.CreatedAt
@@ -78,7 +94,7 @@ func (r *orgRepository) Create(ctx context.Context, o *Organization) error {
 	if o.Status == "" {
 		o.Status = OrgActive
 	}
-	_, err := r.pool.Exec(ctx, `
+	_, err := e.Exec(ctx, `
 		INSERT INTO organizations (id, domain_slug, company_name, default_currency, timezone, status, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`, o.ID, o.DomainSlug, o.CompanyName, o.DefaultCurrency, o.Timezone, o.Status, o.CreatedAt, o.UpdatedAt)

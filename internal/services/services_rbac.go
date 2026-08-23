@@ -37,11 +37,20 @@ func newRBACRepository(pool *pgxpool.Pool) *rbacRepository {
 }
 
 func (r *rbacRepository) CreateRole(ctx context.Context, role *Role) error {
+	return r.createRole(ctx, r.pool, role)
+}
+
+// CreateRoleTx creates a role within the given transaction.
+func (r *rbacRepository) CreateRoleTx(ctx context.Context, tx pgx.Tx, role *Role) error {
+	return r.createRole(ctx, tx, role)
+}
+
+func (r *rbacRepository) createRole(ctx context.Context, e execer, role *Role) error {
 	role.ID = uuid.New()
 	if role.IsSystemDefault {
 		role.IsSystemDefault = false
 	}
-	_, err := r.pool.Exec(ctx, `
+	_, err := e.Exec(ctx, `
 		INSERT INTO roles (id, org_id, name, description, is_system_default)
 		VALUES ($1, $2, $3, $4, $5)
 	`, role.ID, role.OrgID, role.Name, role.Description, role.IsSystemDefault)
