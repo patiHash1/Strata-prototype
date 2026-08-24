@@ -516,97 +516,6 @@ func (s *PlatformService) FetchAuditAnomalies(ctx context.Context, orgID uuid.UU
 
 // ---- AI simulation helpers ----
 
-// simulateTextToSQL generates a plausible SQL query from a natural language prompt.
-// In production this would call an LLM or a fine-tuned model.
-func simulateTextToSQL(prompt string) (sql, tableName string) {
-	lower := strings.ToLower(prompt)
-
-	switch {
-	case strings.Contains(lower, "sales rep") || strings.Contains(lower, "revenue"):
-		return `SELECT u.full_name AS sales_rep, SUM(d.amount) AS total_revenue
-FROM crm_deals d
-JOIN users u ON d.assigned_to = u.id
-WHERE d.stage = 'closed_won'
-  AND d.created_at BETWEEN '2025-04-01' AND '2025-06-30'
-GROUP BY u.full_name
-ORDER BY total_revenue DESC
-LIMIT 5`, "crm_deals"
-	case strings.Contains(lower, "invoice") || strings.Contains(lower, "overdue"):
-		return `SELECT i.invoice_number, c.first_name || ' ' || COALESCE(c.last_name, '') AS customer,
-       i.total_amount, i.due_date,
-       CURRENT_DATE - i.due_date AS days_overdue
-FROM invoices i
-JOIN crm_contacts c ON i.contact_id = c.id
-WHERE i.status = 'sent' AND i.due_date < CURRENT_DATE
-ORDER BY days_overdue DESC
-LIMIT 10`, "invoices"
-	case strings.Contains(lower, "attendance") || strings.Contains(lower, "clock"):
-		return `SELECT e.employee_code, e.department,
-       COUNT(a.id) AS clock_ins,
-       MIN(a.clock_in) AS first_clock_in,
-       MAX(a.clock_in) AS last_clock_in
-FROM employees e
-JOIN attendance_logs a ON a.employee_id = e.id
-WHERE a.clock_in >= CURRENT_DATE - INTERVAL '30 days'
-GROUP BY e.employee_code, e.department
-ORDER BY clock_ins DESC`, "attendance_logs"
-	case strings.Contains(lower, "fleet") || strings.Contains(lower, "vehicle"):
-		return `SELECT v.license_plate, v.make, v.model,
-       MAX(t.speed_kmh) AS max_speed,
-       AVG(t.speed_kmh) AS avg_speed,
-       AVG(t.fuel_level_pct) AS avg_fuel_pct
-FROM fleet_vehicles v
-JOIN fleet_telematics_logs t ON t.vehicle_id = v.id
-WHERE t.recorded_at >= NOW() - INTERVAL '7 days'
-GROUP BY v.license_plate, v.make, v.model
-ORDER BY max_speed DESC`, "fleet_telematics_logs"
-	default:
-		return `SELECT id, org_id, created_at
-FROM organizations
-WHERE status = 'active'
-ORDER BY created_at DESC
-LIMIT 5`, "organizations"
-	}
-}
-
-// simulateQueryResults generates mock data rows based on the prompt context.
-func simulateQueryResults(prompt, tableName string) []map[string]interface{} {
-	lower := strings.ToLower(prompt)
-
-	switch {
-	case strings.Contains(lower, "sales rep") || strings.Contains(lower, "revenue"):
-		return []map[string]interface{}{
-			{"sales_rep": "Alice Johnson", "total_revenue": 245000.50},
-			{"sales_rep": "Bob Martinez", "total_revenue": 198750.00},
-			{"sales_rep": "Carol Chen", "total_revenue": 176200.75},
-			{"sales_rep": "David Kim", "total_revenue": 152300.25},
-			{"sales_rep": "Eve Thompson", "total_revenue": 134500.00},
-		}
-	case strings.Contains(lower, "invoice") || strings.Contains(lower, "overdue"):
-		return []map[string]interface{}{
-			{"invoice_number": "INV-2025-0042", "customer": "Acme Corp", "total_amount": 12500.00, "due_date": "2025-06-15", "days_overdue": 51},
-			{"invoice_number": "INV-2025-0051", "customer": "Globex Inc", "total_amount": 8750.00, "due_date": "2025-07-01", "days_overdue": 35},
-			{"invoice_number": "INV-2025-0058", "customer": "Initech", "total_amount": 3200.00, "due_date": "2025-07-15", "days_overdue": 21},
-		}
-	case strings.Contains(lower, "attendance") || strings.Contains(lower, "clock"):
-		return []map[string]interface{}{
-			{"employee_code": "EMP-001", "department": "Engineering", "clock_ins": 22, "first_clock_in": "2025-07-06T08:55:00Z", "last_clock_in": "2025-08-04T09:02:00Z"},
-			{"employee_code": "EMP-002", "department": "Sales", "clock_ins": 21, "first_clock_in": "2025-07-06T08:30:00Z", "last_clock_in": "2025-08-04T08:45:00Z"},
-			{"employee_code": "EMP-003", "department": "Engineering", "clock_ins": 20, "first_clock_in": "2025-07-07T09:10:00Z", "last_clock_in": "2025-08-04T09:15:00Z"},
-		}
-	case strings.Contains(lower, "fleet") || strings.Contains(lower, "vehicle"):
-		return []map[string]interface{}{
-			{"license_plate": "ABC-1234", "make": "Ford", "model": "Transit", "max_speed": 112.5, "avg_speed": 68.3, "avg_fuel_pct": 72.1},
-			{"license_plate": "XYZ-5678", "make": "Mercedes", "model": "Sprinter", "max_speed": 105.0, "avg_speed": 62.7, "avg_fuel_pct": 65.4},
-			{"license_plate": "DEF-9012", "make": "Ram", "model": "ProMaster", "max_speed": 98.2, "avg_speed": 55.9, "avg_fuel_pct": 58.3},
-		}
-	default:
-		return []map[string]interface{}{
-			{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "org_id": "f1e2d3c4-b5a6-9870-fedc-ba0987654321", "created_at": "2025-01-15T10:00:00Z"},
-		}
-	}
-}
-
 // recommendChart suggests a chart type based on the prompt and data shape.
 func recommendChart(prompt string, data []map[string]interface{}) string {
 	if len(data) == 0 {
@@ -641,27 +550,6 @@ func recommendChart(prompt string, data []map[string]interface{}) string {
 func simulateWorkflowSteps(workflowName string) int {
 	baseSteps := 2 + rand.Intn(5)
 	return baseSteps
-}
-
-// simulateAnomalyClassification generates a plausible anomaly type and risk score
-// based on the audited action and IP address.
-func simulateAnomalyClassification(action string, ipAddress *string) (string, float64) {
-	lower := strings.ToLower(action)
-
-	switch {
-	case strings.Contains(lower, "login") || strings.Contains(lower, "signin"):
-		return "suspicious_login", 0.75 + rand.Float64()*0.2
-	case strings.Contains(lower, "delete") || strings.Contains(lower, "remove"):
-		return "unauthorized_delete_attempt", 0.85 + rand.Float64()*0.15
-	case strings.Contains(lower, "export") || strings.Contains(lower, "download"):
-		return "data_exfiltration", 0.7 + rand.Float64()*0.25
-	case strings.Contains(lower, "permission") || strings.Contains(lower, "role"):
-		return "privilege_escalation", 0.8 + rand.Float64()*0.2
-	case strings.Contains(lower, "apikey") || strings.Contains(lower, "api_key"):
-		return "api_key_abuse", 0.65 + rand.Float64()*0.3
-	default:
-		return "anomalous_activity", 0.6 + rand.Float64()*0.3
-	}
 }
 
 // matchesSeverity checks if a risk score meets the severity threshold.
@@ -789,8 +677,18 @@ func (s *PlatformService) IngestDeviceReading(ctx context.Context, orgID uuid.UU
 		return nil, fmt.Errorf("update last ping: %w", err)
 	}
 
-	// Simulate anomaly detection on the reading
-	anomalyDetected, anomalyDesc := DetectReadingAnomaly(reading)
+	// AI anomaly detection behind the seam
+	readResp, err := s.ai.Infer(ctx, &ai.ReadingAnomalyRequest{
+		MetricName:  reading.MetricName,
+		MetricValue: reading.MetricValue,
+		Unit:        reading.Unit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	ra := readResp.(*ai.ReadingAnomalyResponse)
+	anomalyDetected := ra.AnomalyDetected
+	anomalyDesc := ra.AnomalyDescription
 
 	// Log AI usage for anomaly detection
 	usage := &AIUsageLog{
@@ -908,34 +806,4 @@ func getDefaultWidgets() []WidgetData {
 			AnomalyDetected: false,
 		},
 	}
-}
-
-// DetectReadingAnomaly simulates AI-based anomaly detection on IoT readings.
-func DetectReadingAnomaly(reading *IoTDeviceReading) (bool, string) {
-	// Simulate anomaly detection based on metric thresholds
-	switch reading.MetricName {
-	case "temperature":
-		if reading.MetricValue > 85.0 {
-			return true, fmt.Sprintf("High temperature alert: %.1f%s exceeds threshold of 85.0%s", reading.MetricValue, reading.Unit, reading.Unit)
-		}
-	case "vibration":
-		if reading.MetricValue > 7.5 {
-			return true, fmt.Sprintf("Abnormal vibration detected: %.2f%s (possible bearing failure)", reading.MetricValue, reading.Unit)
-		}
-	case "pressure":
-		if reading.MetricValue > 150.0 {
-			return true, fmt.Sprintf("Pressure spike detected: %.1f%s exceeds safe operating range", reading.MetricValue, reading.Unit)
-		}
-	case "energy_consumption":
-		if reading.MetricValue > 500.0 {
-			return true, fmt.Sprintf("Excessive energy consumption: %.1f%s (possible equipment malfunction)", reading.MetricValue, reading.Unit)
-		}
-	}
-
-	// Random anomaly for demo purposes (~5% chance)
-	if rand.Float64() < 0.05 {
-		return true, fmt.Sprintf("AI anomaly detected in %s reading: %.2f%s deviates from expected pattern", reading.MetricName, reading.MetricValue, reading.Unit)
-	}
-
-	return false, ""
 }

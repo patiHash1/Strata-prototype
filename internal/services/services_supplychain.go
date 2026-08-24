@@ -786,8 +786,12 @@ func (s *SupplyChainService) CreateWorkOrder(ctx context.Context, orgID uuid.UUI
 		input.Quantity = 1
 	}
 
-	// Simulate AI bottleneck risk prediction
-	riskRating := aiPredictBottleneckRisk(input.Quantity)
+	// AI bottleneck risk prediction behind the seam
+	riskResp, err := s.ai.Infer(ctx, &ai.BottleneckRiskRequest{Quantity: input.Quantity})
+	if err != nil {
+		return nil, err
+	}
+	riskRating := riskResp.(*ai.BottleneckRiskResponse).Rating
 
 	wo := &WorkOrder{
 		OrgID:            orgID,
@@ -816,7 +820,11 @@ type CreatePurchaseOrderInput struct {
 
 // CreatePurchaseOrder creates a purchase order with simulated AI supplier risk rating.
 func (s *SupplyChainService) CreatePurchaseOrder(ctx context.Context, orgID uuid.UUID, input CreatePurchaseOrderInput) (*PurchaseOrder, error) {
-	riskRating := aiPredictSupplierRisk(input.SupplierName)
+	riskResp, err := s.ai.Infer(ctx, &ai.SupplierRiskRatingRequest{SupplierName: input.SupplierName})
+	if err != nil {
+		return nil, err
+	}
+	riskRating := riskResp.(*ai.SupplierRiskRatingResponse).Rating
 
 	po := &PurchaseOrder{
 		OrgID:                orgID,
@@ -865,97 +873,6 @@ func (s *SupplyChainService) GetSupplierRiskReport(ctx context.Context, orgID uu
 		OpenPOs:      openPOs,
 		TotalSpend:   totalSpend,
 	}, nil
-}
-
-// ---- AI Simulation Helpers ----
-
-func aiOptimizeRoute(shipments []Shipment, vehicles []FleetVehicle) []Waypoint {
-	var waypoints []Waypoint
-
-	baseLat := 40.7128 + (rand.Float64()-0.5)*2.0
-	baseLng := -74.0060 + (rand.Float64()-0.5)*2.0
-
-	for i := range shipments {
-		waypoints = append(waypoints, Waypoint{
-			Type:        "Point",
-			Coordinates: []float64{baseLng + float64(i)*0.02, baseLat + float64(i)*0.02},
-		})
-	}
-
-	waypoints = append(waypoints, Waypoint{
-		Type:        "Point",
-		Coordinates: []float64{baseLng + 0.1, baseLat + 0.1},
-	})
-
-	return waypoints
-}
-
-func aiPredictStockout(currentStock, reorderPoint int) int {
-	if currentStock <= 0 {
-		return 0
-	}
-	dailyRate := 1 + rand.Intn(maxInt(1, currentStock/3))
-	days := currentStock / dailyRate
-	if days < 0 {
-		return 0
-	}
-	if days > 60 {
-		days = 60
-	}
-	return days
-}
-
-func aiRecommendReorderQty(currentStock, reorderPoint int) int {
-	shortfall := reorderPoint - currentStock
-	if shortfall <= 0 {
-		return reorderPoint
-	}
-	buffer := float64(shortfall) * (0.2 + rand.Float64()*0.3)
-	return shortfall + int(buffer)
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func aiPredictBottleneckRisk(quantity int) string {
-	if quantity > 100 {
-		return "High"
-	} else if quantity > 50 {
-		return "Medium"
-	}
-	return "Low"
-}
-
-func aiPredictSupplierRisk(supplierName string) string {
-	riskLevels := []string{"Low Risk", "Medium Risk", "High Risk"}
-	return riskLevels[rand.Intn(len(riskLevels))]
-}
-
-func aiCalculateSupplierRiskScore(supplierName string, openPOs int, totalSpend float64) float64 {
-	baseScore := 30.0 + rand.Float64()*40.0
-	if openPOs > 5 {
-		baseScore += 10.0
-	}
-	if totalSpend > 100000 {
-		baseScore += 10.0
-	}
-	if baseScore > 100 {
-		baseScore = 100
-	}
-	return baseScore
-}
-
-func aiSupplierRiskRating(score float64) string {
-	if score >= 70 {
-		return "High Risk"
-	} else if score >= 40 {
-		return "Medium Risk"
-	}
-	return "Low Risk"
 }
 
 // ---- Inventory Management ----

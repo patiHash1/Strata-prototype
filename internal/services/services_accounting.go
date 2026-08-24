@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -491,82 +490,6 @@ func (s *AccountingService) CalculateTax(ctx context.Context, orgID uuid.UUID, c
 		TotalAmount:  subtotal + totalTax,
 		AppliedRates: rates,
 	}, nil
-}
-
-// ---- AI Simulation Helpers ----
-
-// aiSimulateOCR simulates AI-powered OCR extraction from an invoice file.
-func aiSimulateOCR(fileName string, fileSize int64) *OCRResult {
-	vendors := []string{"Acme Supplies Inc.", "Global Tech Partners", "Office Depot", "Cloud Services LLC", "Strategic Consulting Group"}
-	vendorIdx := rand.Intn(len(vendors))
-
-	invNum := fmt.Sprintf("INV-%04d", 1000+rand.Intn(9000))
-
-	numItems := 1 + rand.Intn(4)
-	var lineItems []OCRLineItem
-	var subtotal float64
-
-	descriptions := []string{"Professional Services", "Software License", "Hardware Equipment", "Cloud Storage", "Consulting Hours", "Office Supplies", "Training Materials"}
-	for i := 0; i < numItems; i++ {
-		qty := 1 + rand.Intn(10)
-		price := 10.0 + rand.Float64()*490.0
-		total := float64(qty) * price
-		lineItems = append(lineItems, OCRLineItem{
-			Description: descriptions[rand.Intn(len(descriptions))],
-			Quantity:    qty,
-			UnitPrice:   price,
-			Total:       total,
-		})
-		subtotal += total
-	}
-
-	taxRate := 0.08 + rand.Float64()*0.12 // 8–20% tax
-	taxAmount := subtotal * taxRate
-	totalAmount := subtotal + taxAmount
-
-	return &OCRResult{
-		VendorName:    vendors[vendorIdx],
-		InvoiceNumber: invNum,
-		LineItems:     lineItems,
-		TaxAmount:     taxAmount,
-		TotalAmount:   totalAmount,
-	}
-}
-
-// aiAuditExpense simulates AI fraud detection on an expense submission.
-func aiAuditExpense(amount float64, category string, receiptFileName string) (bool, string) {
-	var flags []string
-
-	// High-value expense flag
-	if amount > 5000 {
-		flags = append(flags, "High-value expense (over $5,000) requires manager approval")
-	}
-
-	// Suspicious category patterns
-	lowerCat := strings.ToLower(category)
-	if lowerCat == "entertainment" && amount > 1000 {
-		flags = append(flags, "Entertainment expense exceeds $1,000 threshold — policy limit is $1,000")
-	}
-	if lowerCat == "travel" && amount > 3000 {
-		flags = append(flags, "Travel expense exceeds $3,000 — please attach itinerary")
-	}
-
-	// Duplicate receipt detection (simulated)
-	if strings.Contains(receiptFileName, "dup") || strings.Contains(receiptFileName, "copy") {
-		flags = append(flags, "Potential duplicate receipt detected — filename contains 'dup' or 'copy'")
-	}
-
-	// Weekend submission flag
-	now := time.Now()
-	if now.Weekday() == time.Saturday || now.Weekday() == time.Sunday {
-		flags = append(flags, "Expense submitted on weekend — unusual timing")
-	}
-
-	if len(flags) > 0 {
-		return true, strings.Join(flags, "; ")
-	}
-
-	return false, "No policy violations detected. Expense appears compliant."
 }
 
 // Domain errors

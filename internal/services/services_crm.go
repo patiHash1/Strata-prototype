@@ -385,8 +385,12 @@ func (s *CRMService) ScheduleFieldVisit(ctx context.Context, orgID uuid.UUID, co
 
 // CreateCampaign creates a marketing campaign with simulated AI audience segmentation.
 func (s *CRMService) CreateCampaign(ctx context.Context, orgID uuid.UUID, name, channel string, budget *float64) (*CRMCampaign, string, error) {
-	// Simulate AI audience segmentation
-	segmentCriteria := aiSegmentAudience(channel)
+	// AI audience segmentation behind the seam
+	segResp, err := s.ai.Infer(ctx, &ai.CampaignSegmentRequest{Channel: channel})
+	if err != nil {
+		return nil, "", err
+	}
+	segmentCriteria := segResp.(*ai.CampaignSegmentResponse).SegmentCriteria
 
 	campaign := &CRMCampaign{
 		OrgID:                   orgID,
@@ -423,210 +427,13 @@ func (s *CRMService) LaunchCampaign(ctx context.Context, orgID uuid.UUID, campai
 	campaign.Status = "active"
 
 	// Simulate estimated reach based on channel
-	estimatedReach := aiEstimateReach(campaign.Channel)
+	reachResp, err := s.ai.Infer(ctx, &ai.CampaignReachRequest{Channel: campaign.Channel})
+	if err != nil {
+		return nil, 0, err
+	}
+	estimatedReach := reachResp.(*ai.CampaignReachResponse).EstimatedReach
 
 	return campaign, estimatedReach, nil
-}
-
-// aiAnalyzeSentiment simulates AI sentiment analysis on ticket text.
-// Returns a score from -1.0 (very negative) to 1.0 (very positive).
-func aiAnalyzeSentiment(subject, description string) (float64, string) {
-	text := subject + " " + description
-
-	// Simple keyword-based sentiment heuristic
-	negativeWords := []string{"urgent", "broken", "error", "fail", "crash", "bug", "issue", "problem", "critical", "down", "lost", "cannot", "not working", "stuck", "blocked"}
-	positiveWords := []string{"great", "thanks", "helpful", "appreciate", "good", "excellent", "love", "awesome", "perfect", "smooth"}
-
-	negCount := 0
-	posCount := 0
-
-	lower := ""
-	for _, r := range text {
-		if r >= 'A' && r <= 'Z' {
-			lower += string(r + 32)
-		} else {
-			lower += string(r)
-		}
-	}
-
-	for _, w := range negativeWords {
-		if len(lower) >= len(w) {
-			for i := 0; i <= len(lower)-len(w); i++ {
-				if lower[i:i+len(w)] == w {
-					negCount++
-					break
-				}
-			}
-		}
-	}
-	for _, w := range positiveWords {
-		if len(lower) >= len(w) {
-			for i := 0; i <= len(lower)-len(w); i++ {
-				if lower[i:i+len(w)] == w {
-					posCount++
-					break
-				}
-			}
-		}
-	}
-
-	// Calculate sentiment: -1 to 1 range
-	total := negCount + posCount
-	var score float64
-	if total == 0 {
-		score = 0.1 + rand.Float64()*0.3 // neutral-positive 0.1–0.4
-	} else {
-		score = (float64(posCount) - float64(negCount)) / float64(total)
-		// Add slight randomness
-		score += (rand.Float64() - 0.5) * 0.2
-	}
-
-	// Clamp to [-1, 1]
-	if score > 1.0 {
-		score = 1.0
-	}
-	if score < -1.0 {
-		score = -1.0
-	}
-
-	// Generate suggested response based on sentiment
-	var response string
-	if score < -0.3 {
-		response = "Thank you for reaching out. I understand this is frustrating. Our team is prioritizing your issue and will respond within 2 hours. In the meantime, could you provide any additional details or screenshots?"
-	} else if score < 0.3 {
-		response = "Thank you for contacting support. We've received your ticket and will review it shortly. A team member will follow up within 4 business hours."
-	} else {
-		response = "Thanks for your message! We're glad to hear from you. We'll review your request and get back to you within 8 business hours. Have a great day!"
-	}
-
-	return score, response
-}
-
-// aiDeterminePriority maps sentiment score to ticket priority.
-func aiDeterminePriority(sentiment float64) string {
-	switch {
-	case sentiment < -0.5:
-		return "urgent"
-	case sentiment < -0.2:
-		return "high"
-	case sentiment < 0.3:
-		return "medium"
-	default:
-		return "low"
-	}
-}
-
-// aiAnalyzeContract simulates AI-based contract risk analysis.
-// In production this would call an external AI/ML service.
-func aiAnalyzeContract(contractText string) (float64, []FlaggedClause) {
-	var clauses []FlaggedClause
-	riskScore := 0.0
-
-	// Simple keyword-based heuristic analysis
-	highRiskPatterns := map[string]FlaggedClause{
-		"indemnification": {
-			Clause:       "Unlimited indemnification clause detected",
-			RiskLevel:    "high",
-			SuggestedFix: "Cap indemnification liability to the total contract value",
-		},
-		"penalty": {
-			Clause:       "Asymmetric penalty clause detected",
-			RiskLevel:    "critical",
-			SuggestedFix: "Negotiate mutual penalty terms or cap at reasonable amount",
-		},
-		"termination": {
-			Clause:       "Unilateral termination rights without cause",
-			RiskLevel:    "medium",
-			SuggestedFix: "Add mutual termination clause with 30-day notice period",
-		},
-		"confidential": {
-			Clause:       "Overly broad confidentiality obligations",
-			RiskLevel:    "low",
-			SuggestedFix: "Limit confidentiality duration to 3 years post-termination",
-		},
-	}
-
-	for keyword, clause := range highRiskPatterns {
-		if len(contractText) > 0 {
-			// Check if keyword appears somewhere in the text (case-insensitive approximate)
-			match := false
-			lower := ""
-			for _, r := range contractText {
-				if r >= 'A' && r <= 'Z' {
-					lower += string(r + 32)
-				} else {
-					lower += string(r)
-				}
-			}
-			if len(lower) >= len(keyword) {
-				for i := 0; i <= len(lower)-len(keyword); i++ {
-					if lower[i:i+len(keyword)] == keyword {
-						match = true
-						break
-					}
-				}
-			}
-			if match {
-				clauses = append(clauses, clause)
-				switch clause.RiskLevel {
-				case "critical":
-					riskScore += 30
-				case "high":
-					riskScore += 20
-				case "medium":
-					riskScore += 10
-				case "low":
-					riskScore += 5
-				}
-			}
-		}
-	}
-
-	// Add baseline risk
-	if len(clauses) == 0 {
-		riskScore = 5 + rand.Float64()*10 // 5–15 for clean contracts
-	} else {
-		riskScore += rand.Float64() * 10
-	}
-
-	if riskScore > 100 {
-		riskScore = 100
-	}
-
-	return riskScore, clauses
-}
-
-// aiSegmentAudience simulates AI-based audience segmentation for a campaign.
-func aiSegmentAudience(channel string) string {
-	segments := map[string]string{
-		"email":  `{"criteria": "contacts with open rate > 30% in last 90 days", "estimated_size": 1250}`,
-		"sms":    `{"criteria": "contacts with mobile phone and opted-in for SMS", "estimated_size": 840}`,
-		"social": `{"criteria": "contacts who engaged with brand posts in last 60 days", "estimated_size": 2100}`,
-		"push":   `{"criteria": "contacts with app installed and notifications enabled", "estimated_size": 670}`,
-		"in_app": `{"criteria": "active users with at least 3 sessions in last 30 days", "estimated_size": 980}`,
-	}
-	if s, ok := segments[channel]; ok {
-		return s
-	}
-	return `{"criteria": "all contacts", "estimated_size": 500}`
-}
-
-// aiEstimateReach simulates AI estimation of campaign reach.
-func aiEstimateReach(channel string) int {
-	baseReach := map[string]int{
-		"email":  5000,
-		"sms":    3000,
-		"social": 15000,
-		"push":   2000,
-		"in_app": 4000,
-	}
-	reach, ok := baseReach[channel]
-	if !ok {
-		reach = 1000
-	}
-	// Add some randomness (±20%)
-	reach += int(float64(reach) * (rand.Float64()*0.4 - 0.2))
-	return reach
 }
 
 // Domain errors

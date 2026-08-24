@@ -23,6 +23,10 @@ func (s *Stub) Infer(ctx context.Context, req Request) (Response, error) {
 		return stubSentiment(r), nil
 	case *ContractRiskRequest:
 		return stubContractRisk(r), nil
+	case *CampaignSegmentRequest:
+		return stubCampaignSegment(r), nil
+	case *CampaignReachRequest:
+		return stubCampaignReach(r), nil
 	case *OCRRequest:
 		return stubOCR(r), nil
 	case *ExpenseAuditRequest:
@@ -33,6 +37,10 @@ func (s *Stub) Infer(ctx context.Context, req Request) (Response, error) {
 		return stubStockout(r), nil
 	case *SupplierRiskRequest:
 		return stubSupplierRisk(r), nil
+	case *BottleneckRiskRequest:
+		return stubBottleneckRisk(r), nil
+	case *SupplierRiskRatingRequest:
+		return stubSupplierRiskRating(r), nil
 	case *ResumeParseRequest:
 		return stubResumeParse(r), nil
 	case *MatchScoreRequest:
@@ -49,6 +57,8 @@ func (s *Stub) Infer(ctx context.Context, req Request) (Response, error) {
 		return stubQueryResults(r), nil
 	case *AnomalyRequest:
 		return stubAnomaly(r), nil
+	case *ReadingAnomalyRequest:
+		return stubReadingAnomaly(r), nil
 	default:
 		return nil, fmt.Errorf("%w: %T", ErrUnknownCapability, req)
 	}
@@ -176,6 +186,38 @@ func stubContractRisk(r *ContractRiskRequest) *ContractRiskResponse {
 	}
 
 	return &ContractRiskResponse{RiskScore: riskScore, Clauses: clauses}
+}
+
+func stubCampaignSegment(r *CampaignSegmentRequest) *CampaignSegmentResponse {
+	segments := map[string]string{
+		"email":  `{"criteria": "contacts with open rate > 30% in last 90 days", "estimated_size": 1250}`,
+		"sms":    `{"criteria": "contacts with mobile phone and opted-in for SMS", "estimated_size": 840}`,
+		"social": `{"criteria": "contacts who engaged with brand posts in last 60 days", "estimated_size": 2100}`,
+		"push":   `{"criteria": "contacts with app installed and notifications enabled", "estimated_size": 670}`,
+		"in_app": `{"criteria": "active users with at least 3 sessions in last 30 days", "estimated_size": 980}`,
+	}
+	criteria, ok := segments[r.Channel]
+	if !ok {
+		criteria = `{"criteria": "all contacts", "estimated_size": 500}`
+	}
+	return &CampaignSegmentResponse{SegmentCriteria: criteria}
+}
+
+func stubCampaignReach(r *CampaignReachRequest) *CampaignReachResponse {
+	baseReach := map[string]int{
+		"email":  5000,
+		"sms":    3000,
+		"social": 15000,
+		"push":   2000,
+		"in_app": 4000,
+	}
+	reach, ok := baseReach[r.Channel]
+	if !ok {
+		reach = 1000
+	}
+	// Add some randomness (±20%)
+	reach += int(float64(reach) * (rand.Float64()*0.4 - 0.2))
+	return &CampaignReachResponse{EstimatedReach: reach}
 }
 
 // ── Accounting ─────────────────────────────────────────────────────────
@@ -330,6 +372,22 @@ func stubSupplierRisk(r *SupplierRiskRequest) *SupplierRiskResponse {
 	}
 
 	return &SupplierRiskResponse{Score: baseScore, Rating: rating}
+}
+
+func stubBottleneckRisk(r *BottleneckRiskRequest) *BottleneckRiskResponse {
+	rating := "Low"
+	switch {
+	case r.Quantity > 100:
+		rating = "High"
+	case r.Quantity > 50:
+		rating = "Medium"
+	}
+	return &BottleneckRiskResponse{Rating: rating}
+}
+
+func stubSupplierRiskRating(r *SupplierRiskRatingRequest) *SupplierRiskRatingResponse {
+	riskLevels := []string{"Low Risk", "Medium Risk", "High Risk"}
+	return &SupplierRiskRatingResponse{Rating: riskLevels[rand.Intn(len(riskLevels))]}
 }
 
 // ── HR ─────────────────────────────────────────────────────────────────
@@ -595,6 +653,25 @@ func stubQueryResults(r *QueryResultsRequest) *QueryResultsResponse {
 			{"id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "org_id": "f1e2d3c4-b5a6-9870-fedc-ba0987654321", "created_at": "2025-01-15T10:00:00Z"},
 		}}
 	}
+}
+
+func stubReadingAnomaly(r *ReadingAnomalyRequest) *ReadingAnomalyResponse {
+	lower := strings.ToLower(r.MetricName)
+	switch {
+	case strings.Contains(lower, "temperature") && r.MetricValue > 85.0:
+		return &ReadingAnomalyResponse{AnomalyDetected: true, AnomalyDescription: fmt.Sprintf("High temperature alert: %.1f%s exceeds threshold of 85.0%s", r.MetricValue, r.Unit, r.Unit)}
+	case strings.Contains(lower, "vibration") && r.MetricValue > 7.5:
+		return &ReadingAnomalyResponse{AnomalyDetected: true, AnomalyDescription: fmt.Sprintf("Abnormal vibration detected: %.2f%s (possible bearing failure)", r.MetricValue, r.Unit)}
+	case strings.Contains(lower, "pressure") && r.MetricValue > 150.0:
+		return &ReadingAnomalyResponse{AnomalyDetected: true, AnomalyDescription: fmt.Sprintf("Pressure spike detected: %.1f%s exceeds safe operating range", r.MetricValue, r.Unit)}
+	case strings.Contains(lower, "energy") && r.MetricValue > 500.0:
+		return &ReadingAnomalyResponse{AnomalyDetected: true, AnomalyDescription: fmt.Sprintf("Excessive energy consumption: %.1f%s (possible equipment malfunction)", r.MetricValue, r.Unit)}
+	}
+	// Random demo anomaly (~5%)
+	if rand.Float64() < 0.05 {
+		return &ReadingAnomalyResponse{AnomalyDetected: true, AnomalyDescription: fmt.Sprintf("AI anomaly detected in %s reading: %.2f%s deviates from expected pattern", r.MetricName, r.MetricValue, r.Unit)}
+	}
+	return &ReadingAnomalyResponse{AnomalyDetected: false}
 }
 
 func stubAnomaly(r *AnomalyRequest) *AnomalyResponse {

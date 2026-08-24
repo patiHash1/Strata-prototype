@@ -56,6 +56,34 @@ type ContractRiskResponse struct {
 
 func (*ContractRiskResponse) response() {}
 
+// CampaignSegmentRequest asks for audience segmentation for a campaign channel.
+type CampaignSegmentRequest struct {
+	Channel string
+}
+
+func (*CampaignSegmentRequest) capability() string { return "crm.campaign_segment" }
+
+// CampaignSegmentResponse carries the target-segment criteria JSON.
+type CampaignSegmentResponse struct {
+	SegmentCriteria string
+}
+
+func (*CampaignSegmentResponse) response() {}
+
+// CampaignReachRequest asks for an estimated reach for a campaign channel.
+type CampaignReachRequest struct {
+	Channel string
+}
+
+func (*CampaignReachRequest) capability() string { return "crm.campaign_reach" }
+
+// CampaignReachResponse carries the estimated reach.
+type CampaignReachResponse struct {
+	EstimatedReach int
+}
+
+func (*CampaignReachResponse) response() {}
+
 // ── Accounting ─────────────────────────────────────────────────────────
 
 // OCRRequest asks for invoice OCR extraction.
@@ -172,6 +200,34 @@ type SupplierRiskResponse struct {
 }
 
 func (*SupplierRiskResponse) response() {}
+
+// BottleneckRiskRequest asks for a work-order bottleneck risk rating.
+type BottleneckRiskRequest struct {
+	Quantity int
+}
+
+func (*BottleneckRiskRequest) capability() string { return "supplychain.bottleneck_risk" }
+
+// BottleneckRiskResponse carries the bottleneck risk rating.
+type BottleneckRiskResponse struct {
+	Rating string
+}
+
+func (*BottleneckRiskResponse) response() {}
+
+// SupplierRiskRatingRequest asks for a supplier risk rating.
+type SupplierRiskRatingRequest struct {
+	SupplierName string
+}
+
+func (*SupplierRiskRatingRequest) capability() string { return "supplychain.supplier_risk_rating" }
+
+// SupplierRiskRatingResponse carries the supplier risk rating.
+type SupplierRiskRatingResponse struct {
+	Rating string
+}
+
+func (*SupplierRiskRatingResponse) response() {}
 
 // ── HR ─────────────────────────────────────────────────────────────────
 
@@ -307,3 +363,20 @@ type AnomalyResponse struct {
 }
 
 func (*AnomalyResponse) response() {}
+
+// ReadingAnomalyRequest asks for anomaly detection on an IoT device reading.
+type ReadingAnomalyRequest struct {
+	MetricName  string
+	MetricValue float64
+	Unit        string
+}
+
+func (*ReadingAnomalyRequest) capability() string { return "platform.reading_anomaly" }
+
+// ReadingAnomalyResponse carries whether the reading is anomalous and a description.
+type ReadingAnomalyResponse struct {
+	AnomalyDetected    bool
+	AnomalyDescription string
+}
+
+func (*ReadingAnomalyResponse) response() {}

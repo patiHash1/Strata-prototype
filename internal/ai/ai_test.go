@@ -44,6 +44,81 @@ func TestStubDispatchesContractRisk(t *testing.T) {
 	}
 }
 
+func TestStubDispatchesCampaignSegment(t *testing.T) {
+	s := NewStub()
+	resp, err := s.Infer(context.Background(), &CampaignSegmentRequest{Channel: "email"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cs, ok := resp.(*CampaignSegmentResponse)
+	if !ok {
+		t.Fatalf("expected *CampaignSegmentResponse, got %T", resp)
+	}
+	if cs.SegmentCriteria == "" {
+		t.Error("expected segment criteria")
+	}
+}
+
+func TestStubDispatchesCampaignReach(t *testing.T) {
+	s := NewStub()
+	resp, err := s.Infer(context.Background(), &CampaignReachRequest{Channel: "social"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	cr, ok := resp.(*CampaignReachResponse)
+	if !ok {
+		t.Fatalf("expected *CampaignReachResponse, got %T", resp)
+	}
+	if cr.EstimatedReach <= 0 {
+		t.Error("expected a positive estimated reach")
+	}
+}
+
+func TestStubDispatchesBottleneckRisk(t *testing.T) {
+	s := NewStub()
+	resp, err := s.Infer(context.Background(), &BottleneckRiskRequest{Quantity: 120})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	br, ok := resp.(*BottleneckRiskResponse)
+	if !ok {
+		t.Fatalf("expected *BottleneckRiskResponse, got %T", resp)
+	}
+	if br.Rating != "High" {
+		t.Errorf("expected High rating for large quantity, got %q", br.Rating)
+	}
+}
+
+func TestStubDispatchesSupplierRiskRating(t *testing.T) {
+	s := NewStub()
+	resp, err := s.Infer(context.Background(), &SupplierRiskRatingRequest{SupplierName: "Acme"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	sr, ok := resp.(*SupplierRiskRatingResponse)
+	if !ok {
+		t.Fatalf("expected *SupplierRiskRatingResponse, got %T", resp)
+	}
+	if sr.Rating == "" {
+		t.Error("expected a risk rating")
+	}
+}
+
+func TestStubDispatchesReadingAnomaly(t *testing.T) {
+	s := NewStub()
+	resp, err := s.Infer(context.Background(), &ReadingAnomalyRequest{MetricName: "temperature", MetricValue: 90})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	rr, ok := resp.(*ReadingAnomalyResponse)
+	if !ok {
+		t.Fatalf("expected *ReadingAnomalyResponse, got %T", resp)
+	}
+	if !rr.AnomalyDetected {
+		t.Error("expected anomaly detected for high temperature")
+	}
+}
+
 func TestStubUnknownCapability(t *testing.T) {
 	s := NewStub()
 	_, err := s.Infer(context.Background(), &unknownRequest{})
