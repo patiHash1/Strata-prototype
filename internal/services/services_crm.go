@@ -96,7 +96,23 @@ type CRMCampaign struct {
 	CreatedAt               time.Time `json:"created_at"`
 }
 
-// ---- Repository ----
+// ---- Repository seam ----
+
+// CRMRepository is the seam CRMService depends on. It is declared
+// consumer-side and contains only what the service's implementation uses;
+// the pgx-backed crmRepository satisfies it implicitly.
+type CRMRepository interface {
+	CreateContact(ctx context.Context, c *CRMContact) error
+	CreateDeal(ctx context.Context, d *CRMDeal) error
+	GetQuoteByID(ctx context.Context, id uuid.UUID) (*CRMQuote, error)
+	UpdateQuoteRisk(ctx context.Context, id uuid.UUID, riskScore float64) error
+	GetContactByID(ctx context.Context, id uuid.UUID) (*CRMContact, error)
+	CreateTicket(ctx context.Context, t *CRMHelpdeskTicket) error
+	CreateFieldSalesVisit(ctx context.Context, v *FieldSalesVisit) error
+	CreateCampaign(ctx context.Context, c *CRMCampaign) error
+	GetCampaignByID(ctx context.Context, id uuid.UUID) (*CRMCampaign, error)
+	UpdateCampaignStatus(ctx context.Context, id uuid.UUID, status string) error
+}
 
 type crmRepository struct {
 	pool *pgxpool.Pool
@@ -218,15 +234,42 @@ func (r *crmRepository) UpdateCampaignStatus(ctx context.Context, id uuid.UUID, 
 	return err
 }
 
+// WinProbabilityScorer derives a lead's AI win probability (0–100).
+// Injected so tests can pin exact values; the default uses rand.
+type WinProbabilityScorer func(estimatedDealSize *float64) int
+
+var defaultWinProbability WinProbabilityScorer = func(estimatedDealSize *float64) int {
+	_ = estimatedDealSize
+	return 40 + rand.Intn(41) // 40–80 range for a realistic score
+}
+
+// CRMOption customises a CRMService at construction.
+type CRMOption func(*CRMService)
+
+// WithCRMRepo substitutes the repository adapter (in-memory for tests).
+func WithCRMRepo(repo CRMRepository) CRMOption {
+	return func(s *CRMService) { s.repo = repo }
+}
+
+// WithWinProbability substitutes the win-probability scorer.
+func WithWinProbability(scorer WinProbabilityScorer) CRMOption {
+	return func(s *CRMService) { s.winProbability = scorer }
+}
+
 // ---- Service ----
 
 type CRMService struct {
-	repo *crmRepository
-	ai   ai.Inferrer
+	repo           CRMRepository
+	ai             ai.Inferrer
+	winProbability WinProbabilityScorer
 }
 
-func NewCRMService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *CRMService {
-	return &CRMService{repo: newCRMRepository(pool), ai: aiSvc}
+func NewCRMService(pool *pgxpool.Pool, aiSvc ai.Inferrer, opts ...CRMOption) *CRMService {
+	s := &CRMService{repo: newCRMRepository(pool), ai: aiSvc, winProbability: defaultWinProbability}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 // CreateLead creates a new contact as a lead, triggers AI scoring, and creates a deal.
@@ -243,8 +286,7 @@ func (s *CRMService) CreateLead(ctx context.Context, orgID uuid.UUID, firstName 
 		return nil, uuid.Nil, 0, err
 	}
 
-	// Simulate AI win probability (0–100)
-	aiWinProb := 40 + rand.Intn(41) // 40–80 range for a realistic score
+	aiWinProb := s.winProbability(estimatedDealSize)
 
 	// Generate a deterministic assigned_to (in production this would come from routing logic)
 	assignedTo := uuid.New()
