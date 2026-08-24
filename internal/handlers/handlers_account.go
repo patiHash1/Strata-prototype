@@ -1,10 +1,8 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 
-	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
 
@@ -109,11 +107,7 @@ func (a *App) updateAccountHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := a.Users.UpdateProfile(r.Context(), userID, req.FullName, req.Email, req.PhoneNumber); err != nil {
-		if errors.Is(err, services.ErrEmailAlreadyExists) {
-			utils.WriteErr(w, http.StatusConflict, err.Error())
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not update profile")
+		writeServiceErr(w, err, "could not update profile")
 		return
 	}
 

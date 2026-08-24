@@ -11,6 +11,7 @@ import (
 	"github.com/patiHash1/Strata-prototype/internal/database"
 	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
+	"github.com/patiHash1/Strata-prototype/internal/services/apikey"
 )
 
 // App is the top-level application container.
@@ -28,6 +29,7 @@ type App struct {
 	SupplyChain  *services.SupplyChainService
 	HR           *services.HRService
 	Platform     *services.PlatformService
+	APIKey       *apikey.APIKeyService
 	Telemetry    *services.Telemetry
 	SOCMonitor   *services.SOCMonitor
 	Maintenance  *services.Maintenance
@@ -53,6 +55,7 @@ func New(
 	supplyChainSvc *services.SupplyChainService,
 	hrSvc *services.HRService,
 	platformSvc *services.PlatformService,
+	apiKeySvc *apikey.APIKeyService,
 	superAdminSvc *services.SuperAdmin,
 	registrationSvc *services.RegistrationService,
 ) *App {
@@ -70,6 +73,7 @@ func New(
 		SupplyChain:  supplyChainSvc,
 		HR:           hrSvc,
 		Platform:     platformSvc,
+		APIKey:       apiKeySvc,
 		Registration: registrationSvc,
 		startedAt:    time.Now(),
 	}

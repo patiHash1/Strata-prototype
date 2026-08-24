@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
 
@@ -95,5 +96,61 @@ func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 		utils.WriteErr(w, http.StatusBadRequest, "invalid request body")
 		return false
 	}
+	return true
+}
+
+// serviceError maps a sentinel error to an HTTP status and response message.
+// An empty message means "use err.Error()". It is the single home for the
+// sentinel→HTTP vocabulary; handlers call writeServiceErr instead of hand-
+// rolling errors.Is ladders.
+var serviceError = map[error]struct {
+	status  int
+	message string
+}{
+	// Account
+	services.ErrEmailAlreadyExists: {http.StatusConflict, ""},
+	// Org
+	services.ErrOrgAlreadyExists:         {http.StatusConflict, ""},
+	services.ErrMemberNotFound:           {http.StatusNotFound, ""},
+	services.ErrMemberNotInOrg:           {http.StatusNotFound, "member not found in this organization"},
+	services.ErrSelfChange:               {http.StatusForbidden, ""},
+	services.ErrMemberAlreadyDeactivated: {http.StatusBadRequest, ""},
+	// CRM
+	services.ErrQuoteNotFound:    {http.StatusNotFound, "quote not found"},
+	services.ErrQuoteNotInOrg:    {http.StatusNotFound, "quote not found in this organization"},
+	services.ErrContactNotFound:  {http.StatusNotFound, "contact not found"},
+	services.ErrContactNotInOrg:  {http.StatusNotFound, "contact not found in this organization"},
+	services.ErrCampaignNotFound: {http.StatusNotFound, "campaign not found"},
+	services.ErrCampaignNotInOrg: {http.StatusNotFound, "campaign not found in this organization"},
+	// Accounting
+	services.ErrNoJournalItems:  {http.StatusBadRequest, ""},
+	services.ErrUnbalancedEntry: {http.StatusBadRequest, ""},
+	services.ErrAccountNotFound: {http.StatusNotFound, ""},
+	services.ErrAccountNotInOrg: {http.StatusNotFound, ""},
+	services.ErrAssetNotFound:   {http.StatusNotFound, ""},
+	// HR
+	services.ErrEmployeeNotFound: {http.StatusNotFound, "no employee record found for this user. Contact your HR administrator."},
+	// SupplyChain
+	services.ErrVehicleNotFound:     {http.StatusNotFound, "vehicle not found"},
+	services.ErrNoShipmentsProvided: {http.StatusBadRequest, ""},
+	services.ErrNoVehiclesProvided:  {http.StatusBadRequest, ""},
+	services.ErrShipmentsNotFound:   {http.StatusNotFound, ""},
+	services.ErrVehiclesNotFound:    {http.StatusNotFound, ""},
+}
+
+// writeServiceErr maps a service error to an HTTP response. If the error is a
+// recognized sentinel it writes the mapped status/message and returns true;
+// otherwise it writes a 500 with fallbackMsg and returns true. Callers use it
+// as: if writeServiceErr(w, err, "could not ...") { return }.
+func writeServiceErr(w http.ResponseWriter, err error, fallbackMsg string) bool {
+	if m, ok := serviceError[err]; ok {
+		msg := m.message
+		if msg == "" {
+			msg = err.Error()
+		}
+		utils.WriteErr(w, m.status, msg)
+		return true
+	}
+	utils.WriteErr(w, http.StatusInternalServerError, fallbackMsg)
 	return true
 }

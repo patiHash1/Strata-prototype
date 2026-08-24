@@ -251,7 +251,7 @@ func (a *App) routes() http.Handler {
 	// ── Fleet & Supply Chain ──
 	// Telemetry ingestion uses API key auth
 	mux.Handle("POST /api/v1/fleet/telematics/ingest",
-		utils.RequireAPIKey(a.SupplyChain, services.PermFleetTelematicsIngest)(
+		utils.RequireAPIKey(a.APIKey, services.PermFleetTelematicsIngest)(
 			http.HandlerFunc(a.ingestTelemetryHandler),
 		),
 	)

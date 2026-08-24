@@ -176,26 +176,6 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := a.Users.GetMemberByID(r.Context(), memberID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not look up member")
-		return
-	}
-	if member == nil {
-		utils.WriteErr(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if member.OrgID != orgID {
-		utils.WriteErr(w, http.StatusNotFound, "member not found in this organization")
-		return
-	}
-
-	// Prevent self-targeting (admin cannot update their own membership via this endpoint)
-	if member.UserID.String() == userID.String() {
-		utils.WriteErr(w, http.StatusForbidden, "cannot update your own membership through this endpoint")
-		return
-	}
-
 	var req updateMemberRequest
 	if !decodeJSON(w, r, &req) {
 		return
@@ -219,8 +199,8 @@ func (a *App) updateMemberHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := a.Users.UpdateMemberRole(r.Context(), memberID, roleUUID); err != nil {
-			utils.WriteErr(w, http.StatusInternalServerError, "could not update member role")
+		if err := a.Users.UpdateMemberRole(r.Context(), orgID, userID, memberID, roleUUID); err != nil {
+			writeServiceErr(w, err, "could not update member role")
 			return
 		}
 	}
@@ -259,33 +239,8 @@ func (a *App) deleteMemberHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := a.Users.GetMemberByID(r.Context(), memberID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not look up member")
-		return
-	}
-	if member == nil {
-		utils.WriteErr(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if member.OrgID != orgID {
-		utils.WriteErr(w, http.StatusNotFound, "member not found in this organization")
-		return
-	}
-
-	// Prevent self-deactivation
-	if member.UserID.String() == userID.String() {
-		utils.WriteErr(w, http.StatusForbidden, "cannot deactivate your own membership")
-		return
-	}
-
-	if !member.IsActive {
-		utils.WriteErr(w, http.StatusBadRequest, "member is already deactivated")
-		return
-	}
-
-	if err := a.Users.DeactivateMember(r.Context(), memberID); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not deactivate member")
+	if err := a.Users.DeactivateMember(r.Context(), orgID, userID, memberID); err != nil {
+		writeServiceErr(w, err, "could not deactivate member")
 		return
 	}
 
@@ -326,28 +281,8 @@ func (a *App) removeMemberHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	member, err := a.Users.GetMemberByID(r.Context(), memberID)
-	if err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not look up member")
-		return
-	}
-	if member == nil {
-		utils.WriteErr(w, http.StatusNotFound, "member not found")
-		return
-	}
-	if member.OrgID != orgID {
-		utils.WriteErr(w, http.StatusNotFound, "member not found in this organization")
-		return
-	}
-
-	// Prevent self-removal
-	if member.UserID.String() == userID.String() {
-		utils.WriteErr(w, http.StatusForbidden, "cannot remove yourself from the organization")
-		return
-	}
-
-	if err := a.Users.RemoveMember(r.Context(), memberID); err != nil {
-		utils.WriteErr(w, http.StatusInternalServerError, "could not remove member")
+	if err := a.Users.RemoveMember(r.Context(), orgID, userID, memberID); err != nil {
+		writeServiceErr(w, err, "could not remove member")
 		return
 	}
 

@@ -187,13 +187,57 @@ func (r *userRepository) ListMembersByUser(ctx context.Context, userID uuid.UUID
 
 // ---- Service ----
 
-type UserService struct {
-	repo *userRepository
+// UserRepository is the seam UserService depends on. Declared consumer-side,
+// minimal — only what the service's implementation uses; the pgx-backed
+// userRepository satisfies it implicitly.
+type UserRepository interface {
+	Create(ctx context.Context, u *User) error
+	GetByEmail(ctx context.Context, email string) (*User, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	AddMember(ctx context.Context, m *OrganizationMember) error
+	GetMember(ctx context.Context, orgID, userID uuid.UUID) (*OrganizationMember, error)
+	UpdateMemberRole(ctx context.Context, memberID, roleID uuid.UUID) error
+	DeactivateMember(ctx context.Context, memberID uuid.UUID) error
+	RemoveMember(ctx context.Context, memberID uuid.UUID) error
+	GetMemberByID(ctx context.Context, memberID uuid.UUID) (*OrganizationMember, error)
+	ListMembersByUser(ctx context.Context, userID uuid.UUID, offset, limit int) ([]OrganizationMember, int, error)
+	Update(ctx context.Context, id uuid.UUID, fullName *string, email *string, phone *string) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	BanUser(ctx context.Context, id uuid.UUID, reason string) error
+	UnbanUser(ctx context.Context, id uuid.UUID) error
+	ListAllUsers(ctx context.Context, offset, limit int) ([]User, int, error)
+	CountActiveUsers(ctx context.Context, within time.Duration) (int, error)
+	UpdateLastLoginAt(ctx context.Context, userID uuid.UUID) error
 }
 
-func NewUserService(pool *pgxpool.Pool) *UserService {
-	return &UserService{repo: newUserRepository(pool)}
+type UserService struct {
+	repo UserRepository
 }
+
+// Option customises a UserService at construction.
+type UserOption func(*UserService)
+
+// WithUserRepo substitutes the repository adapter (in-memory for tests).
+func WithUserRepo(repo UserRepository) UserOption {
+	return func(s *UserService) { s.repo = repo }
+}
+
+func NewUserService(pool *pgxpool.Pool, opts ...UserOption) *UserService {
+	s := &UserService{repo: newUserRepository(pool)}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
+}
+
+// Domain errors
+var (
+	ErrEmailAlreadyExists       = errors.New("user with this email already exists")
+	ErrMemberNotFound           = errors.New("member not found")
+	ErrMemberNotInOrg           = errors.New("member does not belong to this organization")
+	ErrSelfChange               = errors.New("cannot change your own membership through this endpoint")
+	ErrMemberAlreadyDeactivated = errors.New("member is already deactivated")
+)
 
 func (s *UserService) Create(ctx context.Context, email, passwordHash, fullName string) (*User, error) {
 	existing, err := s.repo.GetByEmail(ctx, email)
@@ -231,20 +275,57 @@ func (s *UserService) GetMember(ctx context.Context, orgID, userID uuid.UUID) (*
 	return s.repo.GetMember(ctx, orgID, userID)
 }
 
-func (s *UserService) UpdateMemberRole(ctx context.Context, memberID, roleID uuid.UUID) error {
+// UpdateMemberRole changes a member's role, but only after verifying the
+// member exists, belongs to orgID, and is not the acting user.
+func (s *UserService) UpdateMemberRole(ctx context.Context, orgID, actingUserID, memberID, roleID uuid.UUID) error {
+	member, err := s.requireMemberForOrg(ctx, orgID, actingUserID, memberID)
+	if err != nil {
+		return err
+	}
+	_ = member
 	return s.repo.UpdateMemberRole(ctx, memberID, roleID)
 }
 
-func (s *UserService) DeactivateMember(ctx context.Context, memberID uuid.UUID) error {
+// DeactivateMember soft-deletes a member, guarding existence, org ownership,
+// self-targeting, and double-deactivation.
+func (s *UserService) DeactivateMember(ctx context.Context, orgID, actingUserID, memberID uuid.UUID) error {
+	member, err := s.requireMemberForOrg(ctx, orgID, actingUserID, memberID)
+	if err != nil {
+		return err
+	}
+	if !member.IsActive {
+		return ErrMemberAlreadyDeactivated
+	}
 	return s.repo.DeactivateMember(ctx, memberID)
 }
 
-func (s *UserService) RemoveMember(ctx context.Context, memberID uuid.UUID) error {
+// RemoveMember deletes a membership row, guarding existence, org ownership,
+// and self-removal.
+func (s *UserService) RemoveMember(ctx context.Context, orgID, actingUserID, memberID uuid.UUID) error {
+	_, err := s.requireMemberForOrg(ctx, orgID, actingUserID, memberID)
+	if err != nil {
+		return err
+	}
 	return s.repo.RemoveMember(ctx, memberID)
 }
 
-func (s *UserService) GetMemberByID(ctx context.Context, memberID uuid.UUID) (*OrganizationMember, error) {
-	return s.repo.GetMemberByID(ctx, memberID)
+// requireMemberForOrg fetches a member and applies the shared guards:
+// exists, belongs to orgID, not the acting user.
+func (s *UserService) requireMemberForOrg(ctx context.Context, orgID, actingUserID, memberID uuid.UUID) (*OrganizationMember, error) {
+	member, err := s.repo.GetMemberByID(ctx, memberID)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, ErrMemberNotFound
+	}
+	if member.OrgID != orgID {
+		return nil, ErrMemberNotInOrg
+	}
+	if member.UserID == actingUserID {
+		return nil, ErrSelfChange
+	}
+	return member, nil
 }
 
 func (s *UserService) ListMembersByUser(ctx context.Context, userID uuid.UUID) ([]OrganizationMember, error) {
@@ -252,11 +333,6 @@ func (s *UserService) ListMembersByUser(ctx context.Context, userID uuid.UUID) (
 	// user's memberships (e.g. login). Internally it uses a sane page size.
 	members, _, err := s.repo.ListMembersByUser(ctx, userID, 0, 100)
 	return members, err
-}
-
-// ListMembersByUserPage returns a paginated list of a user's memberships.
-func (s *UserService) ListMembersByUserPage(ctx context.Context, userID uuid.UUID, offset, limit int) ([]OrganizationMember, int, error) {
-	return s.repo.ListMembersByUser(ctx, userID, offset, limit)
 }
 
 // UpdateProfile allows a user to modify their own profile fields.
@@ -277,21 +353,12 @@ func (s *UserService) UpdateProfile(ctx context.Context, id uuid.UUID, fullName,
 
 // CountActiveUsers returns the number of users who logged in within the given duration.
 func (s *UserService) CountActiveUsers(ctx context.Context, within time.Duration) (int, error) {
-	var count int
-	err := s.repo.pool.QueryRow(ctx, `
-		SELECT COUNT(*) FROM users
-		WHERE last_login_at IS NOT NULL
-		AND last_login_at > NOW() - make_interval(secs => $1)
-	`, within.Seconds()).Scan(&count)
-	return count, err
+	return s.repo.CountActiveUsers(ctx, within)
 }
 
 // UpdateLastLoginAt sets the last_login_at timestamp for a user.
 func (s *UserService) UpdateLastLoginAt(ctx context.Context, userID uuid.UUID) error {
-	_, err := s.repo.pool.Exec(ctx, `
-		UPDATE users SET last_login_at = NOW() WHERE id = $1
-	`, userID)
-	return err
+	return s.repo.UpdateLastLoginAt(ctx, userID)
 }
 
 // DeleteAccount removes the user record for the given ID.
@@ -387,7 +454,17 @@ func (r *userRepository) ListAllUsers(ctx context.Context, offset, limit int) ([
 	return users, total, rows.Err()
 }
 
-// Domain errors
-var (
-	ErrEmailAlreadyExists = errors.New("user with this email already exists")
-)
+func (r *userRepository) CountActiveUsers(ctx context.Context, within time.Duration) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM users
+		WHERE last_login_at IS NOT NULL
+		AND last_login_at > NOW() - make_interval(secs => $1)
+	`, within.Seconds()).Scan(&count)
+	return count, err
+}
+
+func (r *userRepository) UpdateLastLoginAt(ctx context.Context, userID uuid.UUID) error {
+	_, err := r.pool.Exec(ctx, `UPDATE users SET last_login_at = NOW() WHERE id = $1`, userID)
+	return err
+}

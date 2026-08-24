@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -200,14 +199,6 @@ type RoutePlan struct {
 	CarbonOffsetKg     float64    `json:"carbon_offset_kg"`
 }
 
-// APIKeyRecord represents a stored API key row for validation purposes.
-type apiKeyRecord struct {
-	OrgID     uuid.UUID
-	KeyPrefix string
-	KeyHash   string
-	Scopes    []string
-}
-
 // ---- Repository ----
 
 type supplyChainRepository struct {
@@ -286,41 +277,6 @@ func (r *supplyChainRepository) GetVehiclesByIDs(ctx context.Context, orgID uuid
 		vehicles = append(vehicles, v)
 	}
 	return vehicles, rows.Err()
-}
-
-// GetAPIKeyByPrefix fetches an active API key record by its prefix.
-func (r *supplyChainRepository) GetAPIKeyByPrefix(ctx context.Context, prefix string) (*apiKeyRecord, error) {
-	k := &apiKeyRecord{}
-	err := r.pool.QueryRow(ctx, `
-		SELECT org_id, key_prefix, key_hash, COALESCE(scopes, '{}') FROM api_keys
-		WHERE key_prefix = $1 AND (expires_at IS NULL OR expires_at > NOW())
-	`, prefix).Scan(&k.OrgID, &k.KeyPrefix, &k.KeyHash, &k.Scopes)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	return k, err
-}
-
-// GetActiveAPIKeyRecords fetches all non-expired API keys for bcrypt verification.
-func (r *supplyChainRepository) GetActiveAPIKeyRecords(ctx context.Context) ([]apiKeyRecord, error) {
-	rows, err := r.pool.Query(ctx, `
-		SELECT org_id, key_hash, COALESCE(scopes, '{}') FROM api_keys
-		WHERE expires_at IS NULL OR expires_at > NOW()
-	`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var keys []apiKeyRecord
-	for rows.Next() {
-		var k apiKeyRecord
-		if err := rows.Scan(&k.OrgID, &k.KeyHash, &k.Scopes); err != nil {
-			return nil, err
-		}
-		keys = append(keys, k)
-	}
-	return keys, rows.Err()
 }
 
 func (r *supplyChainRepository) GetProductsByOrg(ctx context.Context, orgID uuid.UUID) ([]Product, error) {
@@ -491,14 +447,13 @@ func (r *supplyChainRepository) GetPurchaseOrdersBySupplier(ctx context.Context,
 
 // SupplyChainService handles supply chain, manufacturing, fleet, and inventory operations.
 type SupplyChainService struct {
-	repo    *supplyChainRepository
-	authSvc *AuthService
-	ai      ai.Inferrer
+	repo *supplyChainRepository
+	ai   ai.Inferrer
 }
 
 // NewSupplyChainService creates a new SupplyChainService.
-func NewSupplyChainService(pool *pgxpool.Pool, authSvc *AuthService, aiSvc ai.Inferrer) *SupplyChainService {
-	return &SupplyChainService{repo: newSupplyChainRepository(pool), authSvc: authSvc, ai: aiSvc}
+func NewSupplyChainService(pool *pgxpool.Pool, aiSvc ai.Inferrer) *SupplyChainService {
+	return &SupplyChainService{repo: newSupplyChainRepository(pool), ai: aiSvc}
 }
 
 // IngestTelemetry processes a vehicle telemetry data point from an API key-authenticated source.
@@ -685,51 +640,6 @@ func (s *SupplyChainService) GetReorderPredictions(ctx context.Context, orgID uu
 		predictions = []StockoutPrediction{}
 	}
 	return predictions, nil
-}
-
-// ValidateAPIKey checks the raw API key against stored bcrypt hashes and returns
-// the org ID and scopes if a match is found.
-func (s *SupplyChainService) ValidateAPIKey(ctx context.Context, rawKey string) (uuid.UUID, []string, error) {
-	// API keys are in the format "strata_<prefix>_<random>".
-	// We extract the prefix for O(1) DB lookup, then bcrypt-compare only that one hash.
-	prefix := extractAPIKeyPrefix(rawKey)
-	if prefix == "" {
-		return uuid.Nil, nil, ErrAPIKeyInvalid
-	}
-
-	k, err := s.repo.GetAPIKeyByPrefix(ctx, prefix)
-	if err != nil {
-		return uuid.Nil, nil, err
-	}
-	if k == nil {
-		return uuid.Nil, nil, ErrAPIKeyInvalid
-	}
-
-	if !s.authSvc.VerifyPassword(k.KeyHash, rawKey) {
-		return uuid.Nil, nil, ErrAPIKeyInvalid
-	}
-
-	if k.Scopes == nil {
-		k.Scopes = []string{}
-	}
-	return k.OrgID, k.Scopes, nil
-}
-
-// extractAPIKeyPrefix extracts the prefix portion from an API key.
-// Keys are formatted as "strata_<12-char-prefix>_<rest>".
-// Returns empty string if the format is invalid.
-func extractAPIKeyPrefix(rawKey string) string {
-	// Expected format: strata_<prefix>_<random>
-	const prefix = "strata_"
-	if !strings.HasPrefix(rawKey, prefix) {
-		return ""
-	}
-	rest := rawKey[len(prefix):]
-	// The prefix is the first 12 alphanumeric characters after "strata_"
-	if len(rest) < 12 {
-		return ""
-	}
-	return rest[:12]
 }
 
 // ---- BOM & Work Orders ----
@@ -1086,6 +996,5 @@ var (
 	ErrNoVehiclesProvided  = errors.New("at least one vehicle_id is required")
 	ErrShipmentsNotFound   = errors.New("shipments not found")
 	ErrVehiclesNotFound    = errors.New("vehicles not found")
-	ErrAPIKeyInvalid       = errors.New("invalid or expired API key")
 	ErrInsufficientStock   = errors.New("insufficient stock available")
 )

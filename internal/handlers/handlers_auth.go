@@ -2,12 +2,10 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/patiHash1/Strata-prototype/internal/logger"
-	"github.com/patiHash1/Strata-prototype/internal/services"
 	"github.com/patiHash1/Strata-prototype/internal/utils"
 )
 
@@ -83,15 +81,7 @@ func (a *App) registerHandler(w http.ResponseWriter, r *http.Request) {
 		req.OwnerFullName,
 	)
 	if err != nil {
-		if errors.Is(err, services.ErrOrgAlreadyExists) {
-			utils.WriteErr(w, http.StatusConflict, err.Error())
-			return
-		}
-		if errors.Is(err, services.ErrEmailAlreadyExists) {
-			utils.WriteErr(w, http.StatusConflict, err.Error())
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not complete registration")
+		writeServiceErr(w, err, "could not complete registration")
 		return
 	}
 

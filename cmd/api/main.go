@@ -12,6 +12,7 @@ import (
 	"github.com/patiHash1/Strata-prototype/internal/handlers"
 	"github.com/patiHash1/Strata-prototype/internal/logger"
 	"github.com/patiHash1/Strata-prototype/internal/services"
+	"github.com/patiHash1/Strata-prototype/internal/services/apikey"
 	"github.com/redis/go-redis/v9"
 
 	// Auto-registers the swagger spec so http-swagger can serve it.
@@ -106,9 +107,12 @@ func main() {
 
 	crmSvc := services.NewCRMService(db.Pool, aiSvc)
 	accountingSvc := services.NewAccountingService(db.Pool, aiSvc)
-	supplyChainSvc := services.NewSupplyChainService(db.Pool, authSvc, aiSvc)
+	supplyChainSvc := services.NewSupplyChainService(db.Pool, aiSvc)
 	hrSvc := services.NewHRService(db.Pool, aiSvc)
 	platformSvc := services.NewPlatformService(db.Pool, aiSvc)
+
+	// API-key auth for telematics ingress (own module, out of SupplyChain).
+	apiKeySvc := apikey.NewAPIKeyService(db.Pool, nil)
 
 	// ── Seed super admin (idempotent) ──
 	if cfg.SuperAdminUname != "" && cfg.SuperAdminPword != "" {
@@ -144,7 +148,7 @@ func main() {
 	registrationSvc := services.NewRegistrationService(db.Pool)
 
 	// ── Application ──
-	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, superAdminSvc, registrationSvc)
+	app := handlers.New(cfg, db, authSvc, userSvc, orgSvc, rbacSvc, billingSvc, mailerSvc, crmSvc, accountingSvc, supplyChainSvc, hrSvc, platformSvc, apiKeySvc, superAdminSvc, registrationSvc)
 
 	// ── Signals ──
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

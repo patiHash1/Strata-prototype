@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -87,18 +86,7 @@ func (a *App) createJournalEntryHandler(w http.ResponseWriter, r *http.Request) 
 
 	entry, err := a.Accounting.PostJournalEntry(r.Context(), orgID, entryDate, req.Memo, items)
 	if err != nil {
-		switch err {
-		case services.ErrNoJournalItems:
-			utils.WriteErr(w, http.StatusBadRequest, err.Error())
-		case services.ErrUnbalancedEntry:
-			utils.WriteErr(w, http.StatusBadRequest, err.Error())
-		case services.ErrAccountNotFound:
-			utils.WriteErr(w, http.StatusNotFound, err.Error())
-		case services.ErrAccountNotInOrg:
-			utils.WriteErr(w, http.StatusNotFound, err.Error())
-		default:
-			utils.WriteErr(w, http.StatusInternalServerError, "could not post journal entry")
-		}
+		writeServiceErr(w, err, "could not post journal entry")
 		return
 	}
 
@@ -372,11 +360,7 @@ func (a *App) getDepreciationHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.Accounting.CalculateDepreciation(r.Context(), assetID, fromDate, toDate)
 	if err != nil {
-		if errors.Is(err, services.ErrAssetNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, err.Error())
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not calculate depreciation")
+		writeServiceErr(w, err, "could not calculate depreciation")
 		return
 	}
 

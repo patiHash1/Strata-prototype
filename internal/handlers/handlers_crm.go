@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
@@ -135,15 +134,7 @@ func (a *App) analyzeRiskHandler(w http.ResponseWriter, r *http.Request) {
 
 	riskScore, clauses, err := a.CRM.AnalyzeContractRisk(r.Context(), orgID, quoteID, req.ContractText)
 	if err != nil {
-		if errors.Is(err, services.ErrQuoteNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, "quote not found")
-			return
-		}
-		if errors.Is(err, services.ErrQuoteNotInOrg) {
-			utils.WriteErr(w, http.StatusNotFound, "quote not found in this organization")
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not analyze contract risk")
+		writeServiceErr(w, err, "could not analyze contract risk")
 		return
 	}
 
@@ -214,15 +205,7 @@ func (a *App) createTicketHandler(w http.ResponseWriter, r *http.Request) {
 
 	ticket, err := a.CRM.CreateTicket(r.Context(), orgID, contactID, req.Subject, req.Description)
 	if err != nil {
-		if errors.Is(err, services.ErrContactNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, "contact not found")
-			return
-		}
-		if errors.Is(err, services.ErrContactNotInOrg) {
-			utils.WriteErr(w, http.StatusNotFound, "contact not found in this organization")
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not create ticket")
+		writeServiceErr(w, err, "could not create ticket")
 		return
 	}
 
@@ -442,15 +425,7 @@ func (a *App) launchCampaignHandler(w http.ResponseWriter, r *http.Request) {
 
 	campaign, estimatedReach, err := a.CRM.LaunchCampaign(r.Context(), orgID, campaignID)
 	if err != nil {
-		if errors.Is(err, services.ErrCampaignNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, "campaign not found")
-			return
-		}
-		if errors.Is(err, services.ErrCampaignNotInOrg) {
-			utils.WriteErr(w, http.StatusNotFound, "campaign not found in this organization")
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not launch campaign")
+		writeServiceErr(w, err, "could not launch campaign")
 		return
 	}
 

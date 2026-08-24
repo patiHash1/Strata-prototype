@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
@@ -80,11 +79,7 @@ func (a *App) ingestTelemetryHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.SupplyChain.IngestTelemetry(r.Context(), orgID, input)
 	if err != nil {
-		if errors.Is(err, services.ErrVehicleNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, "vehicle not found")
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not ingest telemetry")
+		writeServiceErr(w, err, "could not ingest telemetry")
 		return
 	}
 
@@ -168,15 +163,7 @@ func (a *App) optimizeRoutesHandler(w http.ResponseWriter, r *http.Request) {
 
 	plan, err := a.SupplyChain.OptimizeRoutes(r.Context(), orgID, shipmentIDs, vehicleIDs)
 	if err != nil {
-		if errors.Is(err, services.ErrNoShipmentsProvided) || errors.Is(err, services.ErrNoVehiclesProvided) {
-			utils.WriteErr(w, http.StatusBadRequest, err.Error())
-			return
-		}
-		if errors.Is(err, services.ErrShipmentsNotFound) || errors.Is(err, services.ErrVehiclesNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, err.Error())
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not optimize routes")
+		writeServiceErr(w, err, "could not optimize routes")
 		return
 	}
 

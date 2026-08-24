@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"errors"
 	"io"
 	"net/http"
 	"time"
@@ -63,11 +62,7 @@ func (a *App) clockInHandler(w http.ResponseWriter, r *http.Request) {
 
 	result, err := a.HR.ClockIn(r.Context(), orgID, userID, req.Latitude, req.Longitude)
 	if err != nil {
-		if errors.Is(err, services.ErrEmployeeNotFound) {
-			utils.WriteErr(w, http.StatusNotFound, "no employee record found for this user. Contact your HR administrator.")
-			return
-		}
-		utils.WriteErr(w, http.StatusInternalServerError, "could not record clock-in")
+		writeServiceErr(w, err, "could not record clock-in")
 		return
 	}
 

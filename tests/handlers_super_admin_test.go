@@ -24,7 +24,7 @@ import (
 func TestStaticCSSHandler(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -52,7 +52,7 @@ func TestStaticCSSHandler(t *testing.T) {
 func TestStaticCSSNotFound(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -75,7 +75,7 @@ func TestStaticCSSNotFound(t *testing.T) {
 func TestSuperAdminLoginPage(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -130,7 +130,7 @@ func TestSuperAdminLoginPage(t *testing.T) {
 func TestSuperAdminLoginPostInvalid(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -171,7 +171,7 @@ func TestSuperAdminLoginPostInvalid(t *testing.T) {
 func TestSuperAdminDashboardRedirect(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -204,7 +204,7 @@ func TestSuperAdminDashboardRendered(t *testing.T) {
 	authSvc := services.NewAuthService("test-secret", "strata")
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -285,7 +285,7 @@ func TestMetricsFragmentHandler(t *testing.T) {
 	authSvc := services.NewAuthService("test-secret", "strata")
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
@@ -361,7 +361,7 @@ func TestSecuritySSEStream(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -486,7 +486,7 @@ func TestMaintenanceRulesPageRendered(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -561,7 +561,7 @@ func TestMaintenanceRulesFragmentRendered(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -621,7 +621,7 @@ func TestCreateMaintenanceRuleValidation(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -680,7 +680,7 @@ func TestCreateMaintenanceRuleInvalidJSON(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -727,7 +727,7 @@ func TestDeleteMaintenanceRuleInvalidID(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, authSvc, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -767,7 +767,7 @@ func TestModuleHealthEndpoint(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -817,7 +817,7 @@ func TestModuleHealthEndpointUnderMaintenance(t *testing.T) {
 
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 		superAdminSvc,
 		nil,
 	)
@@ -852,7 +852,7 @@ func TestModuleHealthEndpointUnderMaintenance(t *testing.T) {
 func TestModuleHealthEndpointNilService(t *testing.T) {
 	app := handlers.New(
 		config.Config{Port: 8080},
-		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
+		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
 	)
 
 	handler := app.RoutesForTest()
